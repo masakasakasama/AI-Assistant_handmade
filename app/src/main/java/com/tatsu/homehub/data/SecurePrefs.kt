@@ -17,10 +17,11 @@ class SecurePrefs(context: Context) {
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
         val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
         val iv = cipher.iv
-        val payload = ByteArray(1 + iv.size + encrypted.size)
-        payload[0] = iv.size.toByte()
-        System.arraycopy(iv, 0, payload, 1, iv.size)
-        System.arraycopy(encrypted, 0, payload, 1 + iv.size, encrypted.size)
+        val payload = ByteArray(2 + iv.size + encrypted.size)
+        payload[0] = FORMAT_MARKER
+        payload[1] = iv.size.toByte()
+        System.arraycopy(iv, 0, payload, 2, iv.size)
+        System.arraycopy(encrypted, 0, payload, 2 + iv.size, encrypted.size)
 
         return prefs.edit()
             .putString(name, Base64.encodeToString(payload, Base64.NO_WRAP))
@@ -32,16 +33,17 @@ class SecurePrefs(context: Context) {
         return runCatching {
             val payload = Base64.decode(encoded, Base64.NO_WRAP)
 
-            // v0.1.1+ stores IV length in byte 0.
+            // v0.1.1+ uses a marker + IV length.
             // v0.1.0 stored a raw 12-byte IV followed by ciphertext.
             val (iv, encrypted) = if (
-                payload.isNotEmpty() &&
-                payload[0].toInt() in 12..16 &&
-                payload.size > 1 + payload[0].toInt()
+                payload.size > 2 &&
+                payload[0] == FORMAT_MARKER &&
+                payload[1].toInt() in 12..16 &&
+                payload.size > 2 + payload[1].toInt()
             ) {
-                val ivLength = payload[0].toInt()
-                payload.copyOfRange(1, 1 + ivLength) to
-                    payload.copyOfRange(1 + ivLength, payload.size)
+                val ivLength = payload[1].toInt()
+                payload.copyOfRange(2, 2 + ivLength) to
+                    payload.copyOfRange(2 + ivLength, payload.size)
             } else {
                 payload.copyOfRange(0, 12) to payload.copyOfRange(12, payload.size)
             }
@@ -82,6 +84,7 @@ class SecurePrefs(context: Context) {
     }
 
     companion object {
+        private const val FORMAT_MARKER: Byte = 0x54
         const val KEY_SWITCHBOT_TOKEN = "switchbot_token"
         const val KEY_SWITCHBOT_SECRET = "switchbot_secret"
     }
