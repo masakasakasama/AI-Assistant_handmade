@@ -62,7 +62,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    fun hasSwitchBotCredentials(): Boolean = securePrefs.hasSwitchBotCredentials()
+    private val _switchBotConfigured = MutableStateFlow(securePrefs.hasSwitchBotCredentials())
+    val switchBotConfigured: StateFlow<Boolean> = _switchBotConfigured.asStateFlow()
+
+    private val _switchBotTokenSuffix = MutableStateFlow(securePrefs.switchBotTokenSuffix())
+    val switchBotTokenSuffix: StateFlow<String?> = _switchBotTokenSuffix.asStateFlow()
+
+    fun hasSwitchBotCredentials(): Boolean = _switchBotConfigured.value
 
     fun weatherSettings(): WeatherSettings = WeatherSettings(
         label = appPrefs.weatherLabel,
@@ -101,15 +107,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun saveSwitchBotCredentials(token: String, secret: String) {
-        if (token.isBlank() || secret.isBlank()) {
-            _message.value = "Token / Secretを両方入力してください"
-            return
+    fun saveSwitchBotCredentials(token: String, secret: String): Boolean {
+        val cleanToken = token.trim()
+        val cleanSecret = secret.trim()
+
+        if (cleanToken.isBlank() && cleanSecret.isBlank() && hasSwitchBotCredentials()) {
+            return true
         }
-        securePrefs.put(SecurePrefs.KEY_SWITCHBOT_TOKEN, token.trim())
-        securePrefs.put(SecurePrefs.KEY_SWITCHBOT_SECRET, secret.trim())
-        _message.value = "SwitchBot認証情報を端末Keystoreで保存しました"
-        refreshDevices()
+
+        if (cleanToken.isBlank() || cleanSecret.isBlank()) {
+            _message.value = "Open TokenとSecret Keyを両方入力してください"
+            return false
+        }
+
+        return runCatching {
+            val tokenSaved = securePrefs.put(SecurePrefs.KEY_SWITCHBOT_TOKEN, cleanToken)
+            val secretSaved = securePrefs.put(SecurePrefs.KEY_SWITCHBOT_SECRET, cleanSecret)
+            check(tokenSaved && secretSaved) { "端末ストレージへの保存に失敗しました" }
+            check(securePrefs.hasSwitchBotCredentials()) { "保存後の読み戻しに失敗しました" }
+
+            _switchBotConfigured.value = true
+            _switchBotTokenSuffix.value = securePrefs.switchBotTokenSuffix()
+            _message.value = "SwitchBot認証情報を保存しました"
+            refreshDevices()
+            true
+        }.getOrElse { error ->
+            _message.value = "SwitchBot認証情報の保存失敗: " + (error.message ?: "unknown")
+            false
+        }
     }
 
     fun refreshDevices(showMessage: Boolean = true) {
