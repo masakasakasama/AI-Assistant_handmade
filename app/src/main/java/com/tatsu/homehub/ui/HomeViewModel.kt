@@ -5,20 +5,36 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
 import com.tatsu.homehub.data.AlarmRepository
+import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.SecurePrefs
 import com.tatsu.homehub.data.SwitchBotClient
+import com.tatsu.homehub.data.WeatherClient
+import com.tatsu.homehub.data.WeatherSnapshot
 import com.tatsu.homehub.model.AcControlState
 import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
+import com.tatsu.homehub.update.UpdateInfo
+import com.tatsu.homehub.update.UpdateManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+data class WeatherSettings(
+    val label: String,
+    val latitude: Double,
+    val longitude: Double
+)
+
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val securePrefs = SecurePrefs(application)
+    private val appPrefs = AppPrefs(application)
     private val alarmRepo = AlarmRepository(application)
+    private val weatherClient = WeatherClient()
+    private val updateManager = UpdateManager(application)
 
     private val _devices = MutableStateFlow<List<SwitchBotDevice>>(emptyList())
     val devices: StateFlow<List<SwitchBotDevice>> = _devices.asStateFlow()
@@ -29,6 +45,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _acStates = MutableStateFlow<Map<String, AcControlState>>(emptyMap())
     val acStates: StateFlow<Map<String, AcControlState>> = _acStates.asStateFlow()
 
+    private val _weather = MutableStateFlow<WeatherSnapshot?>(null)
+    val weather: StateFlow<WeatherSnapshot?> = _weather.asStateFlow()
+
+    private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
+    val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
+
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
@@ -37,13 +59,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun hasSwitchBotCredentials(): Boolean = securePrefs.hasSwitchBotCredentials()
 
+    fun weatherSettings(): WeatherSettings = WeatherSettings(
+        label = appPrefs.weatherLabel,
+        latitude = appPrefs.weatherLatitude,
+        longitude = appPrefs.weatherLongitude
+    )
+
     init {
         viewModelScope.launch {
             alarmRepo.observeAll().collect { list ->
                 _alarms.value = list
             }
         }
+
+        viewModelScope.launch {
+            while (isActive) {
+                refreshWeatherInternal(showError = _weather.value == null)
+                delay(30 * 60 * 1000L)
+            }
+        }
+
         if (hasSwitchBotCredentials()) refreshDevices()
+
+        if (System.currentTimeMillis() - appPrefs.lastUpdateCheckMillis > 12 * 60 * 60 * 1000L) {
+            checkForUpdate(showMessage = false)
+        }
     }
 
     fun saveSwitchBotCredentials(token: String, secret: String) {
@@ -158,8 +198,75 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun saveWeatherSettings(label: String, latitude: Double, longitude: Double) {
+        appPrefs.weatherLabel = label.ifBlank { "Weather" }
+        appPrefs.weatherLatitude = latitude.coerceIn(-90.0, 90.0)
+        appPrefs.weatherLongitude = longitude.coerceIn(-180.0, 180.0)
+        refreshWeather()
+    }
+
+    fun refreshWeather() {
+        viewModelScope.launch {
+            refreshWeatherInternal(showError = true)
+        }
+    }
+
+    fun checkForUpdate(showMessage: Boolean = true) {
+        viewModelScope.launch {
+            updateManager.checkLatest()
+                .onSuccess { info ->
+                    appPrefs.lastUpdateCheckMillis = System.currentTimeMillis()
+                    _updateInfo.value = info
+                    if (showMessage) {
+                        _message.value = if (info == null) {
+                            "最新バージョンです"
+                        } else {
+                            "v" + info.version + " が利用可能です"
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    if (showMessage) {
+                        _message.value = "更新確認失敗: " + (error.message ?: "unknown")
+                    }
+                }
+        }
+    }
+
+    fun installUpdate() {
+        val info = _updateInfo.value ?: run {
+            _message.value = "利用可能な更新はありません"
+            return
+        }
+
+        viewModelScope.launch {
+            _message.value = "v" + info.version + " をダウンロード中"
+            updateManager.downloadAndOpenInstaller(info)
+                .onSuccess {
+                    _message.value = "インストーラーを開きました"
+                }
+                .onFailure { error ->
+                    _message.value = error.message ?: "更新に失敗しました"
+                }
+        }
+    }
+
     fun clearMessage() {
         _message.value = null
+    }
+
+    private suspend fun refreshWeatherInternal(showError: Boolean) {
+        weatherClient.current(
+            label = appPrefs.weatherLabel,
+            latitude = appPrefs.weatherLatitude,
+            longitude = appPrefs.weatherLongitude
+        )
+            .onSuccess { _weather.value = it }
+            .onFailure { error ->
+                if (showError) {
+                    _message.value = "天気取得失敗: " + (error.message ?: "unknown")
+                }
+            }
     }
 
     private fun clientOrNull(): SwitchBotClient? {
