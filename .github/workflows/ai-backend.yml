@@ -1,0 +1,31 @@
+name: AI backend check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ai-backend/**"
+      - ".github/workflows/ai-backend.yml"
+  pull_request:
+    paths:
+      - "ai-backend/**"
+      - ".github/workflows/ai-backend.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Syntax check
+        run: |
+          node --check ai-backend/src/openai.mjs
+          node --check ai-backend/src/router.mjs
+          node --check ai-backend/src/reasoner.mjs
+          node --check ai-backend/src/dispatch.mjs
+          node --check ai-backend/src/server.mjs
+      - name: Unit tests
+        working-directory: ai-backend
+        run: npm test
