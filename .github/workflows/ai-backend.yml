@@ -25,6 +25,7 @@ jobs:
           node --check ai-backend/src/router.mjs
           node --check ai-backend/src/reasoner.mjs
           node --check ai-backend/src/dispatch.mjs
+          node --check ai-backend/src/simple.mjs
           node --check ai-backend/src/server.mjs
       - name: Unit tests
         working-directory: ai-backend
