@@ -15,6 +15,9 @@ data class AiDispatchResult(
     val target: String?,
     val answerModel: String?,
     val answerText: String?,
+    val clientLatencyMs: Long = 0,
+    val routerMs: Long = 0,
+    val answerMs: Long = 0,
     val latencyMs: Long
 )
 
@@ -25,6 +28,7 @@ class AiBackendClient {
         context: String = ""
     ): Result<AiDispatchResult> = withContext(Dispatchers.IO) {
         runCatching {
+            val started = android.os.SystemClock.elapsedRealtime()
             val endpoint = baseUrl.trim().trimEnd('/') + "/api/dispatch"
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
@@ -65,6 +69,9 @@ class AiBackendClient {
                 target = route.optString("target").takeIf { it.isNotBlank() && it != "null" },
                 answerModel = answer?.optString("model")?.takeIf { it.isNotBlank() },
                 answerText = answer?.optString("text")?.takeIf { it.isNotBlank() },
+                clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                routerMs = json.optJSONObject("timings")?.optLong("routerMs") ?: 0,
+                answerMs = json.optJSONObject("timings")?.optLong("answerMs") ?: 0,
                 latencyMs = json.optLong("latencyMs", 0L)
             )
         }
@@ -72,7 +79,7 @@ class AiBackendClient {
 
     suspend fun health(baseUrl: String): Result<Boolean> = withContext(Dispatchers.IO) {
         runCatching {
-            val endpoint = baseUrl.trim().trimEnd('/') + "/health"
+            val endpoint = baseUrl.trim().trimEnd('/') + "/api/health"
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 8_000

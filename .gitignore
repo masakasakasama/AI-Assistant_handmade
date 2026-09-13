@@ -4,3 +4,8 @@ local.properties
 build/
 **/build/
 *.iml
+.env
+.env.*
+!.env.example
+benchmark-results/
+**/benchmark-results/

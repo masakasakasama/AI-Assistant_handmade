@@ -1,5 +1,20 @@
 package com.tatsu.homehub.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import com.tatsu.homehub.alarm.AlarmScheduler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -55,11 +70,11 @@ import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-private enum class DashboardTab(val label: String, val icon: String) {
-    HOME("ホーム", "⌂"),
-    DEVICES("家電", "◉"),
-    ALARMS("アラーム", "◷"),
-    AI("AI", "✦")
+private enum class DashboardTab(val label: String, val icon: ImageVector) {
+    HOME("ホーム", Icons.Outlined.Home),
+    DEVICES("家電", Icons.Outlined.Lightbulb),
+    ALARMS("アラーム", Icons.Outlined.Alarm),
+    AI("AI", Icons.Outlined.AutoAwesome)
 }
 
 @Composable
@@ -93,7 +108,16 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
+                DashboardTab.entries.forEach { item ->
+                    NavigationBarItem(selected = tab == item, onClick = { tab = item },
+                        icon = { Icon(item.icon, contentDescription = null) },
+                        label = { Text(item.label) })
+                }
+            }
+        }
     ) { inner ->
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize().padding(inner)
@@ -102,7 +126,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
             val edge = if (tablet) 28.dp else 16.dp
 
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = edge),
+                modifier = Modifier.widthIn(max = 1120.dp).fillMaxSize().align(Alignment.TopCenter).padding(horizontal = edge),
                 verticalArrangement = Arrangement.spacedBy(if (tablet) 18.dp else 14.dp)
             ) {
                 item {
@@ -120,9 +144,6 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                     )
                 }
 
-                item {
-                    CategoryBar(tab = tab, onSelect = { tab = it })
-                }
 
                 when (tab) {
                     DashboardTab.HOME -> {
@@ -148,15 +169,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                             }
                         }
                         item {
-                            AiCard(
-                                online = aiBackendOnline,
-                                testing = aiTesting,
-                                result = aiResult,
-                                backendUrl = viewModel.aiBackendUrl(),
-                                onTest = viewModel::testAi,
-                                onCheck = { viewModel.checkAiBackend() },
-                                onSettings = { showSettings = true }
-                            )
+                            AssistantEntry(aiBackendOnline, onOpen = { tab = DashboardTab.AI })
                         }
                         item {
                             AlarmList(
@@ -264,127 +277,46 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
 }
 
 @Composable
-private fun DashboardHeader(
-    weather: WeatherSnapshot?,
-    tablet: Boolean,
-    loading: Boolean,
-    onRefresh: () -> Unit,
-    onSettings: () -> Unit
-) {
+private fun DashboardHeader(weather: WeatherSnapshot?, tablet: Boolean, loading: Boolean,
+    onRefresh: () -> Unit, onSettings: () -> Unit) {
     var now by remember { mutableStateOf(LocalDateTime.now()) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            now = LocalDateTime.now()
-            delay(1_000)
+    LaunchedEffect(Unit) { while (true) { now = LocalDateTime.now(); delay(30_000) } }
+    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("TATSU HOME", style = MaterialTheme.typography.labelMedium,
+                    letterSpacing = 3.sp, color = MaterialTheme.colorScheme.primary)
+                Text("おかえりなさい", style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold)
+            }
+            IconButton(onClick = onRefresh) {
+                if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                else Icon(Icons.Outlined.Refresh, "情報を更新")
+            }
+            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "設定") }
         }
-    }
-
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Text(
-                    "⌂",
-                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
-                    fontSize = 24.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Tatsu Home",
-                    style = if (tablet) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    "家を、ひとつの画面で",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (tablet) {
-                HeaderValue(
-                    now.format(DateTimeFormatter.ofPattern("HH:mm")),
-                    now.format(DateTimeFormatter.ofPattern("M/d E"))
-                )
-                Spacer(Modifier.width(22.dp))
-                HeaderValue(
-                    weather?.let { String.format("%.0f℃", it.temperatureC) } ?: "--℃",
-                    weather?.let { WeatherClient.weatherLabel(it.weatherCode) } ?: "天気"
-                )
-                Spacer(Modifier.width(14.dp))
-            }
-
-            if (loading) {
-                CircularProgressIndicator(modifier = Modifier.width(22.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(8.dp))
-            }
-            TextButton(onClick = onRefresh) { Text("同期") }
-            TextButton(onClick = onSettings) { Text("設定") }
-        }
-
-        if (!tablet) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MiniStatus(
-                    modifier = Modifier.weight(1f),
-                    title = now.format(DateTimeFormatter.ofPattern("HH:mm")),
-                    subtitle = now.format(DateTimeFormatter.ofPattern("M/d E"))
-                )
-                MiniStatus(
-                    modifier = Modifier.weight(1f),
-                    title = weather?.let { String.format("%.0f℃", it.temperatureC) } ?: "--℃",
-                    subtitle = weather?.let { WeatherClient.weatherLabel(it.weatherCode) } ?: "天気"
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeaderValue(title: String, subtitle: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun MiniStatus(modifier: Modifier, title: String, subtitle: String) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun CategoryBar(tab: DashboardTab, onSelect: (DashboardTab) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        DashboardTab.entries.forEach { item ->
-            Surface(
-                onClick = { onSelect(item) },
-                shape = RoundedCornerShape(20.dp),
-                color = if (item == tab) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(item.icon, color = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text(item.label, fontWeight = if (item == tab) FontWeight.SemiBold else FontWeight.Normal)
+        Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface) {
+            Row(Modifier.background(Brush.linearGradient(listOf(
+                MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface)))
+                .padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(now.format(DateTimeFormatter.ofPattern("M月d日 EEEE", java.util.Locale.JAPANESE)),
+                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(now.format(DateTimeFormatter.ofPattern("HH:mm")),
+                        fontSize = if (tablet) 64.sp else 48.sp, fontWeight = FontWeight.Light,
+                        letterSpacing = (-2).sp)
+                    Text("今日も、心地よい一日を。", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Icon(Icons.Outlined.Cloud, null, Modifier.size(30.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(8.dp))
+                    Text(weather?.let { String.format("%.0f°", it.temperatureC) } ?: "—°",
+                        fontSize = 32.sp, fontWeight = FontWeight.Light)
+                    Text(weather?.label ?: "天気", style = MaterialTheme.typography.labelMedium)
+                    Text(weather?.let { WeatherClient.weatherLabel(it.weatherCode) } ?: "未取得",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -392,81 +324,59 @@ private fun CategoryBar(tab: DashboardTab, onSelect: (DashboardTab) -> Unit) {
 }
 
 @Composable
-private fun SummaryGrid(
-    devices: List<SwitchBotDevice>,
-    alarms: List<LocalAlarm>,
-    weather: WeatherSnapshot?,
-    switchBotConfigured: Boolean,
-    aiOnline: Boolean?,
-    tablet: Boolean,
-    onPower: (SwitchBotDevice, Boolean) -> Unit
-) {
-    val nextAlarm = alarms.filter { it.enabled }
-        .minWithOrNull(compareBy<LocalAlarm> { it.hour }.thenBy { it.minute })
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionTitle("お気に入り", "よく使う情報と操作")
-
-        val tiles = mutableListOf<@Composable () -> Unit>()
-        devices.take(if (tablet) 4 else 2).forEach { device ->
-            tiles += {
-                FavoriteDeviceTile(device = device, onPower = { onPower(device, it) })
+private fun SummaryGrid(devices: List<SwitchBotDevice>, alarms: List<LocalAlarm>,
+    weather: WeatherSnapshot?, switchBotConfigured: Boolean, aiOnline: Boolean?, tablet: Boolean,
+    onPower: (SwitchBotDevice, Boolean) -> Unit) {
+    val nextAlarm = alarms.filter { it.enabled }.minByOrNull { AlarmScheduler.nextTrigger(it) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("暮らしのコントロール", "必要なものを、すぐそばに")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.weight(1f)) {
+                InfoTile(Icons.Outlined.Alarm, "次のアラーム",
+                    nextAlarm?.let { String.format("%02d:%02d", it.hour, it.minute) } ?: "予定なし",
+                    nextAlarm?.let { it.label.ifBlank { repeatLabel(it.repeatMask) } } ?: "ゆっくり過ごせます",
+                    MaterialTheme.colorScheme.primary)
+            }
+            Box(Modifier.weight(1f)) {
+                InfoTile(Icons.Outlined.Sensors, "家電",
+                    if (switchBotConfigured) "${devices.size}台" else "接続しよう",
+                    if (switchBotConfigured) "登録済みのデバイス" else "設定から追加できます",
+                    MaterialTheme.colorScheme.secondary)
             }
         }
-        tiles += {
-            InfoTile(
-                icon = "◷",
-                title = "次のアラーム",
-                value = nextAlarm?.let { String.format("%02d:%02d", it.hour, it.minute) } ?: "なし",
-                subtitle = nextAlarm?.label ?: "未設定",
-                accent = MaterialTheme.colorScheme.tertiary
-            )
-        }
-        tiles += {
-            InfoTile(
-                icon = "☁",
-                title = weather?.label ?: "天気",
-                value = weather?.let { String.format("%.0f℃", it.temperatureC) } ?: "--℃",
-                subtitle = weather?.let { WeatherClient.weatherLabel(it.weatherCode) } ?: "取得中",
-                accent = MaterialTheme.colorScheme.primary
-            )
-        }
-        tiles += {
-            InfoTile(
-                icon = "□",
-                title = "SwitchBot",
-                value = if (switchBotConfigured) "接続済み" else "未設定",
-                subtitle = if (switchBotConfigured) devices.size.toString() + "台" else "設定が必要",
-                accent = if (switchBotConfigured) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline
-            )
-        }
-        tiles += {
-            InfoTile(
-                icon = "✦",
-                title = "AI",
-                value = if (aiOnline == true) "接続済み" else "未接続",
-                subtitle = "Luna → Sol",
-                accent = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        val columns = if (tablet) 4 else 2
-        tiles.chunked(columns).forEach { row ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { tile ->
-                    Column(modifier = Modifier.weight(1f)) { tile() }
-                }
-                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+        devices.filterNot { it.isAirConditioner }.take(if (tablet) 4 else 2).chunked(2).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { device -> Box(Modifier.weight(1f)) {
+                    FavoriteDeviceTile(device, onPower = { onPower(device, it) })
+                } }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
+        }
+    }
+}
+
+@Composable
+private fun AssistantEntry(online: Boolean?, onOpen: () -> Unit) {
+    Surface(onClick = onOpen, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.primaryContainer) {
+        Row(Modifier.padding(22.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text("AIに相談する", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text(if (online == true) "質問を入力して、試してみましょう" else "接続して、あなたの暮らしにAIを",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.Outlined.ArrowForward, "AIを開く")
         }
     }
 }
 
 @Composable
 private fun FavoriteDeviceTile(device: SwitchBotDevice, onPower: (Boolean) -> Unit) {
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(deviceIcon(device), fontSize = 24.sp, color = MaterialTheme.colorScheme.primary)
+            Icon(deviceIcon(device), null, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(12.dp))
             Text(
                 device.name,
@@ -492,10 +402,10 @@ private fun FavoriteDeviceTile(device: SwitchBotDevice, onPower: (Boolean) -> Un
 }
 
 @Composable
-private fun InfoTile(icon: String, title: String, value: String, subtitle: String, accent: Color) {
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(icon, fontSize = 24.sp, color = accent)
+private fun InfoTile(icon: ImageVector, title: String, value: String, subtitle: String, accent: Color) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+        Column(modifier = Modifier.fillMaxWidth().heightIn(min = 142.dp).padding(18.dp)) {
+            Icon(icon, null, Modifier.size(26.dp), tint = accent)
             Spacer(Modifier.height(12.dp))
             Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
@@ -518,7 +428,7 @@ private fun AirConditionerCard(
 ) {
     var draft by remember(device.deviceId, state) { mutableStateOf(state) }
 
-    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -590,7 +500,7 @@ private fun DeviceList(
     onAcChange: (SwitchBotDevice, AcControlState) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("家電", "SwitchBot OpenAPI v1.1")
+        SectionTitle("家電", "部屋の心地よさを整える")
         if (devices.isEmpty()) {
             EmptyCard("SwitchBotが未接続", "設定からOpen Token / Secret Keyを登録")
         } else {
@@ -621,7 +531,7 @@ private fun AiCard(
 ) {
     var prompt by remember { mutableStateOf("エアコンを26度にして") }
 
-    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
@@ -634,9 +544,9 @@ private fun AiCard(
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("AI Assistant", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("AIラボ", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Wake/STT → Luna → 必要時だけ Sol",
+                        "まずは文字で、応答を確かめる",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -650,7 +560,7 @@ private fun AiCard(
             Spacer(Modifier.height(14.dp))
 
             if (backendUrl.isBlank()) {
-                Text("AI Backend URLが未設定", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("AIの接続先を設定すると使えます", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = onSettings) { Text("設定する") }
             } else {
                 OutlinedTextField(
@@ -658,7 +568,7 @@ private fun AiCard(
                     onValueChange = { prompt = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("AIルーティングテスト") },
-                    supportingText = { Text("常時Liveは使わず、Lunaが分類してDeepだけSolへ昇格") },
+                    supportingText = { Text("検証用です。家電・アラームは実行しません。") },
                     minLines = 2
                 )
                 Spacer(Modifier.height(8.dp))
@@ -676,20 +586,21 @@ private fun AiCard(
 
             result?.let {
                 Spacer(Modifier.height(14.dp))
-                Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text(it.routerModel + " → " + it.route, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "confidence " + String.format("%.2f", it.confidence) + " / " + it.latencyMs + "ms",
+                            "confidence " + String.format("%.2f", it.confidence) + " / " + it.latencyMs + "ms（サーバー）",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         it.action?.let { action ->
                             Text("action: " + action + (it.target?.let { target -> " / " + target } ?: ""))
                         }
+                        Text("端末往復 ${it.clientLatencyMs}ms · 分類 ${it.routerMs}ms · 回答 ${it.answerMs}ms", style = MaterialTheme.typography.bodySmall)
                         it.answerModel?.let { model ->
                             Spacer(Modifier.height(6.dp))
-                            Text(model + " にEscalate", color = MaterialTheme.colorScheme.primary)
+                            Text("回答: " + model, color = MaterialTheme.colorScheme.primary)
                         }
                         it.answerText?.let { text ->
                             Spacer(Modifier.height(6.dp))
@@ -712,7 +623,7 @@ private fun AlarmList(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionTitle("アラーム", "Room DB + Exact Alarm", Modifier.weight(1f))
+            SectionTitle("アラーム", "あなたの時間に、きちんと", Modifier.weight(1f))
             Button(onClick = onAdd, shape = RoundedCornerShape(16.dp)) { Text("追加") }
         }
 
@@ -722,6 +633,7 @@ private fun AlarmList(
             alarms.forEach { alarm ->
                 Surface(
                     onClick = { onEdit(alarm) },
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
                     color = MaterialTheme.colorScheme.surface
                 ) {
@@ -729,7 +641,7 @@ private fun AlarmList(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("◷", fontSize = 24.sp, color = MaterialTheme.colorScheme.tertiary)
+                        Icon(Icons.Outlined.Alarm, null, tint = MaterialTheme.colorScheme.tertiary)
                         Spacer(Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -754,7 +666,7 @@ private fun AlarmList(
 
 @Composable
 private fun UpdateRow(updateInfo: UpdateInfo?, onCheck: () -> Unit, onInstall: () -> Unit) {
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("✓", fontSize = 22.sp, color = MaterialTheme.colorScheme.secondary)
             Spacer(Modifier.width(12.dp))
@@ -785,7 +697,7 @@ private fun SectionTitle(title: String, subtitle: String, modifier: Modifier = M
 
 @Composable
 private fun EmptyCard(title: String, subtitle: String) {
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.padding(18.dp)) {
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -984,12 +896,10 @@ private fun AlarmEditorDialog(
     )
 }
 
-private fun deviceIcon(device: SwitchBotDevice): String = when {
-    device.isAirConditioner -> "▰"
-    device.type.contains("Light", ignoreCase = true) -> "●"
-    device.type.contains("Fan", ignoreCase = true) -> "✣"
-    device.type.contains("Humid", ignoreCase = true) -> "◆"
-    else -> "□"
+private fun deviceIcon(device: SwitchBotDevice): ImageVector = when {
+    device.isAirConditioner -> Icons.Outlined.Thermostat
+    device.type.contains("Light", ignoreCase = true) -> Icons.Outlined.Lightbulb
+    else -> Icons.Outlined.PowerSettingsNew
 }
 
 private fun repeatLabel(mask: Int): String {

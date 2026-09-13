@@ -9,6 +9,7 @@ function apiKey() {
 export async function createResponse(body) {
   const response = await fetch(OPENAI_RESPONSES_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(45_000),
     headers: {
       "Authorization": `Bearer ${apiKey()}`,
       "Content-Type": "application/json"
@@ -25,6 +26,7 @@ export async function createResponse(body) {
 }
 
 export function outputText(response) {
+  if (response.status === "incomplete") throw new Error("OpenAI response incomplete");
   for (const item of response.output ?? []) {
     if (item.type !== "message") continue;
     for (const content of item.content ?? []) {

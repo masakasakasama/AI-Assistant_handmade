@@ -1,52 +1,35 @@
-# AI Backend setup
+# AI Backend設定
 
-Tatsu HomeはOpenAI APIキーをAPKへ埋め込まない
+## 環境変数
 
-## 構成
+| 名前 | 用途 |
+|---|---|
+| OPENAI_API_KEY | Backendのみに保存。APK・Git・チャットへ貼り付けない |
+| ROUTER_MODEL | 既定gpt-5.6-luna |
+| REASONING_MODEL | 既定gpt-5.6-sol |
+| REASONING_EFFORT | 既定high。品質を落とさず、mediumはbenchmarkで比較する |
 
-ローカルWake Word
-→ Wake後だけSTT
-→ GPT-5.6 Lunaでルーティング
-→ device / alarm / weather は構造化結果をAndroidへ返す
-→ simple_chatはLunaが回答
-→ deep_reasoningだけGPT-5.6 Solへ昇格
+## 実装状況
 
-GPT-Live-1は常時使用しない
-自然な全二重会話が必要なConversation Modeだけ任意で起動する
+Luna 1回→簡単な回答、深い質問だけSol。STT/TTSとGPT-Liveはまだ接続されていない。
+通常モードも将来は音声の途中停止を実装。Live限定機能にしない。
 
 ## Vercel
 
-このリポジトリはそのままVercelにImport可能
+HTTP Functions用の設定あり。GET /api/health、POST /api/dispatch。
+Androidの設定にプロジェクトのベースURLだけを入力する。末尾へ/apiを付けない。
+以前のAndroidの/health呼び出しは/api/healthへ修正済み。
+AI設定の保存にSwitchBotのToken/Secretは不要。
 
-Environment Variables:
+**公開前の必須作業：端末認証・失効・上限・入力制限・秘匿ログ。現実装では未完了。**
+この変更は自動で本番デプロイしない。公開環境へキーを追加する前に上記を完成させる。
 
-- OPENAI_API_KEY
-- ROUTER_MODEL=gpt-5.6-luna
-- REASONING_MODEL=gpt-5.6-sol
+## 試験順序
 
-Deploy後
+1. npm test / npm run benchmark:plan（API不要）。
+2. 安全なローカル環境へAPIキーを設定して実dispatch。healthだけで合格にしない。
+3. 同じケースで単一Luna／旧2回経路／Sol medium／highを比較。
+4. 認証済みHTTP経路でAndroid往復時間、cold/warmの差を測る。
+5. Phase 0Bで音声応答開始、停止、Liveの費用を追加比較。
 
-- GET https://YOUR_PROJECT.vercel.app/api/health
-- POST https://YOUR_PROJECT.vercel.app/api/dispatch
-
-Androidの Tatsu Home → 設定 → AI Backend URL には
-
-https://YOUR_PROJECT.vercel.app
-
-を登録する
-
-## 確認用
-
-POST /api/dispatch
-
-{
-  "text": "エアコンを26度にして"
-}
-
-Lunaがdevice_actionを返すことを確認する
-
-{
-  "text": "自作AIスピーカーの構成をQCDで比較して"
-}
-
-Lunaがdeep_reasoningを返し、Solのanswerが返ることを確認する
+[Phase 0計画](docs/PHASE_0.md) / [性能比較](docs/PERFORMANCE.md) / [アーキテクチャ](docs/ARCHITECTURE.md)

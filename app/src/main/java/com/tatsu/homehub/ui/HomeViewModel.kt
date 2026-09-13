@@ -126,7 +126,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val cleanToken = token.trim()
         val cleanSecret = secret.trim()
 
-        if (cleanToken.isBlank() && cleanSecret.isBlank() && hasSwitchBotCredentials()) {
+        if (cleanToken.isBlank() && cleanSecret.isBlank()) {
             return true
         }
 

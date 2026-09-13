@@ -1,6 +1,6 @@
 const base = process.env.TATSU_AI_URL || "http://127.0.0.1:8787";
 
-const health = await fetch(base + "/health").then(r => r.json());
+const health = await fetch(base + "/api/health").then(r => r.json());
 console.log("health", health);
 
 if (!process.env.SMOKE_TEXT) process.exit(0);

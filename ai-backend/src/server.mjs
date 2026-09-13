@@ -24,7 +24,7 @@ async function readJson(req) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.method === "GET" && req.url === "/health") {
+    if (req.method === "GET" && ["/health", "/api/health"].includes(req.url)) {
       return json(res, 200, {
         ok: true,
         routerModel: process.env.ROUTER_MODEL || "gpt-5.6-luna",

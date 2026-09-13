@@ -30,3 +30,6 @@ jobs:
       - name: Unit tests
         working-directory: ai-backend
         run: npm test
+      - name: Benchmark plan (no API calls)
+        working-directory: ai-backend
+        run: npm run benchmark:plan
