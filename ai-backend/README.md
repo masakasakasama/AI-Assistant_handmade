@@ -4,10 +4,12 @@ AndroidにOpenAIの長期APIキーを入れないための小さなバックエ�
 
 ## ルーティング
 
-1. `gpt-5.6-luna` が低コストで intent / parameter を判定
-2. SwitchBot / Alarm / Weatherの直接操作ならAndroidへ構造化結果だけ返す
-3. 深い思考が必要な依頼だけ `gpt-5.6-sol` に昇格
-4. GPT-Live-1導入後は音声フロントエンドからこのバックエンドへ委任する
+1. Wake Wordは端末側でローカル検出し、常時OpenAIへ音声送信しない
+2. Wake後だけSTTでテキスト化し、`gpt-5.6-luna` が低コストで intent / parameter を判定
+3. SwitchBot / Alarm / Weatherの直接操作ならAndroidへ構造化結果だけ返す
+4. simple_chatはLuna自身が短く回答
+5. deep_reasoningだけ `gpt-5.6-sol` に昇格
+6. GPT-Live-1は常時フロントに置かず、自然な全二重会話が必要なConversation Modeだけ任意で起動
 
 ## 起動
 
@@ -49,7 +51,7 @@ npm start
 }
 ```
 
-複雑な質問だけ`answer`にSolの回答が入る
+simple_chatではLuna、deep_reasoningではSolの回答が`answer`に入る
 
 ## Security
 
