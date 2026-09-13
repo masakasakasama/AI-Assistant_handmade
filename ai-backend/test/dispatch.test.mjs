@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { dispatch } from "../src/dispatch.mjs";
 import { outputText } from "../src/openai.mjs";
-import { REASONING_EFFORT } from "../src/reasoner.mjs";
+import { DEFAULT_REASONING_EFFORT } from "../src/reasoner.mjs";
 test("simple chat answers with exactly one model call", async () => {
   let calls = 0;
   const result = await dispatch({text: "Capital of Germany?"}, {
@@ -42,5 +42,5 @@ test("incomplete and missing answers fail visibly", async () => {
 });
 
 test("deep reasoning does not silently downgrade quality", () => {
-  assert.equal(REASONING_EFFORT, "high");
+  assert.equal(DEFAULT_REASONING_EFFORT, "high");
 });
