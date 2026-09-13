@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { dispatch } from "../src/dispatch.mjs";
 import { outputText } from "../src/openai.mjs";
+import { REASONING_EFFORT } from "../src/reasoner.mjs";
 test("simple chat answers with exactly one model call", async () => {
   let calls = 0;
   const result = await dispatch({text: "Capital of Germany?"}, {
@@ -38,4 +39,8 @@ test("escalation preserves context and language", async () => {
 test("incomplete and missing answers fail visibly", async () => {
   assert.throws(() => outputText({status: "incomplete"}), /incomplete/);
   await assert.rejects(dispatch({}, {routeIntent: async () => ({route: "simple_chat"})}), /Missing/);
+});
+
+test("deep reasoning does not silently downgrade quality", () => {
+  assert.equal(REASONING_EFFORT, "high");
 });
