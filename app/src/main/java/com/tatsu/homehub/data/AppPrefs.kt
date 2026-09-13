@@ -30,6 +30,10 @@ class AppPrefs(context: Context) {
         get() = prefs.getLong(KEY_LAST_UPDATE_CHECK, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_UPDATE_CHECK, value).apply()
 
+    var aiBackendUrl: String
+        get() = prefs.getString(KEY_AI_BACKEND_URL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_AI_BACKEND_URL, value.trim()).apply()
+
     fun saveWeatherCache(snapshot: WeatherSnapshot) {
         val json = JSONObject()
             .put("label", snapshot.label)
@@ -60,6 +64,7 @@ class AppPrefs(context: Context) {
         private const val KEY_WEATHER_LON = "weather_lon"
         private const val KEY_LAST_UPDATE_CHECK = "last_update_check"
         private const val KEY_WEATHER_CACHE = "weather_cache"
+        private const val KEY_AI_BACKEND_URL = "ai_backend_url"
 
         private const val DEFAULT_LAT = 35.7126
         private const val DEFAULT_LON = 139.7800
