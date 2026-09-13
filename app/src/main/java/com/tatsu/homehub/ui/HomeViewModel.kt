@@ -23,7 +23,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _devices = MutableStateFlow<List<SwitchBotDevice>>(emptyList())
     val devices: StateFlow<List<SwitchBotDevice>> = _devices.asStateFlow()
 
-    private val _alarms = MutableStateFlow(alarmRepo.all())
+    private val _alarms = MutableStateFlow<List<LocalAlarm>>(emptyList())
     val alarms: StateFlow<List<LocalAlarm>> = _alarms.asStateFlow()
 
     private val _acStates = MutableStateFlow<Map<String, AcControlState>>(emptyMap())
@@ -38,6 +38,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun hasSwitchBotCredentials(): Boolean = securePrefs.hasSwitchBotCredentials()
 
     init {
+        viewModelScope.launch {
+            alarmRepo.observeAll().collect { list ->
+                _alarms.value = list
+            }
+        }
         if (hasSwitchBotCredentials()) refreshDevices()
     }
 
@@ -75,11 +80,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun power(device: SwitchBotDevice, on: Boolean) {
         val client = clientOrNull() ?: return
         viewModelScope.launch {
-            val result = if (on) {
-                client.turnOn(device.deviceId)
-            } else {
-                client.turnOff(device.deviceId)
-            }
+            val result = if (on) client.turnOn(device.deviceId) else client.turnOff(device.deviceId)
             result
                 .onSuccess {
                     _message.value = device.name + ": " + if (on) "ON" else "OFF"
@@ -128,39 +129,37 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             repeatMask = repeatMask,
             enabled = enabled
         )
-        alarmRepo.upsert(alarm)
 
-        if (enabled) {
-            AlarmScheduler.schedule(getApplication(), alarm)
-        } else {
-            AlarmScheduler.cancel(getApplication(), alarm.id)
+        viewModelScope.launch {
+            alarmRepo.upsert(alarm)
+            if (enabled) {
+                AlarmScheduler.schedule(getApplication(), alarm)
+            } else {
+                AlarmScheduler.cancel(getApplication(), alarm.id)
+            }
         }
-        reloadAlarms()
     }
 
     fun toggleAlarm(alarm: LocalAlarm, enabled: Boolean) {
-        alarmRepo.setEnabled(alarm.id, enabled)
-        if (enabled) {
-            AlarmScheduler.schedule(getApplication(), alarm.copy(enabled = true))
-        } else {
-            AlarmScheduler.cancel(getApplication(), alarm.id)
+        viewModelScope.launch {
+            alarmRepo.setEnabled(alarm.id, enabled)
+            if (enabled) {
+                AlarmScheduler.schedule(getApplication(), alarm.copy(enabled = true))
+            } else {
+                AlarmScheduler.cancel(getApplication(), alarm.id)
+            }
         }
-        reloadAlarms()
     }
 
     fun deleteAlarm(alarm: LocalAlarm) {
-        AlarmScheduler.cancel(getApplication(), alarm.id)
-        alarmRepo.delete(alarm.id)
-        reloadAlarms()
+        viewModelScope.launch {
+            AlarmScheduler.cancel(getApplication(), alarm.id)
+            alarmRepo.delete(alarm.id)
+        }
     }
 
     fun clearMessage() {
         _message.value = null
-    }
-
-    private fun reloadAlarms() {
-        _alarms.value = alarmRepo.all()
-            .sortedWith(compareBy<LocalAlarm> { it.hour }.thenBy { it.minute })
     }
 
     private fun clientOrNull(): SwitchBotClient? {
