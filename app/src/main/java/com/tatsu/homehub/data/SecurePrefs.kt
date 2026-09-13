@@ -12,22 +12,46 @@ class SecurePrefs(context: Context) {
     private val prefs = context.getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)
     private val alias = "tatsu_home_master_key"
 
-    fun put(name: String, value: String) {
+    fun put(name: String, value: String): Boolean {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
         val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
-        val payload = cipher.iv + encrypted
-        prefs.edit().putString(name, Base64.encodeToString(payload, Base64.NO_WRAP)).apply()
+        val iv = cipher.iv
+        val payload = ByteArray(1 + iv.size + encrypted.size)
+        payload[0] = iv.size.toByte()
+        System.arraycopy(iv, 0, payload, 1, iv.size)
+        System.arraycopy(encrypted, 0, payload, 1 + iv.size, encrypted.size)
+
+        return prefs.edit()
+            .putString(name, Base64.encodeToString(payload, Base64.NO_WRAP))
+            .commit()
     }
 
     fun get(name: String): String? {
         val encoded = prefs.getString(name, null) ?: return null
         return runCatching {
             val payload = Base64.decode(encoded, Base64.NO_WRAP)
-            val iv = payload.copyOfRange(0, 12)
-            val encrypted = payload.copyOfRange(12, payload.size)
+
+            // v0.1.1+ stores IV length in byte 0.
+            // v0.1.0 stored a raw 12-byte IV followed by ciphertext.
+            val (iv, encrypted) = if (
+                payload.isNotEmpty() &&
+                payload[0].toInt() in 12..16 &&
+                payload.size > 1 + payload[0].toInt()
+            ) {
+                val ivLength = payload[0].toInt()
+                payload.copyOfRange(1, 1 + ivLength) to
+                    payload.copyOfRange(1 + ivLength, payload.size)
+            } else {
+                payload.copyOfRange(0, 12) to payload.copyOfRange(12, payload.size)
+            }
+
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(128, iv))
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                getOrCreateKey(),
+                GCMParameterSpec(128, iv)
+            )
             String(cipher.doFinal(encrypted), Charsets.UTF_8)
         }.getOrNull()
     }
@@ -35,6 +59,9 @@ class SecurePrefs(context: Context) {
     fun hasSwitchBotCredentials(): Boolean =
         !get(KEY_SWITCHBOT_TOKEN).isNullOrBlank() &&
             !get(KEY_SWITCHBOT_SECRET).isNullOrBlank()
+
+    fun switchBotTokenSuffix(): String? =
+        get(KEY_SWITCHBOT_TOKEN)?.takeIf { it.isNotBlank() }?.takeLast(4)
 
     private fun getOrCreateKey(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
