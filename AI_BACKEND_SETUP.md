@@ -4,10 +4,15 @@ Tatsu HomeはOpenAI APIキーをAPKへ埋め込まない
 
 ## 構成
 
-GPT-Live-1
+ローカルWake Word
+→ Wake後だけSTT
 → GPT-5.6 Lunaでルーティング
 → device / alarm / weather は構造化結果をAndroidへ返す
+→ simple_chatはLunaが回答
 → deep_reasoningだけGPT-5.6 Solへ昇格
+
+GPT-Live-1は常時使用しない
+自然な全二重会話が必要なConversation Modeだけ任意で起動する
 
 ## Vercel
 
