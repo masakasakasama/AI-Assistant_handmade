@@ -1,6 +1,7 @@
 package com.tatsu.homehub.data
 
 import android.content.Context
+import org.json.JSONObject
 
 class AppPrefs(context: Context) {
     private val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -29,11 +30,36 @@ class AppPrefs(context: Context) {
         get() = prefs.getLong(KEY_LAST_UPDATE_CHECK, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_UPDATE_CHECK, value).apply()
 
+    fun saveWeatherCache(snapshot: WeatherSnapshot) {
+        val json = JSONObject()
+            .put("label", snapshot.label)
+            .put("temperatureC", snapshot.temperatureC)
+            .put("apparentTemperatureC", snapshot.apparentTemperatureC)
+            .put("weatherCode", snapshot.weatherCode)
+            .put("observedAt", snapshot.observedAt)
+        prefs.edit().putString(KEY_WEATHER_CACHE, json.toString()).apply()
+    }
+
+    fun loadWeatherCache(): WeatherSnapshot? {
+        val raw = prefs.getString(KEY_WEATHER_CACHE, null) ?: return null
+        return runCatching {
+            val json = JSONObject(raw)
+            WeatherSnapshot(
+                label = json.getString("label"),
+                temperatureC = json.getDouble("temperatureC"),
+                apparentTemperatureC = json.getDouble("apparentTemperatureC"),
+                weatherCode = json.getInt("weatherCode"),
+                observedAt = json.optString("observedAt")
+            )
+        }.getOrNull()
+    }
+
     companion object {
         private const val KEY_WEATHER_LABEL = "weather_label"
         private const val KEY_WEATHER_LAT = "weather_lat"
         private const val KEY_WEATHER_LON = "weather_lon"
         private const val KEY_LAST_UPDATE_CHECK = "last_update_check"
+        private const val KEY_WEATHER_CACHE = "weather_cache"
 
         private const val DEFAULT_LAT = 35.7126
         private const val DEFAULT_LON = 139.7800
