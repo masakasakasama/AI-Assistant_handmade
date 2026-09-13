@@ -1,5 +1,6 @@
 import { routeIntent, ROUTER_MODEL } from "./router.mjs";
 import { reason, REASONING_MODEL } from "./reasoner.mjs";
+import { answerSimple } from "./simple.mjs";
 
 export async function dispatch(input) {
   const started = Date.now();
@@ -12,6 +13,13 @@ export async function dispatch(input) {
     answer: null,
     latencyMs: 0
   };
+
+  if (route.route === "simple_chat") {
+    result.answer = await answerSimple({
+      ...input,
+      language: route.language
+    });
+  }
 
   if (route.route === "deep_reasoning") {
     result.answer = await reason({
