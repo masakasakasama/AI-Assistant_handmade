@@ -5,7 +5,7 @@ AndroidへOpenAI長期キーを埋め込まず、文字入力から回答また�
 ## 現在の処理
 
 - Luna 1回で分類・抽出・簡単な回答／確認文を生成。
-- 深い質問だけSol。既定medium、REASONING_EFFORTで比較。
+- 深い質問だけSol。既定highを維持し、REASONING_EFFORTでmedium/highを比較。
 - 物理操作は実行しない。Androidの検証・実行層は別途必要。
 - 応答にtimings.routerMs、timings.answerMs、latencyMsとcalls[].usageを含める。
 - simple.mjsは旧2段構成のベンチマーク用。通常dispatchからは呼ばない。
