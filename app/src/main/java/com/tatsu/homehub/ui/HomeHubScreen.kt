@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -256,10 +256,10 @@ private fun DeviceSection(
             if (devices.isEmpty()) {
                 Text("デバイス未同期。設定からToken / Secretを登録")
             } else {
-                LazyColumn(
+                Column(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(devices, key = { it.deviceId }) { device ->
+                    devices.forEach { device ->
                         DeviceCard(
                             device = device,
                             acState = acStates[device.deviceId] ?: AcControlState(),
@@ -366,10 +366,10 @@ private fun AlarmSection(
             if (alarms.isEmpty()) {
                 Text("アラームなし")
             } else {
-                LazyColumn(
+                Column(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(alarms, key = { it.id }) { alarm ->
+                    alarms.forEach { alarm ->
                         AlarmCard(
                             alarm = alarm,
                             onToggle = { onToggle(alarm, it) },
