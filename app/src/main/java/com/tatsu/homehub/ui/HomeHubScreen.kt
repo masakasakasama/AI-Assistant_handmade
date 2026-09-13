@@ -1,5 +1,6 @@
 package com.tatsu.homehub.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -30,19 +31,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.tatsu.homehub.BuildConfig
+import com.tatsu.homehub.data.WeatherClient
+import com.tatsu.homehub.data.WeatherSnapshot
 import com.tatsu.homehub.model.AcControlState
 import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
+import com.tatsu.homehub.update.UpdateInfo
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -52,11 +57,14 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val devices by viewModel.devices.collectAsState()
     val alarms by viewModel.alarms.collectAsState()
     val acStates by viewModel.acStates.collectAsState()
+    val weather by viewModel.weather.collectAsState()
+    val updateInfo by viewModel.updateInfo.collectAsState()
     val loading by viewModel.loading.collectAsState()
     val message by viewModel.message.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showSettings by remember { mutableStateOf(false) }
+    var editingAlarm by remember { mutableStateOf<LocalAlarm?>(null) }
     var showAlarmEditor by remember { mutableStateOf(false) }
 
     LaunchedEffect(message) {
@@ -81,7 +89,10 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Header(
                     loading = loading,
-                    onRefresh = viewModel::refreshDevices,
+                    onRefresh = {
+                        viewModel.refreshDevices()
+                        viewModel.refreshWeather()
+                    },
                     onSettings = { showSettings = true }
                 )
                 Spacer(Modifier.height(16.dp))
@@ -91,34 +102,67 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                         modifier = Modifier.fillMaxSize(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.weight(1.25f),
+                        LazyColumn(
+                            modifier = Modifier.weight(1.2f),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            ClockCard()
-                            AiStatusCard()
-                            DeviceSection(
-                                devices = devices,
-                                acStates = acStates,
-                                onPower = viewModel::power,
-                                onAcChange = viewModel::setAirConditioner,
-                                modifier = Modifier.weight(1f)
-                            )
+                            item { ClockCard() }
+                            item {
+                                WeatherCard(
+                                    weather = weather,
+                                    onRefresh = viewModel::refreshWeather
+                                )
+                            }
+                            item { AiStatusCard() }
+                            item {
+                                DeviceSection(
+                                    devices = devices,
+                                    acStates = acStates,
+                                    onPower = viewModel::power,
+                                    onAcChange = viewModel::setAirConditioner
+                                )
+                            }
                         }
 
-                        AlarmSection(
-                            alarms = alarms,
-                            onAdd = { showAlarmEditor = true },
-                            onToggle = viewModel::toggleAlarm,
-                            onDelete = viewModel::deleteAlarm,
-                            modifier = Modifier.weight(0.75f)
-                        )
+                        LazyColumn(
+                            modifier = Modifier.weight(0.8f),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            item {
+                                AlarmSection(
+                                    alarms = alarms,
+                                    onAdd = {
+                                        editingAlarm = null
+                                        showAlarmEditor = true
+                                    },
+                                    onEdit = {
+                                        editingAlarm = it
+                                        showAlarmEditor = true
+                                    },
+                                    onToggle = viewModel::toggleAlarm,
+                                    onDelete = viewModel::deleteAlarm
+                                )
+                            }
+                            item {
+                                UpdateCard(
+                                    updateInfo = updateInfo,
+                                    onCheck = { viewModel.checkForUpdate() },
+                                    onInstall = viewModel::installUpdate
+                                )
+                            }
+                        }
                     }
                 } else {
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item { ClockCard() }
+                        item {
+                            WeatherCard(
+                                weather = weather,
+                                onRefresh = viewModel::refreshWeather
+                            )
+                        }
                         item { AiStatusCard() }
                         item {
                             DeviceSection(
@@ -131,9 +175,23 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                         item {
                             AlarmSection(
                                 alarms = alarms,
-                                onAdd = { showAlarmEditor = true },
+                                onAdd = {
+                                    editingAlarm = null
+                                    showAlarmEditor = true
+                                },
+                                onEdit = {
+                                    editingAlarm = it
+                                    showAlarmEditor = true
+                                },
                                 onToggle = viewModel::toggleAlarm,
                                 onDelete = viewModel::deleteAlarm
+                            )
+                        }
+                        item {
+                            UpdateCard(
+                                updateInfo = updateInfo,
+                                onCheck = { viewModel.checkForUpdate() },
+                                onInstall = viewModel::installUpdate
                             )
                         }
                     }
@@ -143,11 +201,18 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     }
 
     if (showSettings) {
-        SwitchBotSettingsDialog(
-            configured = viewModel.hasSwitchBotCredentials(),
+        val weatherSettings = viewModel.weatherSettings()
+        HomeSettingsDialog(
+            switchBotConfigured = viewModel.hasSwitchBotCredentials(),
+            initialWeatherLabel = weatherSettings.label,
+            initialLatitude = weatherSettings.latitude,
+            initialLongitude = weatherSettings.longitude,
             onDismiss = { showSettings = false },
-            onSave = { token, secret ->
-                viewModel.saveSwitchBotCredentials(token, secret)
+            onSave = { token, secret, label, latitude, longitude ->
+                if (token.isNotBlank() && secret.isNotBlank()) {
+                    viewModel.saveSwitchBotCredentials(token, secret)
+                }
+                viewModel.saveWeatherSettings(label, latitude, longitude)
                 showSettings = false
             }
         )
@@ -155,13 +220,16 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
 
     if (showAlarmEditor) {
         AlarmEditorDialog(
+            initial = editingAlarm,
             onDismiss = { showAlarmEditor = false },
-            onSave = { hour, minute, label, repeatMask ->
+            onSave = { id, hour, minute, label, repeatMask, enabled ->
                 viewModel.saveAlarm(
+                    id = id,
                     hour = hour,
                     minute = minute,
                     label = label,
-                    repeatMask = repeatMask
+                    repeatMask = repeatMask,
+                    enabled = enabled
                 )
                 showAlarmEditor = false
             }
@@ -226,13 +294,52 @@ private fun ClockCard() {
 }
 
 @Composable
+private fun WeatherCard(
+    weather: WeatherSnapshot?,
+    onRefresh: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "天気",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = onRefresh) {
+                    Text("更新")
+                }
+            }
+
+            if (weather == null) {
+                Text("取得中")
+            } else {
+                Text(
+                    weather.label + "  " +
+                        String.format("%.1f℃", weather.temperatureC),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    WeatherClient.weatherLabel(weather.weatherCode) +
+                        " / 体感 " +
+                        String.format("%.1f℃", weather.apparentTemperatureC)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun AiStatusCard() {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text("AI Voice PoC", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(8.dp))
             Text("Phase 0: Galaxyで音声モデルを先行評価")
-            Text("未接続。ここに採用モデル、言語、会話セッションを統合予定")
+            Text("音声モデル接続は次フェーズ。家電・アラーム基盤を先に固定")
         }
     }
 }
@@ -242,30 +349,24 @@ private fun DeviceSection(
     devices: List<SwitchBotDevice>,
     acStates: Map<String, AcControlState>,
     onPower: (SwitchBotDevice, Boolean) -> Unit,
-    onAcChange: (SwitchBotDevice, AcControlState) -> Unit,
-    modifier: Modifier = Modifier
+    onAcChange: (SwitchBotDevice, AcControlState) -> Unit
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text("SwitchBot", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(12.dp))
 
             if (devices.isEmpty()) {
-                Text("デバイス未同期。設定からToken / Secretを登録")
+                Text("未接続。設定からOpen Token / Secret Keyを登録")
             } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    devices.forEach { device ->
-                        DeviceCard(
-                            device = device,
-                            acState = acStates[device.deviceId] ?: AcControlState(),
-                            onPower = { onPower(device, it) },
-                            onAcChange = { onAcChange(device, it) }
-                        )
-                    }
+                devices.forEach { device ->
+                    DeviceCard(
+                        device = device,
+                        acState = acStates[device.deviceId] ?: AcControlState(),
+                        onPower = { onPower(device, it) },
+                        onAcApply = { onAcChange(device, it) }
+                    )
+                    Spacer(Modifier.height(10.dp))
                 }
             }
         }
@@ -277,7 +378,7 @@ private fun DeviceCard(
     device: SwitchBotDevice,
     acState: AcControlState,
     onPower: (Boolean) -> Unit,
-    onAcChange: (AcControlState) -> Unit
+    onAcApply: (AcControlState) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -289,39 +390,66 @@ private fun DeviceCard(
             Spacer(Modifier.height(10.dp))
 
             if (device.isAirConditioner) {
+                var draft by remember(device.deviceId, acState) {
+                    mutableStateOf(acState)
+                }
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (acState.power) "ON" else "OFF")
+                    Text(if (draft.power) "ON" else "OFF")
                     Spacer(Modifier.width(8.dp))
                     Switch(
-                        checked = acState.power,
-                        onCheckedChange = {
-                            onAcChange(acState.copy(power = it))
-                        }
+                        checked = draft.power,
+                        onCheckedChange = { draft = draft.copy(power = it) }
                     )
                     Spacer(Modifier.width(20.dp))
-                    Text(acState.temperature.toString() + "℃")
+                    Text(draft.temperature.toString() + "℃")
                 }
 
                 Slider(
-                    value = acState.temperature.toFloat(),
+                    value = draft.temperature.toFloat(),
                     onValueChange = {
-                        onAcChange(acState.copy(temperature = it.toInt()))
+                        draft = draft.copy(temperature = it.toInt())
                     },
                     valueRange = 16f..30f,
                     steps = 13
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("モード", style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     listOf(1 to "Auto", 2 to "Cool", 3 to "Dry", 4 to "Fan", 5 to "Heat")
                         .forEach { mode ->
                             FilterChip(
-                                selected = acState.mode == mode.first,
-                                onClick = {
-                                    onAcChange(acState.copy(mode = mode.first))
-                                },
+                                selected = draft.mode == mode.first,
+                                onClick = { draft = draft.copy(mode = mode.first) },
                                 label = { Text(mode.second) }
                             )
                         }
+                }
+
+                Text("風量", style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(1 to "Auto", 2 to "Low", 3 to "Medium", 4 to "High")
+                        .forEach { fan ->
+                            FilterChip(
+                                selected = draft.fanSpeed == fan.first,
+                                onClick = { draft = draft.copy(fanSpeed = fan.first) },
+                                label = { Text(fan.second) }
+                            )
+                        }
+                }
+
+                Button(onClick = { onAcApply(draft) }) {
+                    Text("エアコンへ適用")
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -341,11 +469,11 @@ private fun DeviceCard(
 private fun AlarmSection(
     alarms: List<LocalAlarm>,
     onAdd: () -> Unit,
+    onEdit: (LocalAlarm) -> Unit,
     onToggle: (LocalAlarm, Boolean) -> Unit,
-    onDelete: (LocalAlarm) -> Unit,
-    modifier: Modifier = Modifier
+    onDelete: (LocalAlarm) -> Unit
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -365,16 +493,14 @@ private fun AlarmSection(
             if (alarms.isEmpty()) {
                 Text("アラームなし")
             } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    alarms.forEach { alarm ->
-                        AlarmCard(
-                            alarm = alarm,
-                            onToggle = { onToggle(alarm, it) },
-                            onDelete = { onDelete(alarm) }
-                        )
-                    }
+                alarms.forEach { alarm ->
+                    AlarmCard(
+                        alarm = alarm,
+                        onEdit = { onEdit(alarm) },
+                        onToggle = { onToggle(alarm, it) },
+                        onDelete = { onDelete(alarm) }
+                    )
+                    Spacer(Modifier.height(8.dp))
                 }
             }
         }
@@ -384,14 +510,13 @@ private fun AlarmSection(
 @Composable
 private fun AlarmCard(
     alarm: LocalAlarm,
+    onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         String.format("%02d:%02d", alarm.hour, alarm.minute),
@@ -408,35 +533,82 @@ private fun AlarmCard(
                     onCheckedChange = onToggle
                 )
             }
-            TextButton(onClick = onDelete) {
-                Text("削除")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onEdit) {
+                    Text("編集")
+                }
+                TextButton(onClick = onDelete) {
+                    Text("削除")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SwitchBotSettingsDialog(
-    configured: Boolean,
+private fun UpdateCard(
+    updateInfo: UpdateInfo?,
+    onCheck: () -> Unit,
+    onInstall: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("アプリ更新", style = MaterialTheme.typography.titleLarge)
+            Text("現在 v" + BuildConfig.VERSION_NAME)
+
+            if (updateInfo == null) {
+                Text("新しいReleaseがあればここに表示")
+                OutlinedButton(onClick = onCheck) {
+                    Text("更新確認")
+                }
+            } else {
+                Text("v" + updateInfo.version + " が利用可能")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onCheck) {
+                        Text("再確認")
+                    }
+                    Button(onClick = onInstall) {
+                        Text("更新")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeSettingsDialog(
+    switchBotConfigured: Boolean,
+    initialWeatherLabel: String,
+    initialLatitude: Double,
+    initialLongitude: Double,
     onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit
+    onSave: (String, String, String, Double, Double) -> Unit
 ) {
     var token by remember { mutableStateOf("") }
     var secret by remember { mutableStateOf("") }
+    var weatherLabel by remember { mutableStateOf(initialWeatherLabel) }
+    var latitude by remember { mutableStateOf(initialLatitude.toString()) }
+    var longitude by remember { mutableStateOf(initialLongitude.toString()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("SwitchBot API") },
+        title = { Text("設定") },
         text = {
-            Column {
-                if (configured) {
-                    Text("認証情報は登録済み。入力すると上書き")
-                    Spacer(Modifier.height(8.dp))
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text("SwitchBot API", style = MaterialTheme.typography.titleMedium)
+                if (switchBotConfigured) {
+                    Text(
+                        "認証情報は登録済み。変更する場合だけ再入力",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
                 OutlinedTextField(
                     value = token,
                     onValueChange = { token = it },
-                    label = { Text("Token") },
+                    label = { Text("Open Token") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true
                 )
@@ -444,14 +616,47 @@ private fun SwitchBotSettingsDialog(
                 OutlinedTextField(
                     value = secret,
                     onValueChange = { secret = it },
-                    label = { Text("Secret") },
+                    label = { Text("Secret Key") },
                     visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(20.dp))
+                Text("天気", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = weatherLabel,
+                    onValueChange = { weatherLabel = it },
+                    label = { Text("表示名") },
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = latitude,
+                    onValueChange = { latitude = it },
+                    label = { Text("緯度") },
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = longitude,
+                    onValueChange = { longitude = it },
+                    label = { Text("経度") },
                     singleLine = true
                 )
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(token, secret) }) {
+            Button(
+                onClick = {
+                    onSave(
+                        token,
+                        secret,
+                        weatherLabel,
+                        latitude.toDoubleOrNull() ?: initialLatitude,
+                        longitude.toDoubleOrNull() ?: initialLongitude
+                    )
+                }
+            ) {
                 Text("保存")
             }
         },
@@ -465,17 +670,31 @@ private fun SwitchBotSettingsDialog(
 
 @Composable
 private fun AlarmEditorDialog(
+    initial: LocalAlarm?,
     onDismiss: () -> Unit,
-    onSave: (Int, Int, String, Int) -> Unit
+    onSave: (String?, Int, Int, String, Int, Boolean) -> Unit
 ) {
-    var hour by remember { mutableStateOf("7") }
-    var minute by remember { mutableStateOf("00") }
-    var label by remember { mutableStateOf("Wake up") }
-    var repeatMask by remember { mutableIntStateOf(0) }
+    var hour by remember(initial?.id) {
+        mutableStateOf((initial?.hour ?: 7).toString())
+    }
+    var minute by remember(initial?.id) {
+        mutableStateOf(String.format("%02d", initial?.minute ?: 0))
+    }
+    var label by remember(initial?.id) {
+        mutableStateOf(initial?.label ?: "Wake up")
+    }
+    var repeatMask by remember(initial?.id) {
+        mutableIntStateOf(initial?.repeatMask ?: 0)
+    }
+    var enabled by remember(initial?.id) {
+        mutableStateOf(initial?.enabled ?: true)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("アラーム追加") },
+        title = {
+            Text(if (initial == null) "アラーム追加" else "アラーム編集")
+        },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState())
@@ -522,16 +741,26 @@ private fun AlarmEditorDialog(
                         label = { Text(day) }
                     )
                 }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("有効", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = { enabled = it }
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     onSave(
+                        initial?.id,
                         hour.toIntOrNull()?.coerceIn(0, 23) ?: 7,
                         minute.toIntOrNull()?.coerceIn(0, 59) ?: 0,
                         label,
-                        repeatMask
+                        repeatMask,
+                        enabled
                     )
                 }
             ) {
