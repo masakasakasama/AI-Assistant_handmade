@@ -3,6 +3,8 @@ package com.tatsu.homehub.update
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.tatsu.homehub.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -86,6 +88,20 @@ class UpdateManager(private val context: Context) {
                     apk.outputStream().use { output -> input.copyTo(output) }
                 }
                 connection.disconnect()
+
+                if (
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    !context.packageManager.canRequestPackageInstalls()
+                ) {
+                    val settingsIntent = Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + context.packageName)
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(settingsIntent)
+                    error("提供元不明アプリのインストール許可後、更新を再実行してください")
+                }
 
                 val uri: Uri = FileProvider.getUriForFile(
                     context,
