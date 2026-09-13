@@ -1,144 +1,52 @@
 # Tatsu Home
 
-Google Home / Nestの代替を狙う、自作AIスマートホーム用Androidアプリ
+会話と、家の操作をひとつに。Androidを常設ハブにする個人用AIスマートスピーカー。
 
-## 現在のMVP
+Google Home / Alexaの全機能コピーではなく、自然な会話、SwitchBot、正確なアラーム管理、天気、日・英・独を優先します。応答速度は最優先の品質条件です。
 
-- SwitchBot OpenAPI v1.1接続
-- 登録済みSwitchBotデバイス一覧取得
-- 一般デバイスのON / OFF
-- 赤外線エアコンの電源、温度、モード、風量を一括設定
-- SwitchBot Token / SecretをAndroid Keystoreで暗号化保存
-- アラームの作成、編集、繰り返し、ON / OFF、削除
-- Room DBでアラーム永続化
-- Exact Alarm権限導線
-- 再起動、時刻変更、タイムゾーン変更後のアラーム再登録
-- AI / SwitchBot停止時も既存アラームはローカル動作
-- 天気常時表示
-- 天気キャッシュによるオフライン時の前回値表示
-- 天気地点を緯度・経度で変更可能
-- ネットワーク復旧時にSwitchBotと天気を自動再同期
-- 画面常時点灯
-- スマホ1カラム / 700dp以上のタブレット2カラムUI
-- Android Homeアプリ候補として登録可能
-- Device Owner時にLock Task Modeへ自動移行
-- GitHub Releaseの更新を12時間ごとに自動確認
-- 新版APKのダウンロードとAndroidインストーラー起動
-- CIでDebug APKを自動ビルド
-- 固定署名用のRelease workflowを用意済み
+## 開発方針
 
-## 方針
+**Phase 0は手持ちGalaxyで、AIの回答から音声出力・操作結果までを検証する。合格まで音響HW・中古タブレットは買わない。**
 
-最初はGalaxy S26 Ultraで使う
+- 通常経路：STT → Luna 1回 → 必要時のみSol → TTS。通常の読み上げも中断可能にする。
+- 簡単な回答は分類と同じLuna呼び出しで生成。Solはmediumを比較開始点とし、highは評価対象。
+- GPT-Liveは任意のConversation Mode。通常経路と同じ状態・操作実行層を使う。
+- confidenceは診断情報。操作許可には使わず、対象ID・状態・値・有効期限をAndroidで検証する。
+- アラームはAndroidで永続化・発火。AI障害とローカル鳴動を分離する。
+- Phase 1：XVF3800＋ESP32-S3＋ローカルWake＋Wi-Fi音声。2〜5m・AEC・割り込みは実機判定。
 
-AI会話、SwitchBot、アラームを先に検証し、合格後にXVF3800などの音響ハードを追加する
+## 実装と検証を区別する
 
-最終的にタブレット常設する場合も同じアプリを使い、AI、家電、アラーム、天気、更新管理を1画面に集約する
+| 項目 | 現状 |
+|---|---|
+| SwitchBot / Room / AlarmManager / 天気 / 更新 | Android実装あり。故障注入と長期試験は未完了 |
+| AIテキスト検証UI / HTTP Backend | 実装あり。AI操作案を表示するだけで、物理操作しない |
+| Luna単一呼び出し / Sol medium / 区間計測 | 実装・オフラインテストあり。実APIの品質・速度は未測定 |
+| 性能比較CLI | 日英独21ケース・4経路。初期データセットはスモーク用 |
+| STT / TTS / 音声キャンセル / Live | 次のPhase 0実装対象 |
+| 音声→家電／アラームの安全な実行 | 次のPhase 0実装対象 |
+| 外部PCM入力 / AEC / Wake / 2〜5m / 72時間 | 未検証 |
 
-## SwitchBot API設定
+「実装あり」は品質合格を意味しません。速度目標は実測値ではありません。
 
-SwitchBot OpenAPI v1.1を使用する
+## 設計資料
 
-SwitchBotアプリ V9.0以降では
+- [全体アーキテクチャと責務](docs/ARCHITECTURE.md)
+- [Phase 0・Phase 1の実装順序と合格条件](docs/PHASE_0.md)
+- [性能比較手順・測定の定義](docs/PERFORMANCE.md)
+- [UI設計方針](docs/DESIGN.md)
+- [Android・SwitchBot・APKセットアップ](docs/ANDROID_SETUP.md)
+- [AI Backend設定](AI_BACKEND_SETUP.md)
 
-1. Profile
-2. Preferences
-3. About
-4. App Versionを10回タップ
-5. Developer Options
-6. Get Token
-7. Open TokenとSecret Keyを取得
+## 確認コマンド
 
-Tatsu Home右上の「設定」にOpen Token / Secret Keyを入力すると、保存直後にGET /v1.1/devicesで接続確認を兼ねたデバイス同期を行う
-
-認証情報はGitHubには保存せず、端末のAndroid Keystoreに暗号化して保存する
-
-API認証は公式v1.1方式の
-
-- Authorization
-- sign
-- t
-- nonce
-
-を使用し、signはtoken + timestamp + nonceをSecret KeyでHMAC-SHA256してBase64化する
-
-エアコンは公式のsetAllコマンドを使用する
-
-parameter形式
-
-`temperature,mode,fanSpeed,power`
-
-例
-
-`26,2,1,on`
-
-## アラーム
-
-- Room DBに永続化
-- AlarmManagerのExact Alarmを使用
-- Android 12以降では初回起動時にExact Alarm権限画面を表示
-- BOOT_COMPLETEDで再登録
-- TIMEZONE_CHANGED / TIME_SETでも再計算
-- 日本からドイツへ移動しても端末のローカルTimezoneに追従
-
-## アプリ更新
-
-通常のGalaxy PoCでは
-
-1. GitHub Releaseを12時間ごとに確認
-2. 新版があればアプリ画面に表示
-3. APKをダウンロード
-4. Android標準インストーラーを開く
-5. OSが要求する場合のみユーザー確認
-
-最終Dedicated DeviceではDevice Owner化して無人更新を検証する
-
-Release APKは毎回同じ署名鍵が必要
-
-GitHub Actions Secretsに以下を設定する
-
-- ANDROID_KEYSTORE_BASE64
-- ANDROID_KEYSTORE_PASSWORD
-- ANDROID_KEY_ALIAS
-- ANDROID_KEY_PASSWORD
-
-その後GitHub ActionsのRelease APK workflowを手動実行し、versionを入力すると署名済みAPKとGitHub Releaseを作成する
-
-## Dedicated Device / タブレット常設
-
-アプリはHOME Intentを持つため、AndroidのデフォルトHomeアプリとして選択できる
-
-完全なKiosk運用では初期化した専用端末でDevice Owner化する
-
-例
-
-```bash
-adb shell dpm set-device-owner com.tatsu.homehub/.admin.AdminReceiver
+```sh
+cd ai-backend
+npm test
+npm run benchmark:plan
+# APIキーを安全に設定した環境でのみ実行。実API料金が発生する。
+npm run benchmark
 ```
 
-Device Ownerの場合、アプリ起動時に自身をLock Task許可対象へ登録してKiosk Modeへ入る
-
-## Android Studio
-
-- JDK 17
-- compileSdk 35
-- minSdk 28
-- Kotlin + Jetpack Compose
-- Room 2.8.5
-- KSP
-
-Android Studioでリポジトリを開いてGradle Sync後、appを実行する
-
-CIもmainへのpushごとにassembleDebugを実行し、Debug APKをArtifactとして保存する
-
-## 未実装 / 実機待ち
-
-- OpenAI音声モデル比較用Voice Lab
-- 音声からSwitchBot / アラームへのTool Calling
-- GPT音声会話
-- XVF3800 + XIAO ESP32S3音声ストリーム
-- Wake Word
-- AEC / Full Duplex実測
-- Device Owner環境での完全無人アップデート実測
-- 72時間連続稼働試験
-- 実SwitchBotアカウントでのAPI疎通試験
+Android：JDK 17、Android SDK 35、Gradle 8.11.1で `gradle :app:assembleDebug`。
+PRのGitHub ActionsでもAndroidをビルドします。mainの自動デプロイ前に、Backend認証・利用予算制限を完成させてください。

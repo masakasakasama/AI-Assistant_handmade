@@ -1,59 +1,34 @@
-# Tatsu Home AI backend
+# Tatsu Home AI Backend
 
-AndroidにOpenAIの長期APIキーを入れないための小さなバックエンド
+AndroidへOpenAI長期キーを埋め込まず、文字入力から回答または操作案を返す。
 
-## ルーティング
+## 現在の処理
 
-1. Wake Wordは端末側でローカル検出し、常時OpenAIへ音声送信しない
-2. Wake後だけSTTでテキスト化し、`gpt-5.6-luna` が低コストで intent / parameter を判定
-3. SwitchBot / Alarm / Weatherの直接操作ならAndroidへ構造化結果だけ返す
-4. simple_chatはLuna自身が短く回答
-5. deep_reasoningだけ `gpt-5.6-sol` に昇格
-6. GPT-Live-1は常時フロントに置かず、自然な全二重会話が必要なConversation Modeだけ任意で起動
+- Luna 1回で分類・抽出・簡単な回答／確認文を生成。
+- 深い質問だけSol。既定medium、REASONING_EFFORTで比較。
+- 物理操作は実行しない。Androidの検証・実行層は別途必要。
+- 応答にtimings.routerMs、timings.answerMs、latencyMsとcalls[].usageを含める。
+- simple.mjsは旧2段構成のベンチマーク用。通常dispatchからは呼ばない。
+- STT/TTS/Liveの音声経路は未実装。
 
-## 起動
+## 起動・比較
 
-```bash
-cd ai-backend
-cp .env.example .env
-export OPENAI_API_KEY="..."
-npm start
-```
-
-## API
-
-`GET /health`
-
-`POST /api/dispatch`
+Node 20以上。OPENAI_API_KEYを環境変数へ設定し `npm start`。
+`.env`を置くだけでは自動読込しない。対応Nodeでは `node --env-file=.env src/server.mjs` も利用可能。
+GET /api/health（ローカルは/healthも互換対応）、POST /api/dispatch。
 
 ```json
-{
-  "text": "エアコンを26度にして",
-  "context": ""
-}
+{"text":"エアコンを26度にして","context":""}
 ```
 
-想定route
+`route.replyText`はsimple_chat/clarifyで回答文、それ以外はnull。`answer`は会話回答のみ。
+confidenceは診断値であり実行許可に使わない。
 
-```json
-{
-  "route": {
-    "language": "ja",
-    "route": "device_action",
-    "confidence": 0.99,
-    "action": "set_ac",
-    "target": "エアコン",
-    "temperatureC": 26,
-    "timeLocal": null,
-    "shortReason": "direct home-device command"
-  },
-  "answer": null
-}
-```
+`npm test`はAPIを呼ばないテスト。`npm run benchmark:plan`も無課金。
+`npm run benchmark`はAPIを実際に呼ぶため課金される。結果はGit管理外のbenchmark-resultsへ保存。
 
-simple_chatではLuna、deep_reasoningではSolの回答が`answer`に入る
+## 公開前の制約
 
-## Security
-
-`OPENAI_API_KEY`はAndroidアプリ、GitHub、APKに入れない
-サーバー環境変数だけに置く
+現在、端末認証・予算制限・レート制限は未実装。キーを設定した無防備な公開デプロイはしない。
+health成功はOpenAI疎通や音声品質合格を意味しない。
+詳しくは[セットアップ](../AI_BACKEND_SETUP.md)、[性能計画](../docs/PERFORMANCE.md)。
