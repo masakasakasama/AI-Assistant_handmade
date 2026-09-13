@@ -3,7 +3,7 @@
 ## Phase 0A — 文字で正しさと応答時間を確かめる
 
 - [x] Lunaを1回に統合。簡単な回答と確認文を同時生成。
-- [x] Solはmediumを既定とし、CLIでmedium/highを比較。
+- [x] Solはhighを既定のまま維持し、CLIでmedium/highを比較。品質を下げる変更は実測後にのみ判断。
 - [x] routerMs / answerMs / server total / Android client totalを分離。
 - [x] 日英独21ケース、4経路のCLI、失敗を残すJSONLとp50/p95集計。
 - [ ] 実API疎通と請求usageの収集。現環境にキーなし、速度は未測定。
