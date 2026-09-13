@@ -7,7 +7,7 @@
 | OPENAI_API_KEY | Backendのみに保存。APK・Git・チャットへ貼り付けない |
 | ROUTER_MODEL | 既定gpt-5.6-luna |
 | REASONING_MODEL | 既定gpt-5.6-sol |
-| REASONING_EFFORT | 既定medium。highとの比較はローカルbenchmarkで行う |
+| REASONING_EFFORT | 既定high。品質を落とさず、mediumはbenchmarkで比較する |
 
 ## 実装状況
 
