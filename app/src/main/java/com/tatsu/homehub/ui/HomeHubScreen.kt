@@ -636,7 +636,7 @@ private fun AiCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("AI Assistant", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "GPT-Live-1 → Luna → 必要時だけ Sol",
+                        "Wake/STT → Luna → 必要時だけ Sol",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -658,7 +658,7 @@ private fun AiCard(
                     onValueChange = { prompt = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("AIルーティングテスト") },
-                    supportingText = { Text("Lunaが命令を分類し、DeepだけSolへ昇格") },
+                    supportingText = { Text("常時Liveは使わず、Lunaが分類してDeepだけSolへ昇格") },
                     minLines = 2
                 )
                 Spacer(Modifier.height(8.dp))
