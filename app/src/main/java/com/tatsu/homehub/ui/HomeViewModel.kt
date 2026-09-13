@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
 import com.tatsu.homehub.data.AlarmRepository
 import com.tatsu.homehub.data.AppPrefs
+import com.tatsu.homehub.data.NetworkMonitor
 import com.tatsu.homehub.data.SecurePrefs
 import com.tatsu.homehub.data.SwitchBotClient
 import com.tatsu.homehub.data.WeatherClient
@@ -35,6 +36,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val alarmRepo = AlarmRepository(application)
     private val weatherClient = WeatherClient()
     private val updateManager = UpdateManager(application)
+    private val networkMonitor = NetworkMonitor(application) {
+        if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
+        refreshWeather(showError = false)
+    }
 
     private val _devices = MutableStateFlow<List<SwitchBotDevice>>(emptyList())
     val devices: StateFlow<List<SwitchBotDevice>> = _devices.asStateFlow()
@@ -45,7 +50,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _acStates = MutableStateFlow<Map<String, AcControlState>>(emptyMap())
     val acStates: StateFlow<Map<String, AcControlState>> = _acStates.asStateFlow()
 
-    private val _weather = MutableStateFlow<WeatherSnapshot?>(null)
+    private val _weather = MutableStateFlow<WeatherSnapshot?>(appPrefs.loadWeatherCache())
     val weather: StateFlow<WeatherSnapshot?> = _weather.asStateFlow()
 
     private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
@@ -79,7 +84,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        if (hasSwitchBotCredentials()) refreshDevices()
+        networkMonitor.start()
+
+        if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
 
         if (System.currentTimeMillis() - appPrefs.lastUpdateCheckMillis > 12 * 60 * 60 * 1000L) {
             checkForUpdate(showMessage = false)
@@ -97,9 +104,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         refreshDevices()
     }
 
-    fun refreshDevices() {
+    fun refreshDevices(showMessage: Boolean = true) {
         val client = clientOrNull() ?: run {
-            _message.value = "SwitchBot Token / Secretを設定してください"
+            if (showMessage) {
+                _message.value = "SwitchBot Token / Secretを設定してください"
+            }
             return
         }
 
@@ -108,10 +117,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             client.getDevices()
                 .onSuccess { list ->
                     _devices.value = list
-                    _message.value = list.size.toString() + "台を同期しました"
+                    if (showMessage) {
+                        _message.value = list.size.toString() + "台を同期しました"
+                    }
                 }
                 .onFailure { error ->
-                    _message.value = "SwitchBot同期失敗: " + (error.message ?: "unknown")
+                    if (showMessage) {
+                        _message.value = "SwitchBot同期失敗: " + (error.message ?: "unknown")
+                    }
                 }
             _loading.value = false
         }
@@ -205,9 +218,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         refreshWeather()
     }
 
-    fun refreshWeather() {
+    fun refreshWeather(showError: Boolean = true) {
         viewModelScope.launch {
-            refreshWeatherInternal(showError = true)
+            refreshWeatherInternal(showError = showError)
         }
     }
 
@@ -261,12 +274,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             latitude = appPrefs.weatherLatitude,
             longitude = appPrefs.weatherLongitude
         )
-            .onSuccess { _weather.value = it }
+            .onSuccess {
+                _weather.value = it
+                appPrefs.saveWeatherCache(it)
+            }
             .onFailure { error ->
                 if (showError) {
                     _message.value = "天気取得失敗: " + (error.message ?: "unknown")
                 }
             }
+    }
+
+    override fun onCleared() {
+        networkMonitor.stop()
+        super.onCleared()
     }
 
     private fun clientOrNull(): SwitchBotClient? {
