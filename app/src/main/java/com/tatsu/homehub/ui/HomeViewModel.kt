@@ -88,8 +88,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
 
-        if (System.currentTimeMillis() - appPrefs.lastUpdateCheckMillis > 12 * 60 * 60 * 1000L) {
-            checkForUpdate(showMessage = false)
+        viewModelScope.launch {
+            while (isActive) {
+                if (
+                    System.currentTimeMillis() - appPrefs.lastUpdateCheckMillis >
+                    12 * 60 * 60 * 1000L
+                ) {
+                    checkForUpdate(showMessage = false)
+                }
+                delay(60 * 60 * 1000L)
+            }
         }
     }
 
