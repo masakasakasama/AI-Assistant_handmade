@@ -2,6 +2,7 @@ package com.tatsu.homehub
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.admin.DevicePolicyManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -32,6 +33,18 @@ class MainActivity : ComponentActivity() {
             HomeHubTheme {
                 HomeHubScreen(viewModel)
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        enterLockTaskIfPermitted()
+    }
+
+    private fun enterLockTaskIfPermitted() {
+        val dpm = getSystemService(DevicePolicyManager::class.java)
+        if (dpm.isLockTaskPermitted(packageName)) {
+            runCatching { startLockTask() }
         }
     }
 
