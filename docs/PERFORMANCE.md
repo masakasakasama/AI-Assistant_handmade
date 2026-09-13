@@ -6,7 +6,7 @@
 
 | 経路 | 意図 |
 |---|---|
-| routed | Luna 1回。簡単な回答も同時生成、深い質問だけSol medium |
+| routed | 本番想定。Luna 1回、簡単な回答も同時生成、深い質問だけSol high |
 | legacy-two-call | 分類のみLuna＋回答モデル。旧2段構成の比較用近似 |
 | sol-medium | チャットケースをSolへ直結し、ルーターの待ち時間と品質差を評価 |
 | sol-high | 同じチャットケースをhighで比較 |
