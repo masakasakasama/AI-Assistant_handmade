@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
+import com.tatsu.homehub.data.AiBackendClient
+import com.tatsu.homehub.data.AiDispatchResult
 import com.tatsu.homehub.data.AlarmRepository
 import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.NetworkMonitor
@@ -35,6 +37,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val appPrefs = AppPrefs(application)
     private val alarmRepo = AlarmRepository(application)
     private val weatherClient = WeatherClient()
+    private val aiBackendClient = AiBackendClient()
     private val updateManager = UpdateManager(application)
     private val networkMonitor = NetworkMonitor(application) {
         if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
@@ -62,6 +65,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val _aiTesting = MutableStateFlow(false)
+    val aiTesting: StateFlow<Boolean> = _aiTesting.asStateFlow()
+
+    private val _aiResult = MutableStateFlow<AiDispatchResult?>(null)
+    val aiResult: StateFlow<AiDispatchResult?> = _aiResult.asStateFlow()
+
+    private val _aiBackendOnline = MutableStateFlow<Boolean?>(null)
+    val aiBackendOnline: StateFlow<Boolean?> = _aiBackendOnline.asStateFlow()
+
     private val _switchBotConfigured = MutableStateFlow(securePrefs.hasSwitchBotCredentials())
     val switchBotConfigured: StateFlow<Boolean> = _switchBotConfigured.asStateFlow()
 
@@ -75,6 +87,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         latitude = appPrefs.weatherLatitude,
         longitude = appPrefs.weatherLongitude
     )
+
+    fun aiBackendUrl(): String = appPrefs.aiBackendUrl
 
     init {
         viewModelScope.launch {
@@ -93,6 +107,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         networkMonitor.start()
 
         if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
+        if (appPrefs.aiBackendUrl.isNotBlank()) checkAiBackend(showMessage = false)
 
         viewModelScope.launch {
             while (isActive) {
@@ -249,6 +264,64 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         appPrefs.weatherLatitude = latitude.coerceIn(-90.0, 90.0)
         appPrefs.weatherLongitude = longitude.coerceIn(-180.0, 180.0)
         refreshWeather()
+    }
+
+    fun saveAiBackendUrl(url: String) {
+        appPrefs.aiBackendUrl = url.trim().trimEnd('/')
+        checkAiBackend()
+    }
+
+    fun checkAiBackend(showMessage: Boolean = true) {
+        val url = appPrefs.aiBackendUrl
+        if (url.isBlank()) {
+            _aiBackendOnline.value = false
+            if (showMessage) _message.value = "AI Backend URLを設定してください"
+            return
+        }
+
+        viewModelScope.launch {
+            aiBackendClient.health(url)
+                .onSuccess { online ->
+                    _aiBackendOnline.value = online
+                    if (showMessage) {
+                        _message.value = if (online) "AI Backend接続OK" else "AI Backend応答異常"
+                    }
+                }
+                .onFailure { error ->
+                    _aiBackendOnline.value = false
+                    if (showMessage) {
+                        _message.value = "AI Backend接続失敗: " + (error.message ?: "unknown")
+                    }
+                }
+        }
+    }
+
+    fun testAi(text: String) {
+        val query = text.trim()
+        if (query.isBlank()) {
+            _message.value = "テスト文を入力してください"
+            return
+        }
+
+        val url = appPrefs.aiBackendUrl
+        if (url.isBlank()) {
+            _message.value = "設定からAI Backend URLを登録してください"
+            return
+        }
+
+        viewModelScope.launch {
+            _aiTesting.value = true
+            aiBackendClient.dispatch(url, query)
+                .onSuccess { result ->
+                    _aiResult.value = result
+                    _aiBackendOnline.value = true
+                }
+                .onFailure { error ->
+                    _aiBackendOnline.value = false
+                    _message.value = "AIテスト失敗: " + (error.message ?: "unknown")
+                }
+            _aiTesting.value = false
+        }
     }
 
     fun refreshWeather(showError: Boolean = true) {
