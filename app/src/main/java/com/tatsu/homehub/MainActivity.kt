@@ -1,9 +1,13 @@
 package com.tatsu.homehub
 
 import android.Manifest
+import android.app.AlarmManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,6 +25,17 @@ class MainActivity : ComponentActivity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        requestNotificationPermissionIfNeeded()
+        requestExactAlarmPermissionIfNeeded()
+
+        setContent {
+            HomeHubTheme {
+                HomeHubScreen(viewModel)
+            }
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ActivityCompat.checkSelfPermission(
@@ -34,11 +49,21 @@ class MainActivity : ComponentActivity() {
                 1001
             )
         }
+    }
 
-        setContent {
-            HomeHubTheme {
-                HomeHubScreen(viewModel)
-            }
+    private fun requestExactAlarmPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+
+        val manager = getSystemService(AlarmManager::class.java)
+        if (manager.canScheduleExactAlarms()) return
+
+        runCatching {
+            startActivity(
+                Intent(
+                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    Uri.parse("package:$packageName")
+                )
+            )
         }
     }
 }
