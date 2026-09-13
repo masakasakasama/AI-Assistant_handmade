@@ -10,7 +10,7 @@ Galaxyマイク（Phase 1ではXVF3800 → ESP32 → Wi-Fi）
 → 少数のローカル処理（停止など）
 → 認証付きTatsu Backend
 → Luna 1回：操作案 / 確認 / 簡単な回答 / 深い質問の判定
-→ 深い質問だけSol（mediumから比較）
+→ 深い質問だけSol（本番既定high。mediumは速度・費用比較用）
 → Androidの操作検証・実行層
 → 実行結果または回答 → 定型文 / TTS → 再生
 ```
