@@ -61,6 +61,8 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val updateInfo by viewModel.updateInfo.collectAsState()
     val loading by viewModel.loading.collectAsState()
     val message by viewModel.message.collectAsState()
+    val switchBotConfigured by viewModel.switchBotConfigured.collectAsState()
+    val switchBotTokenSuffix by viewModel.switchBotTokenSuffix.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showSettings by remember { mutableStateOf(false) }
@@ -203,17 +205,18 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     if (showSettings) {
         val weatherSettings = viewModel.weatherSettings()
         HomeSettingsDialog(
-            switchBotConfigured = viewModel.hasSwitchBotCredentials(),
+            switchBotConfigured = switchBotConfigured,
+            switchBotTokenSuffix = switchBotTokenSuffix,
             initialWeatherLabel = weatherSettings.label,
             initialLatitude = weatherSettings.latitude,
             initialLongitude = weatherSettings.longitude,
             onDismiss = { showSettings = false },
             onSave = { token, secret, label, latitude, longitude ->
-                if (token.isNotBlank() && secret.isNotBlank()) {
-                    viewModel.saveSwitchBotCredentials(token, secret)
+                val switchBotSaved = viewModel.saveSwitchBotCredentials(token, secret)
+                if (switchBotSaved) {
+                    viewModel.saveWeatherSettings(label, latitude, longitude)
+                    showSettings = false
                 }
-                viewModel.saveWeatherSettings(label, latitude, longitude)
-                showSettings = false
             }
         )
     }
@@ -579,6 +582,7 @@ private fun UpdateCard(
 @Composable
 private fun HomeSettingsDialog(
     switchBotConfigured: Boolean,
+    switchBotTokenSuffix: String?,
     initialWeatherLabel: String,
     initialLatitude: Double,
     initialLongitude: Double,
@@ -601,14 +605,27 @@ private fun HomeSettingsDialog(
                 Text("SwitchBot API", style = MaterialTheme.typography.titleMedium)
                 if (switchBotConfigured) {
                     Text(
-                        "認証情報は登録済み。変更する場合だけ再入力",
+                        "保存済み" +
+                            (switchBotTokenSuffix?.let { " / Open Token …" + it } ?: ""),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        "保存済みの値は安全のため再表示しません。変更する場合だけ2項目とも入力してください",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                } else {
+                    Text(
+                        "Open TokenとSecret Keyを入力して保存してください",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 OutlinedTextField(
                     value = token,
                     onValueChange = { token = it },
-                    label = { Text("Open Token") },
+                    label = { Text(if (switchBotConfigured) "Open Token（変更時のみ）" else "Open Token") },
+                    placeholder = {
+                        if (switchBotConfigured) Text("保存済み")
+                    },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true
                 )
@@ -616,7 +633,10 @@ private fun HomeSettingsDialog(
                 OutlinedTextField(
                     value = secret,
                     onValueChange = { secret = it },
-                    label = { Text("Secret Key") },
+                    label = { Text(if (switchBotConfigured) "Secret Key（変更時のみ）" else "Secret Key") },
+                    placeholder = {
+                        if (switchBotConfigured) Text("保存済み")
+                    },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true
                 )
