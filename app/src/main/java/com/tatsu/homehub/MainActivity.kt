@@ -3,6 +3,7 @@ package com.tatsu.homehub
 import android.Manifest
 import android.app.AlarmManager
 import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -14,6 +15,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.core.app.ActivityCompat
+import com.tatsu.homehub.admin.AdminReceiver
 import com.tatsu.homehub.ui.HomeHubScreen
 import com.tatsu.homehub.ui.HomeHubTheme
 import com.tatsu.homehub.ui.HomeViewModel
@@ -43,6 +45,14 @@ class MainActivity : ComponentActivity() {
 
     private fun enterLockTaskIfPermitted() {
         val dpm = getSystemService(DevicePolicyManager::class.java)
+        val admin = ComponentName(this, AdminReceiver::class.java)
+
+        if (dpm.isDeviceOwnerApp(packageName)) {
+            runCatching {
+                dpm.setLockTaskPackages(admin, arrayOf(packageName))
+            }
+        }
+
         if (dpm.isLockTaskPermitted(packageName)) {
             runCatching { startLockTask() }
         }
