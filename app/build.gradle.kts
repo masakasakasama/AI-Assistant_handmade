@@ -13,8 +13,8 @@ android {
         applicationId = "com.tatsu.homehub"
         minSdk = 28
         targetSdk = 35
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 2
-        versionName = System.getenv("VERSION_NAME") ?: "0.1.1"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 3
+        versionName = System.getenv("VERSION_NAME") ?: "0.2.0"
     }
 
     val releaseStorePath = System.getenv("ANDROID_KEYSTORE_PATH")
