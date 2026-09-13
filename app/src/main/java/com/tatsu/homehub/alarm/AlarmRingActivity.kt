@@ -1,10 +1,10 @@
 package com.tatsu.homehub.alarm
 
-import android.app.Activity
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.tatsu.homehub.ui.HomeHubTheme
 
-class AlarmRingActivity : Activity() {
+class AlarmRingActivity : ComponentActivity() {
     private var ringtone: Ringtone? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
