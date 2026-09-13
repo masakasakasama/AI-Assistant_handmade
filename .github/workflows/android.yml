@@ -26,10 +26,11 @@ jobs:
       - name: Bundle Android signing tools
         run: |
           BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          mkdir -p signing-tools/lib
+          mkdir -p signing-tools/lib signing-tools/lib64
           cp "$BUILD_TOOLS/apksigner" signing-tools/
           cp "$BUILD_TOOLS/zipalign" signing-tools/
           cp "$BUILD_TOOLS/lib/apksigner.jar" signing-tools/lib/
+          cp "$BUILD_TOOLS/lib64/libc++.so" signing-tools/lib64/
           chmod +x signing-tools/apksigner signing-tools/zipalign
       - uses: actions/upload-artifact@v4
         if: success()
