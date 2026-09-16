@@ -13,6 +13,9 @@
 
 ## Phase 0B — マイクからスピーカーまで
 
+- [x] Galaxy内蔵マイク → Android音声認識 → Luna → 必要時Sol high → Android TTSの縦切りを実装。実Galaxy品質は未検証。
+- [x] 読み上げ中の「割り込んで話す」、停止、generationIdによる古い結果破棄を実装。実機停止時間は未測定。
+- [x] 音声のdevice_action / alarm_actionをAndroid側の対象解決・値検証・同一turn重複防止を通して既存実行層へ接続。実家電・実Alarmは未検証。
 - [ ] 共通AudioSourceを設け、Galaxy内蔵マイクと録音PCM入力を切り替える。
 - [ ] Android on-device / OpenAI低価格STT / 品質重視STTを同一音声で比較。
 - [ ] 外部PCMを入力し、認識エンジンがGalaxyマイクへ勝手に戻らないことを検証。
