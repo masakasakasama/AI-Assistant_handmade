@@ -29,6 +29,7 @@ class MainActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         requestNotificationPermissionIfNeeded()
+        requestAudioPermissionIfNeeded()
         requestExactAlarmPermissionIfNeeded()
 
         setContent {
@@ -70,6 +71,21 @@ class MainActivity : ComponentActivity() {
                 this,
                 arrayOf(Manifest.permission.POST_NOTIFICATIONS),
                 1001
+            )
+        }
+    }
+
+    private fun requestAudioPermissionIfNeeded() {
+        if (
+            ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                1002
             )
         }
     }
