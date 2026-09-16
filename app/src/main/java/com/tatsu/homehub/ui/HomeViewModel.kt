@@ -18,6 +18,10 @@ import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.update.UpdateManager
+import com.tatsu.homehub.voice.VoiceController
+import com.tatsu.homehub.voice.VoicePhase
+import com.tatsu.homehub.voice.VoiceSessionState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlin.math.roundToInt
 
 data class WeatherSettings(
     val label: String,
@@ -79,6 +84,49 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _switchBotTokenSuffix = MutableStateFlow(securePrefs.switchBotTokenSuffix())
     val switchBotTokenSuffix: StateFlow<String?> = _switchBotTokenSuffix.asStateFlow()
+
+    private val _voiceState = MutableStateFlow(VoiceSessionState())
+    val voiceState: StateFlow<VoiceSessionState> = _voiceState.asStateFlow()
+
+    private var voiceGeneration = 0L
+    private var currentVoiceJob: Job? = null
+    private val conversationHistory = mutableListOf<String>()
+    private val executedVoiceOperations = LinkedHashSet<String>()
+
+    private val voiceController = VoiceController(application, object : VoiceController.Listener {
+        override fun onListeningChanged(listening: Boolean) {
+            val current = _voiceState.value
+            if (listening) {
+                _voiceState.value = current.copy(phase = VoicePhase.LISTENING, error = null)
+            } else if (current.phase == VoicePhase.LISTENING) {
+                _voiceState.value = current.copy(phase = VoicePhase.IDLE)
+            }
+        }
+
+        override fun onPartialText(text: String) {
+            _voiceState.value = _voiceState.value.copy(partialText = text)
+        }
+
+        override fun onFinalText(text: String) {
+            val generation = _voiceState.value.generationId
+            processVoiceText(text, generation)
+        }
+
+        override fun onSpeakingChanged(speaking: Boolean) {
+            val current = _voiceState.value
+            _voiceState.value = if (speaking) {
+                current.copy(phase = VoicePhase.SPEAKING, error = null)
+            } else if (current.phase == VoicePhase.SPEAKING) {
+                current.copy(phase = VoicePhase.IDLE)
+            } else {
+                current
+            }
+        }
+
+        override fun onError(message: String) {
+            _voiceState.value = _voiceState.value.copy(phase = VoicePhase.ERROR, error = message)
+        }
+    })
 
     fun hasSwitchBotCredentials(): Boolean = _switchBotConfigured.value
 
@@ -324,6 +372,309 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun startVoiceSession() {
+        val url = appPrefs.aiBackendUrl
+        if (url.isBlank()) {
+            _message.value = "設定からAI Backend URLを登録してください"
+            return
+        }
+
+        voiceGeneration += 1
+        currentVoiceJob?.cancel()
+        voiceController.cancelListening()
+        voiceController.stopSpeaking()
+        _voiceState.value = VoiceSessionState(
+            phase = VoicePhase.LISTENING,
+            generationId = voiceGeneration
+        )
+        voiceController.startListening()
+    }
+
+    fun stopVoiceListening() {
+        voiceController.stopListening()
+    }
+
+    fun cancelVoiceSession() {
+        voiceGeneration += 1
+        currentVoiceJob?.cancel()
+        voiceController.cancelListening()
+        voiceController.stopSpeaking()
+        _voiceState.value = VoiceSessionState(
+            phase = VoicePhase.IDLE,
+            generationId = voiceGeneration
+        )
+    }
+
+    private fun processVoiceText(text: String, generation: Long) {
+        if (generation != voiceGeneration || text.isBlank()) return
+        val url = appPrefs.aiBackendUrl
+        if (url.isBlank()) return
+
+        _voiceState.value = _voiceState.value.copy(
+            phase = VoicePhase.THINKING,
+            partialText = "",
+            finalText = text,
+            responseText = "",
+            route = null,
+            error = null
+        )
+
+        currentVoiceJob?.cancel()
+        currentVoiceJob = viewModelScope.launch {
+            val started = android.os.SystemClock.elapsedRealtime()
+            aiBackendClient.dispatch(url, text, buildVoiceContext())
+                .onSuccess { result ->
+                    if (generation != voiceGeneration) return@onSuccess
+                    _aiResult.value = result
+                    _aiBackendOnline.value = true
+                    val response = handleVoiceResult(result, generation)
+                    if (generation != voiceGeneration || response.isBlank()) return@onSuccess
+                    rememberConversation(text, response)
+                    val elapsed = android.os.SystemClock.elapsedRealtime() - started
+                    _voiceState.value = _voiceState.value.copy(
+                        phase = VoicePhase.THINKING,
+                        responseText = response,
+                        route = result.route,
+                        latencyMs = elapsed,
+                        error = null
+                    )
+                    voiceController.speak(response, result.language, "voice-$generation")
+                }
+                .onFailure { error ->
+                    if (generation != voiceGeneration) return@onFailure
+                    _aiBackendOnline.value = false
+                    _voiceState.value = _voiceState.value.copy(
+                        phase = VoicePhase.ERROR,
+                        error = "AI処理失敗: " + (error.message ?: "unknown")
+                    )
+                }
+        }
+    }
+
+    private suspend fun handleVoiceResult(result: AiDispatchResult, generation: Long): String {
+        if (generation != voiceGeneration) return ""
+        return when (result.route) {
+            "simple_chat", "deep_reasoning", "clarify" ->
+                result.answerText ?: localized(result.language, "もう一度お願いします", "Please try again.", "Bitte noch einmal.")
+            "weather" -> weatherVoiceResponse(result.language)
+            "device_action" -> executeVoiceDeviceAction(result, generation)
+            "alarm_action" -> executeVoiceAlarmAction(result, generation)
+            else -> localized(result.language, "その操作にはまだ対応していません", "That action is not supported yet.", "Diese Aktion wird noch nicht unterstützt.")
+        }
+    }
+
+    private suspend fun executeVoiceDeviceAction(result: AiDispatchResult, generation: Long): String {
+        if (generation != voiceGeneration) return ""
+        if (!markVoiceOperationOnce(result, generation)) {
+            return localized(result.language, "同じ操作は重複実行しませんでした", "I blocked a duplicate action.", "Die doppelte Aktion wurde blockiert.")
+        }
+
+        val target = result.target?.trim().orEmpty()
+        if (target.isBlank()) {
+            return localized(result.language, "どの家電を操作しますか？", "Which device should I control?", "Welches Gerät soll ich steuern?")
+        }
+
+        val normalizedTarget = normalizeName(target)
+        val exact = _devices.value.filter { normalizeName(it.name) == normalizedTarget }
+        val candidates = if (exact.isNotEmpty()) exact else _devices.value.filter {
+            val name = normalizeName(it.name)
+            name.contains(normalizedTarget) || normalizedTarget.contains(name)
+        }
+
+        if (candidates.size != 1) {
+            return if (candidates.isEmpty()) {
+                localized(result.language, "対象の家電が見つかりませんでした", "I couldn't find that device.", "Ich konnte dieses Gerät nicht finden.")
+            } else {
+                val names = candidates.take(3).joinToString("、") { it.name }
+                localized(result.language, "対象が複数あります: $names", "I found multiple matching devices: $names", "Ich habe mehrere passende Geräte gefunden: $names")
+            }
+        }
+
+        val client = clientOrNull()
+            ?: return localized(result.language, "SwitchBotの設定が必要です", "SwitchBot is not configured.", "SwitchBot ist nicht eingerichtet.")
+        val device = candidates.single()
+
+        val operation = when (result.action) {
+            "turn_on" -> client.turnOn(device.deviceId)
+            "turn_off" -> client.turnOff(device.deviceId)
+            "set_ac" -> {
+                if (!device.isAirConditioner) {
+                    return localized(result.language, "その機器は温度設定に対応していません", "That device does not support temperature control.", "Dieses Gerät unterstützt keine Temperatureinstellung.")
+                }
+                val temperature = result.temperatureC?.roundToInt()
+                    ?: return localized(result.language, "温度を確認してください", "Please specify the temperature.", "Bitte nenne die Temperatur.")
+                if (temperature !in 16..30) {
+                    return localized(result.language, "温度は16〜30度で指定してください", "Please choose a temperature from 16 to 30 degrees.", "Bitte wähle eine Temperatur zwischen 16 und 30 Grad.")
+                }
+                val current = _acStates.value[device.deviceId] ?: AcControlState()
+                val next = current.copy(temperature = temperature, power = true)
+                client.setAirConditioner(device.deviceId, next.temperature, next.mode, next.fanSpeed, next.power)
+                    .onSuccess { _acStates.value = _acStates.value + (device.deviceId to next) }
+            }
+            else -> return localized(result.language, "その家電操作にはまだ対応していません", "That device action is not supported yet.", "Diese Geräteaktion wird noch nicht unterstützt.")
+        }
+
+        return operation.fold(
+            onSuccess = {
+                when (result.action) {
+                    "set_ac" -> localized(result.language, "${device.name}へ${result.temperatureC?.roundToInt()}度の設定を送信しました", "I sent ${result.temperatureC?.roundToInt()} degrees to ${device.name}.", "Ich habe ${result.temperatureC?.roundToInt()} Grad an ${device.name} gesendet.")
+                    "turn_on" -> localized(result.language, "${device.name}へONを送信しました", "I sent ON to ${device.name}.", "Ich habe EIN an ${device.name} gesendet.")
+                    else -> localized(result.language, "${device.name}へOFFを送信しました", "I sent OFF to ${device.name}.", "Ich habe AUS an ${device.name} gesendet.")
+                }
+            },
+            onFailure = { error ->
+                localized(result.language, "家電操作に失敗しました: ${error.message ?: "unknown"}", "Device control failed: ${error.message ?: "unknown"}", "Gerätesteuerung fehlgeschlagen: ${error.message ?: "unknown"}")
+            }
+        )
+    }
+
+    private suspend fun executeVoiceAlarmAction(result: AiDispatchResult, generation: Long): String {
+        if (generation != voiceGeneration) return ""
+        if (!markVoiceOperationOnce(result, generation)) {
+            return localized(result.language, "同じ操作は重複実行しませんでした", "I blocked a duplicate action.", "Die doppelte Aktion wurde blockiert.")
+        }
+
+        return when (result.action) {
+            "alarm_create" -> {
+                val time = parseClock(result.timeLocal)
+                    ?: return localized(result.language, "何時に設定するか確認してください", "What time should I set it for?", "Für welche Uhrzeit soll ich den Wecker stellen?")
+                val alarm = LocalAlarm(
+                    id = UUID.randomUUID().toString(),
+                    hour = time.first,
+                    minute = time.second,
+                    label = result.target?.takeIf { it.isNotBlank() } ?: "Voice alarm",
+                    repeatMask = 0,
+                    enabled = true
+                )
+                alarmRepo.upsert(alarm)
+                AlarmScheduler.schedule(getApplication(), alarm)
+                localized(result.language, String.format("%02d:%02dにアラームを設定しました", alarm.hour, alarm.minute),
+                    String.format("Alarm set for %02d:%02d.", alarm.hour, alarm.minute),
+                    String.format("Wecker für %02d:%02d gestellt.", alarm.hour, alarm.minute))
+            }
+
+            "alarm_update", "alarm_delete" -> {
+                val candidates = resolveAlarmCandidates(result)
+                if (candidates.size != 1) {
+                    return if (candidates.isEmpty()) {
+                        localized(result.language, "変更するアラームが見つかりませんでした", "I couldn't find that alarm.", "Ich konnte diesen Wecker nicht finden.")
+                    } else {
+                        localized(result.language, "対象のアラームが複数あります。時刻か名前を指定してください", "Multiple alarms match. Please specify the time or name.", "Mehrere Wecker passen. Bitte nenne Uhrzeit oder Namen.")
+                    }
+                }
+                val alarm = candidates.single()
+                if (result.action == "alarm_delete") {
+                    AlarmScheduler.cancel(getApplication(), alarm.id)
+                    alarmRepo.delete(alarm.id)
+                    localized(result.language, String.format("%02d:%02dのアラームを削除しました", alarm.hour, alarm.minute),
+                        String.format("Deleted the %02d:%02d alarm.", alarm.hour, alarm.minute),
+                        String.format("Der Wecker um %02d:%02d wurde gelöscht.", alarm.hour, alarm.minute))
+                } else {
+                    val time = parseClock(result.timeLocal)
+                        ?: return localized(result.language, "新しい時刻を確認してください", "What should the new time be?", "Wie lautet die neue Uhrzeit?")
+                    val updated = alarm.copy(hour = time.first, minute = time.second)
+                    alarmRepo.upsert(updated)
+                    AlarmScheduler.schedule(getApplication(), updated)
+                    localized(result.language, String.format("アラームを%02d:%02dに変更しました", updated.hour, updated.minute),
+                        String.format("Alarm changed to %02d:%02d.", updated.hour, updated.minute),
+                        String.format("Wecker auf %02d:%02d geändert.", updated.hour, updated.minute))
+                }
+            }
+
+            else -> localized(result.language, "そのアラーム操作にはまだ対応していません", "That alarm action is not supported yet.", "Diese Weckeraktion wird noch nicht unterstützt.")
+        }
+    }
+
+    private fun resolveAlarmCandidates(result: AiDispatchResult): List<LocalAlarm> {
+        var candidates = _alarms.value
+        parseClock(result.referenceTimeLocal)?.let { time ->
+            candidates = candidates.filter { it.hour == time.first && it.minute == time.second }
+        }
+
+        val target = result.target?.trim().orEmpty()
+        if (target.isNotBlank() && !isGenericAlarmTarget(target)) {
+            val normalized = normalizeName(target)
+            candidates = candidates.filter {
+                val label = normalizeName(it.label)
+                label == normalized || label.contains(normalized) || normalized.contains(label)
+            }
+        }
+        return candidates
+    }
+
+    private fun markVoiceOperationOnce(result: AiDispatchResult, generation: Long): Boolean {
+        val key = listOf(
+            generation.toString(),
+            result.action.orEmpty(),
+            result.target.orEmpty(),
+            result.temperatureC?.toString().orEmpty(),
+            result.timeLocal.orEmpty(),
+            result.referenceTimeLocal.orEmpty()
+        ).joinToString("|")
+        if (!executedVoiceOperations.add(key)) return false
+        while (executedVoiceOperations.size > 100) {
+            val first = executedVoiceOperations.firstOrNull() ?: break
+            executedVoiceOperations.remove(first)
+        }
+        return true
+    }
+
+    private fun buildVoiceContext(): String {
+        val devices = _devices.value.joinToString("\n") {
+            "- ${it.name} | type=${it.type} | id=${it.deviceId}"
+        }.ifBlank { "- none" }
+        val alarms = _alarms.value.joinToString("\n") {
+            "- ${it.label} | ${String.format("%02d:%02d", it.hour, it.minute)} | id=${it.id} | enabled=${it.enabled}"
+        }.ifBlank { "- none" }
+        val history = conversationHistory.takeLast(8).joinToString("\n").ifBlank { "- none" }
+        return """
+Known devices:
+$devices
+
+Current alarms:
+$alarms
+
+Recent conversation:
+$history
+""".trim()
+    }
+
+    private fun rememberConversation(user: String, assistant: String) {
+        conversationHistory += "User: $user"
+        conversationHistory += "Assistant: $assistant"
+        while (conversationHistory.size > 12) conversationHistory.removeAt(0)
+    }
+
+    private fun weatherVoiceResponse(language: String): String {
+        val snapshot = _weather.value
+            ?: return localized(language, "天気情報をまだ取得できていません", "Weather data is not available yet.", "Wetterdaten sind noch nicht verfügbar.")
+        val condition = WeatherClient.weatherLabel(snapshot.weatherCode)
+        val temperature = String.format("%.0f", snapshot.temperatureC)
+        return localized(language, "${snapshot.label}は${temperature}度、${condition}です", "${snapshot.label}: ${temperature} degrees, ${condition}.", "${snapshot.label}: ${temperature} Grad, ${condition}.")
+    }
+
+    private fun parseClock(value: String?): Pair<Int, Int>? {
+        val match = Regex("""^(\d{1,2}):(\d{2})$""").matchEntire(value?.trim().orEmpty()) ?: return null
+        val hour = match.groupValues[1].toIntOrNull() ?: return null
+        val minute = match.groupValues[2].toIntOrNull() ?: return null
+        if (hour !in 0..23 || minute !in 0..59) return null
+        return hour to minute
+    }
+
+    private fun normalizeName(value: String): String =
+        value.lowercase().replace(Regex("""[\s　・_\-:：/]+"""), "")
+
+    private fun isGenericAlarmTarget(value: String): Boolean {
+        val normalized = normalizeName(value)
+        return normalized in setOf("alarm", "thealarm", "アラーム", "wecker", "derwecker")
+    }
+
+    private fun localized(language: String, ja: String, en: String, de: String): String = when (language) {
+        "de" -> de
+        "en" -> en
+        else -> ja
+    }
+
     fun refreshWeather(showError: Boolean = true) {
         viewModelScope.launch {
             refreshWeatherInternal(showError = showError)
@@ -392,6 +743,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        currentVoiceJob?.cancel()
+        voiceController.release()
         networkMonitor.stop()
         super.onCleared()
     }
