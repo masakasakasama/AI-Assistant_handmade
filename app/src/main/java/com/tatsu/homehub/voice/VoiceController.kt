@@ -107,7 +107,7 @@ class VoiceController(
                 "en" -> Locale.ENGLISH
                 else -> Locale.JAPANESE
             }
-            tts.language = locale
+            tts.setLanguage(locale)
             val result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
             if (result == TextToSpeech.ERROR) {
                 listener.onError("TTS再生を開始できませんでした")
