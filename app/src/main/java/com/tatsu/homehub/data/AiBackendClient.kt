@@ -7,12 +7,17 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 data class AiDispatchResult(
+    val requestId: String,
     val routerModel: String,
     val reasoningModel: String,
+    val language: String,
     val route: String,
     val confidence: Double,
     val action: String?,
     val target: String?,
+    val temperatureC: Double?,
+    val timeLocal: String?,
+    val referenceTimeLocal: String?,
     val answerModel: String?,
     val answerText: String?,
     val clientLatencyMs: Long = 0,
@@ -61,12 +66,17 @@ class AiBackendClient {
             val answer = json.optJSONObject("answer")
 
             AiDispatchResult(
+                requestId = json.optString("requestId", ""),
                 routerModel = json.optString("routerModel", "unknown"),
                 reasoningModel = json.optString("reasoningModel", "unknown"),
+                language = route.optString("language", "ja"),
                 route = route.optString("route", "unknown"),
                 confidence = route.optDouble("confidence", 0.0),
                 action = route.optString("action").takeIf { it.isNotBlank() && it != "null" },
                 target = route.optString("target").takeIf { it.isNotBlank() && it != "null" },
+                temperatureC = if (route.isNull("temperatureC")) null else route.optDouble("temperatureC"),
+                timeLocal = route.optString("timeLocal").takeIf { it.isNotBlank() && it != "null" },
+                referenceTimeLocal = route.optString("referenceTimeLocal").takeIf { it.isNotBlank() && it != "null" },
                 answerModel = answer?.optString("model")?.takeIf { it.isNotBlank() },
                 answerText = answer?.optString("text")?.takeIf { it.isNotBlank() },
                 clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
