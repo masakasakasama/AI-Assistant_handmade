@@ -66,6 +66,8 @@ import com.tatsu.homehub.model.AcControlState
 import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.UpdateInfo
+import com.tatsu.homehub.voice.VoicePhase
+import com.tatsu.homehub.voice.VoiceSessionState
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -91,6 +93,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val aiTesting by viewModel.aiTesting.collectAsState()
     val aiResult by viewModel.aiResult.collectAsState()
     val aiBackendOnline by viewModel.aiBackendOnline.collectAsState()
+    val voiceState by viewModel.voiceState.collectAsState()
 
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     var tab by remember { mutableStateOf(DashboardTab.HOME) }
@@ -225,6 +228,16 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                     }
 
                     DashboardTab.AI -> {
+                        item {
+                            VoicePocCard(
+                                state = voiceState,
+                                backendUrl = viewModel.aiBackendUrl(),
+                                onStart = viewModel::startVoiceSession,
+                                onStopListening = viewModel::stopVoiceListening,
+                                onCancel = viewModel::cancelVoiceSession,
+                                onSettings = { showSettings = true }
+                            )
+                        }
                         item {
                             AiCard(
                                 online = aiBackendOnline,
@@ -515,6 +528,116 @@ private fun DeviceList(
                     FavoriteDeviceTile(device = device, onPower = { onPower(device, it) })
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun VoicePocCard(
+    state: VoiceSessionState,
+    backendUrl: String,
+    onStart: () -> Unit,
+    onStopListening: () -> Unit,
+    onCancel: () -> Unit,
+    onSettings: () -> Unit
+) {
+    val phaseLabel = when (state.phase) {
+        VoicePhase.IDLE -> "待機"
+        VoicePhase.LISTENING -> "聞き取り中"
+        VoicePhase.THINKING -> "処理中"
+        VoicePhase.SPEAKING -> "発話中"
+        VoicePhase.ERROR -> "エラー"
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (state.phase == VoicePhase.LISTENING) Icons.Outlined.Hearing else Icons.Outlined.Mic,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Galaxy Voice PoC", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "マイク → STT → Luna → 必要時Sol high → TTS",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(phaseLabel, style = MaterialTheme.typography.labelLarge)
+            }
+
+            if (backendUrl.isBlank()) {
+                Text("AI Backend URLを設定してください")
+                TextButton(onClick = onSettings) { Text("設定する") }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when (state.phase) {
+                        VoicePhase.LISTENING -> {
+                            Button(onClick = onStopListening) {
+                                Icon(Icons.Outlined.Stop, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("聞き取り終了")
+                            }
+                            OutlinedButton(onClick = onCancel) { Text("キャンセル") }
+                        }
+                        VoicePhase.THINKING -> {
+                            Button(onClick = onCancel) {
+                                Icon(Icons.Outlined.Stop, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("停止")
+                            }
+                        }
+                        VoicePhase.SPEAKING -> {
+                            Button(onClick = onStart) {
+                                Icon(Icons.Outlined.Mic, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("割り込んで話す")
+                            }
+                            OutlinedButton(onClick = onCancel) { Text("読み上げ停止") }
+                        }
+                        else -> {
+                            Button(onClick = onStart) {
+                                Icon(Icons.Outlined.Mic, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("話す")
+                            }
+                        }
+                    }
+                }
+            }
+
+            val heard = state.partialText.ifBlank { state.finalText }
+            if (heard.isNotBlank()) {
+                Text("認識: " + heard, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (state.responseText.isNotBlank()) {
+                Text("返答: " + state.responseText, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (state.route != null || state.latencyMs != null) {
+                Text(
+                    listOfNotNull(
+                        state.route?.let { "route=" + it },
+                        state.latencyMs?.let { "E2E " + it + "ms" }
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            state.error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            Text(
+                "STTはAndroidのオンデバイス認識を優先し、非対応端末ではシステム認識へフォールバック。物理操作は最終認識結果だけを使い、曖昧な対象は実行しません。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
