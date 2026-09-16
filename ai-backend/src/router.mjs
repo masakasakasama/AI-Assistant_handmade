@@ -49,6 +49,9 @@ const ROUTE_SCHEMA = {
     timeLocal: {
       type: ["string", "null"]
     },
+    referenceTimeLocal: {
+      type: ["string", "null"]
+    },
     replyText: { type: ["string", "null"] },
     shortReason: {
       type: "string"
@@ -62,6 +65,7 @@ const ROUTE_SCHEMA = {
     "target",
     "temperatureC",
     "timeLocal",
+    "referenceTimeLocal",
     "shortReason", "replyText"
   ]
 };
@@ -81,6 +85,9 @@ Choose deep_reasoning for requests that need nontrivial reasoning, planning, com
 Choose clarify when a physical action is ambiguous or unsafe to infer.
 
 For destructive or ambiguous physical actions, prefer clarify.
+For alarm_create, put the requested new time in timeLocal using 24-hour HH:mm.
+For alarm_update, put the new time in timeLocal and the alarm's existing referenced time in referenceTimeLocal when the user supplied one.
+For alarm_delete, put the referenced existing alarm time in referenceTimeLocal when the user supplied one and leave timeLocal null.
 Preserve the user's language as ja/en/de when possible.
 Do not invent a target, temperature, or time.
 `.trim();
