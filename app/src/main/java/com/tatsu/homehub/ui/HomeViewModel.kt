@@ -381,7 +381,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         voiceGeneration += 1
         currentVoiceJob?.cancel()
-        voiceController.cancelListening()
         voiceController.stopSpeaking()
         _voiceState.value = VoiceSessionState(
             phase = VoicePhase.LISTENING,
