@@ -30,6 +30,10 @@ class VoiceController(
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
+    private var recognizerUsesOnDevice = false
+    private var forceSystemRecognizer = false
+    private var fallbackAttempted = false
+    private var lastListenIntent: Intent? = null
     private var ttsReady = false
 
     private val tts = TextToSpeech(appContext) { status ->
@@ -64,23 +68,10 @@ class VoiceController(
 
         mainHandler.post {
             stopSpeaking()
-            val speech = recognizer ?: createRecognizer().also { recognizer = it }
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-                if (!languageTag.isNullOrBlank()) {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
-                }
-            }
-            runCatching {
-                listener.onPartialText("")
-                listener.onListeningChanged(true)
-                speech.startListening(intent)
-            }.onFailure {
-                listener.onListeningChanged(false)
-                listener.onError(it.message ?: "音声認識を開始できませんでした")
-            }
+            fallbackAttempted = false
+            val intent = recognitionIntent(languageTag)
+            lastListenIntent = intent
+            startRecognizer(intent)
         }
     }
 
@@ -124,19 +115,42 @@ class VoiceController(
 
     fun release() {
         mainHandler.post {
-            recognizer?.cancel()
-            recognizer?.destroy()
-            recognizer = null
+            destroyRecognizer()
             tts.stop()
             tts.shutdown()
         }
     }
 
+    private fun recognitionIntent(languageTag: String?): Intent =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            if (!languageTag.isNullOrBlank()) {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
+            }
+        }
+
+    private fun startRecognizer(intent: Intent) {
+        val speech = recognizer ?: createRecognizer().also { recognizer = it }
+        runCatching {
+            listener.onPartialText("")
+            listener.onListeningChanged(true)
+            speech.startListening(intent)
+        }.onFailure {
+            listener.onListeningChanged(false)
+            listener.onError(it.message ?: "音声認識を開始できませんでした")
+        }
+    }
+
     private fun createRecognizer(): SpeechRecognizer {
-        val speech = if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            SpeechRecognizer.isOnDeviceRecognitionAvailable(appContext)
-        ) {
+        val canUseOnDevice =
+            !forceSystemRecognizer &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                SpeechRecognizer.isOnDeviceRecognitionAvailable(appContext)
+
+        recognizerUsesOnDevice = canUseOnDevice
+        val speech = if (canUseOnDevice) {
             SpeechRecognizer.createOnDeviceSpeechRecognizer(appContext)
         } else {
             SpeechRecognizer.createSpeechRecognizer(appContext)
@@ -150,6 +164,24 @@ class VoiceController(
             override fun onEndOfSpeech() = Unit
 
             override fun onError(error: Int) {
+                if (
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    recognizerUsesOnDevice &&
+                    !fallbackAttempted &&
+                    (error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED ||
+                        error == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE)
+                ) {
+                    fallbackAttempted = true
+                    forceSystemRecognizer = true
+                    val retryIntent = lastListenIntent
+                    destroyRecognizer()
+                    if (retryIntent != null) {
+                        listener.onPartialText("オンデバイス認識を利用できないためシステム認識へ切替中…")
+                        startRecognizer(retryIntent)
+                        return
+                    }
+                }
+
                 listener.onListeningChanged(false)
                 listener.onError(errorMessage(error))
             }
@@ -179,6 +211,13 @@ class VoiceController(
         return speech
     }
 
+    private fun destroyRecognizer() {
+        recognizer?.cancel()
+        recognizer?.destroy()
+        recognizer = null
+        recognizerUsesOnDevice = false
+    }
+
     private fun errorMessage(code: Int): String = when (code) {
         SpeechRecognizer.ERROR_AUDIO -> "マイク入力エラー"
         SpeechRecognizer.ERROR_CLIENT -> "音声認識をキャンセルしました"
@@ -188,6 +227,8 @@ class VoiceController(
         SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "音声認識が使用中です"
         SpeechRecognizer.ERROR_SERVER -> "音声認識サービスエラー"
         SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "発話が検出されませんでした"
+        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "この音声認識エンジンは現在の言語に対応していません"
+        SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "音声認識用の言語データが利用できません"
         else -> "音声認識エラー ($code)"
     }
 }
