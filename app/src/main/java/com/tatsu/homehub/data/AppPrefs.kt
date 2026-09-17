@@ -34,6 +34,21 @@ class AppPrefs(context: Context) {
         get() = prefs.getString(KEY_AI_BACKEND_URL, "") ?: ""
         set(value) = prefs.edit().putString(KEY_AI_BACKEND_URL, value.trim()).apply()
 
+    fun roomForDevice(deviceId: String): String? =
+        prefs.getString(KEY_DEVICE_ROOM_PREFIX + deviceId, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+    fun setRoomForDevice(deviceId: String, room: String?) {
+        val key = KEY_DEVICE_ROOM_PREFIX + deviceId
+        val clean = room?.trim().orEmpty()
+        if (clean.isBlank()) {
+            prefs.edit().remove(key).apply()
+        } else {
+            prefs.edit().putString(key, clean).apply()
+        }
+    }
+
     fun saveWeatherCache(snapshot: WeatherSnapshot) {
         val json = JSONObject()
             .put("label", snapshot.label)
@@ -65,6 +80,7 @@ class AppPrefs(context: Context) {
         private const val KEY_LAST_UPDATE_CHECK = "last_update_check"
         private const val KEY_WEATHER_CACHE = "weather_cache"
         private const val KEY_AI_BACKEND_URL = "ai_backend_url"
+        private const val KEY_DEVICE_ROOM_PREFIX = "device_room_"
 
         private const val DEFAULT_LAT = 35.7126
         private const val DEFAULT_LON = 139.7800
