@@ -87,6 +87,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _voiceState = MutableStateFlow(VoiceSessionState())
     val voiceState: StateFlow<VoiceSessionState> = _voiceState.asStateFlow()
+    val voiceLanguageTag: String get() = appPrefs.voiceLanguageTag
 
     private var voiceGeneration = 0L
     private var currentVoiceJob: Job? = null
@@ -94,8 +95,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val executedVoiceOperations = LinkedHashSet<String>()
 
     private val voiceController = VoiceController(application, object : VoiceController.Listener {
-        override fun onListeningChanged(listening: Boolean) {
+        override fun onListeningChanged(sessionId: Long, listening: Boolean) {
             val current = _voiceState.value
+            if (sessionId != current.generationId) return
             if (listening) {
                 _voiceState.value = current.copy(phase = VoicePhase.LISTENING, error = null)
             } else if (current.phase == VoicePhase.LISTENING) {
@@ -103,13 +105,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        override fun onPartialText(text: String) {
-            _voiceState.value = _voiceState.value.copy(partialText = text)
+        override fun onStatus(sessionId: Long, status: String) {
+            if (sessionId != _voiceState.value.generationId) return
+            val phase = when (status) {
+                "音声入力を準備しています", "音声入力を切り替えています", "音声を確認しています" -> VoicePhase.PREPARING
+                "話してください", "準備できました。もう一度話してください" -> VoicePhase.LISTENING
+                else -> _voiceState.value.phase
+            }
+            _voiceState.value = _voiceState.value.copy(status = status, phase = phase)
         }
 
-        override fun onFinalText(text: String) {
-            val generation = _voiceState.value.generationId
-            processVoiceText(text, generation)
+        override fun onDiagnostic(sessionId: Long, diagnostic: String) {
+            if (sessionId == _voiceState.value.generationId) {
+                val current = _voiceState.value.diagnostic
+                val appInfo = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})"
+                val history = if (current.startsWith(appInfo)) current.removePrefix(appInfo).trimStart(';', ' ') else current
+                val combined = listOf(appInfo, history, diagnostic).filter { it.isNotBlank() }.joinToString("; ")
+                _voiceState.value = _voiceState.value.copy(diagnostic = combined.takeLast(1600))
+            }
+        }
+
+        override fun onPartialText(sessionId: Long, text: String) {
+            if (sessionId == _voiceState.value.generationId) {
+                _voiceState.value = _voiceState.value.copy(partialText = text)
+            }
+        }
+
+        override fun onFinalText(sessionId: Long, text: String) {
+            processVoiceText(text, sessionId)
         }
 
         override fun onSpeakingChanged(speaking: Boolean) {
@@ -123,7 +146,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        override fun onError(message: String) {
+        override fun onError(sessionId: Long, message: String) {
+            val current = _voiceState.value
+            if (sessionId != 0L && sessionId != current.generationId) return
+            if (sessionId == 0L && current.generationId != 0L && current.phase != VoicePhase.SPEAKING) return
             _voiceState.value = _voiceState.value.copy(phase = VoicePhase.ERROR, error = message)
         }
     })
@@ -319,6 +345,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         checkAiBackend()
     }
 
+    fun saveVoiceLanguage(languageTag: String) {
+        if (languageTag in setOf("ja-JP", "en-US", "de-DE")) appPrefs.voiceLanguageTag = languageTag
+    }
+
     fun checkAiBackend(showMessage: Boolean = true) {
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) {
@@ -379,14 +409,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        val previousGeneration = voiceGeneration
         voiceGeneration += 1
+        if (previousGeneration > 0) voiceController.cancelListening(previousGeneration)
         currentVoiceJob?.cancel()
         voiceController.stopSpeaking()
         _voiceState.value = VoiceSessionState(
-            phase = VoicePhase.LISTENING,
-            generationId = voiceGeneration
+            phase = VoicePhase.PREPARING,
+            generationId = voiceGeneration,
+            status = "音声入力を準備しています",
+            diagnostic = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})"
         )
-        voiceController.startListening()
+        voiceController.startListening(voiceGeneration, appPrefs.voiceLanguageTag)
     }
 
     fun stopVoiceListening() {
@@ -396,7 +430,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelVoiceSession() {
         voiceGeneration += 1
         currentVoiceJob?.cancel()
-        voiceController.cancelListening()
+        voiceController.cancelListening(voiceGeneration - 1)
         voiceController.stopSpeaking()
         _voiceState.value = VoiceSessionState(
             phase = VoicePhase.IDLE,

@@ -54,8 +54,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tatsu.homehub.BuildConfig
@@ -232,6 +234,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                             VoicePocCard(
                                 state = voiceState,
                                 backendUrl = viewModel.aiBackendUrl(),
+                                voiceLanguageTag = viewModel.voiceLanguageTag,
                                 onStart = viewModel::startVoiceSession,
                                 onStopListening = viewModel::stopVoiceListening,
                                 onCancel = viewModel::cancelVoiceSession,
@@ -266,11 +269,13 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
             initialLatitude = weatherSettings.latitude,
             initialLongitude = weatherSettings.longitude,
             initialAiBackendUrl = viewModel.aiBackendUrl(),
+            initialVoiceLanguageTag = viewModel.voiceLanguageTag,
             onDismiss = { showSettings = false },
-            onSave = { token, secret, label, latitude, longitude, backendUrl ->
+            onSave = { token, secret, label, latitude, longitude, backendUrl, voiceLanguageTag ->
                 if (viewModel.saveSwitchBotCredentials(token, secret)) {
                     viewModel.saveWeatherSettings(label, latitude, longitude)
                     viewModel.saveAiBackendUrl(backendUrl)
+                    viewModel.saveVoiceLanguage(voiceLanguageTag)
                     showSettings = false
                 }
             }
@@ -536,13 +541,16 @@ private fun DeviceList(
 private fun VoicePocCard(
     state: VoiceSessionState,
     backendUrl: String,
+    voiceLanguageTag: String,
     onStart: () -> Unit,
     onStopListening: () -> Unit,
     onCancel: () -> Unit,
     onSettings: () -> Unit
 ) {
+    val clipboard = LocalClipboardManager.current
     val phaseLabel = when (state.phase) {
         VoicePhase.IDLE -> "待機"
+        VoicePhase.PREPARING -> "準備中"
         VoicePhase.LISTENING -> "聞き取り中"
         VoicePhase.THINKING -> "処理中"
         VoicePhase.SPEAKING -> "発話中"
@@ -563,9 +571,9 @@ private fun VoicePocCard(
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Galaxy Voice PoC", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("音声入力", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "マイク → STT → Luna → 必要時Sol high → TTS",
+                        "${state.status.ifBlank { phaseLabel }} · ${when (voiceLanguageTag) { "de-DE" -> "Deutsch"; "en-US" -> "English"; else -> "日本語" }}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -579,6 +587,10 @@ private fun VoicePocCard(
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     when (state.phase) {
+                        VoicePhase.PREPARING -> {
+                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            OutlinedButton(onClick = onCancel) { Text("キャンセル") }
+                        }
                         VoicePhase.LISTENING -> {
                             Button(onClick = onStopListening) {
                                 Icon(Icons.Outlined.Stop, null)
@@ -632,6 +644,16 @@ private fun VoicePocCard(
             }
             state.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            if (state.diagnostic.isNotBlank()) {
+                var showDiagnostic by remember { mutableStateOf(false) }
+                TextButton(onClick = { showDiagnostic = !showDiagnostic }) {
+                    Text(if (showDiagnostic) "診断情報を閉じる" else "診断情報")
+                }
+                if (showDiagnostic) {
+                    Text(state.diagnostic, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { clipboard.setText(AnnotatedString(state.diagnostic)) }) { Text("診断情報をコピー") }
+                }
             }
             Text(
                 "STTはAndroidのオンデバイス認識を優先し、非対応端末ではシステム認識へフォールバック。物理操作は最終認識結果だけを使い、曖昧な対象は実行しません。",
@@ -836,8 +858,9 @@ private fun SettingsDialog(
     initialLatitude: Double,
     initialLongitude: Double,
     initialAiBackendUrl: String,
+    initialVoiceLanguageTag: String,
     onDismiss: () -> Unit,
-    onSave: (String, String, String, Double, Double, String) -> Unit
+    onSave: (String, String, String, Double, Double, String, String) -> Unit
 ) {
     var token by remember { mutableStateOf("") }
     var secret by remember { mutableStateOf("") }
@@ -845,6 +868,7 @@ private fun SettingsDialog(
     var latitude by remember { mutableStateOf(initialLatitude.toString()) }
     var longitude by remember { mutableStateOf(initialLongitude.toString()) }
     var backendUrl by remember { mutableStateOf(initialAiBackendUrl) }
+    var voiceLanguageTag by remember { mutableStateOf(initialVoiceLanguageTag) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -896,6 +920,16 @@ private fun SettingsDialog(
                 )
 
                 Spacer(Modifier.height(20.dp))
+                Text("音声入力", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("認識する言語を選択してください", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("ja-JP" to "日本語", "en-US" to "English", "de-DE" to "Deutsch").forEach { (tag, label) ->
+                        FilterChip(selected = voiceLanguageTag == tag, onClick = { voiceLanguageTag = tag }, label = { Text(label) })
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
                 Text("天気", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 OutlinedTextField(
                     value = weatherLabel,
@@ -931,7 +965,8 @@ private fun SettingsDialog(
                     weatherLabel,
                     latitude.toDoubleOrNull() ?: initialLatitude,
                     longitude.toDoubleOrNull() ?: initialLongitude,
-                    backendUrl
+                    backendUrl,
+                    voiceLanguageTag
                 )
             }) { Text("保存") }
         },
