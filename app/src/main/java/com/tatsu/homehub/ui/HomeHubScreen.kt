@@ -1,6 +1,13 @@
 package com.tatsu.homehub.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
@@ -52,7 +59,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -61,6 +73,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tatsu.homehub.BuildConfig
+import com.tatsu.homehub.R
 import com.tatsu.homehub.data.AiDispatchResult
 import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.WeatherClient
@@ -564,6 +577,11 @@ private fun VoicePocCard(
         color = MaterialTheme.colorScheme.primaryContainer
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TatsuMascot(
+                phase = state.phase,
+                recognizedText = state.partialText.ifBlank { state.finalText }
+            )
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     if (state.phase == VoicePhase.LISTENING) Icons.Outlined.Hearing else Icons.Outlined.Mic,
@@ -660,6 +678,109 @@ private fun VoicePocCard(
                 "STTはAndroidのオンデバイス認識を優先し、非対応端末ではシステム認識へフォールバック。物理操作は最終認識結果だけを使い、曖昧な対象は実行しません。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun TatsuMascot(phase: VoicePhase, recognizedText: String) {
+    val transition = rememberInfiniteTransition(label = "tatsu-mascot")
+    val active = phase == VoicePhase.LISTENING ||
+        phase == VoicePhase.THINKING ||
+        phase == VoicePhase.SPEAKING ||
+        phase == VoicePhase.PREPARING
+    val duration = when (phase) {
+        VoicePhase.SPEAKING -> 420
+        VoicePhase.LISTENING -> 650
+        VoicePhase.THINKING, VoicePhase.PREPARING -> 850
+        else -> 1_800
+    }
+    val motion by transition.animateFloat(
+        initialValue = -1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = duration, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "tatsu-motion"
+    )
+    val density = LocalDensity.current
+    val translationY = with(density) {
+        when (phase) {
+            VoicePhase.SPEAKING -> (motion * 8f).dp.toPx()
+            VoicePhase.LISTENING -> (motion * 4f).dp.toPx()
+            VoicePhase.THINKING, VoicePhase.PREPARING -> (motion * 3f).dp.toPx()
+            else -> (motion * 1.5f).dp.toPx()
+        }
+    }
+    val rotation = when (phase) {
+        VoicePhase.SPEAKING -> motion * 3.5f
+        VoicePhase.THINKING, VoicePhase.PREPARING -> motion * 2.5f
+        else -> 0f
+    }
+    val scale = when (phase) {
+        VoicePhase.SPEAKING -> 1f + (motion + 1f) * 0.025f
+        VoicePhase.LISTENING -> 1f + (motion + 1f) * 0.015f
+        else -> 1f + (motion + 1f) * 0.006f
+    }
+    val statusMessage = when (phase) {
+        VoicePhase.PREPARING -> "じゅんび中…"
+        VoicePhase.LISTENING -> "きいてるよ"
+        VoicePhase.THINKING -> "かんがえ中…"
+        VoicePhase.SPEAKING -> "お話し中♪"
+        VoicePhase.ERROR -> "もう一度ためしてね"
+        VoicePhase.IDLE -> "話しかけてね"
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (active) {
+                Surface(
+                    modifier = Modifier.size(if (phase == VoicePhase.SPEAKING) 184.dp else 172.dp),
+                    shape = RoundedCornerShape(48.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                ) {}
+            }
+            Image(
+                painter = painterResource(R.drawable.tatsu_mascot),
+                contentDescription = "Tatsu Homeのマスコット",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(164.dp)
+                    .graphicsLayer {
+                        this.translationY = translationY
+                        rotationZ = rotation
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(RoundedCornerShape(44.dp))
+            )
+        }
+        Surface(
+            shape = RoundedCornerShape(100.dp),
+            color = if (active) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+            } else {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.62f)
+            }
+        ) {
+            Text(
+                text = if (phase == VoicePhase.LISTENING && recognizedText.isNotBlank()) {
+                    "「$recognizedText」"
+                } else {
+                    statusMessage
+                },
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
