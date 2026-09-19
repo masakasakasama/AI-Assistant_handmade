@@ -2,6 +2,7 @@ package com.tatsu.homehub.voice
 
 enum class VoicePhase {
     IDLE,
+    PREPARING,
     LISTENING,
     THINKING,
     SPEAKING,
@@ -16,5 +17,7 @@ data class VoiceSessionState(
     val responseText: String = "",
     val route: String? = null,
     val latencyMs: Long? = null,
-    val error: String? = null
+    val error: String? = null,
+    val status: String = "",
+    val diagnostic: String = ""
 )
