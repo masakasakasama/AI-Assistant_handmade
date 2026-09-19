@@ -38,8 +38,20 @@ class AppPrefs(context: Context) {
         set(value) = prefs.edit().putString(KEY_AI_BACKEND_URL, value.trim()).apply()
 
     var voiceLanguageTag: String
-        get() = prefs.getString(KEY_VOICE_LANGUAGE, defaultVoiceLanguage()) ?: defaultVoiceLanguage()
-        set(value) = prefs.edit().putString(KEY_VOICE_LANGUAGE, value).apply()
+        get() {
+            if (!prefs.getBoolean(KEY_VOICE_AUTO_MIGRATED, false)) {
+                prefs.edit()
+                    .putString(KEY_VOICE_LANGUAGE, VOICE_LANGUAGE_AUTO)
+                    .putBoolean(KEY_VOICE_AUTO_MIGRATED, true)
+                    .apply()
+                return VOICE_LANGUAGE_AUTO
+            }
+            return prefs.getString(KEY_VOICE_LANGUAGE, VOICE_LANGUAGE_AUTO) ?: VOICE_LANGUAGE_AUTO
+        }
+        set(value) = prefs.edit()
+            .putString(KEY_VOICE_LANGUAGE, value)
+            .putBoolean(KEY_VOICE_AUTO_MIGRATED, true)
+            .apply()
 
     fun saveWeatherCache(snapshot: WeatherSnapshot) {
         val json = JSONObject()
@@ -73,14 +85,12 @@ class AppPrefs(context: Context) {
         private const val KEY_WEATHER_CACHE = "weather_cache"
         private const val KEY_AI_BACKEND_URL = "ai_backend_url"
         private const val KEY_VOICE_LANGUAGE = "voice_language_tag"
+        private const val KEY_VOICE_AUTO_MIGRATED = "voice_language_auto_migrated_v044"
+
+        const val VOICE_LANGUAGE_AUTO = "auto"
 
         private const val DEFAULT_LAT = 35.7126
         private const val DEFAULT_LON = 139.7800
 
-        private fun defaultVoiceLanguage(): String = when (java.util.Locale.getDefault().language) {
-            "de" -> "de-DE"
-            "en" -> "en-US"
-            else -> "ja-JP"
-        }
     }
 }

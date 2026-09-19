@@ -125,6 +125,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        override fun onLanguageDetected(sessionId: Long, languageTag: String) {
+            if (sessionId == _voiceState.value.generationId) {
+                _voiceState.value = _voiceState.value.copy(detectedLanguageTag = languageTag)
+            }
+        }
+
         override fun onPartialText(sessionId: Long, text: String) {
             if (sessionId == _voiceState.value.generationId) {
                 _voiceState.value = _voiceState.value.copy(partialText = text)
@@ -346,7 +352,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveVoiceLanguage(languageTag: String) {
-        if (languageTag in setOf("ja-JP", "en-US", "de-DE")) appPrefs.voiceLanguageTag = languageTag
+        if (languageTag in setOf(AppPrefs.VOICE_LANGUAGE_AUTO, "ja-JP", "en-US", "de-DE")) {
+            appPrefs.voiceLanguageTag = languageTag
+        }
     }
 
     fun checkAiBackend(showMessage: Boolean = true) {
@@ -418,7 +426,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             phase = VoicePhase.PREPARING,
             generationId = voiceGeneration,
             status = "音声入力を準備しています",
-            diagnostic = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})"
+            diagnostic = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})",
+            detectedLanguageTag = null
         )
         voiceController.startListening(voiceGeneration, appPrefs.voiceLanguageTag)
     }

@@ -15,6 +15,7 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import androidx.core.content.ContextCompat
 import androidx.annotation.RequiresApi
+import com.tatsu.homehub.data.AppPrefs
 import java.util.Locale
 
 class VoiceController(
@@ -25,6 +26,7 @@ class VoiceController(
         fun onListeningChanged(sessionId: Long, listening: Boolean)
         fun onStatus(sessionId: Long, status: String)
         fun onDiagnostic(sessionId: Long, diagnostic: String)
+        fun onLanguageDetected(sessionId: Long, languageTag: String)
         fun onPartialText(sessionId: Long, text: String)
         fun onFinalText(sessionId: Long, text: String)
         fun onSpeakingChanged(speaking: Boolean)
@@ -37,7 +39,8 @@ class VoiceController(
         val onDevice: Boolean,
         val recognizer: SpeechRecognizer,
         var ready: Boolean = false,
-        var readyTimeout: Runnable? = null
+        var readyTimeout: Runnable? = null,
+        var detectedLanguageTag: String? = null
     )
 
     private val appContext = context.applicationContext
@@ -46,7 +49,7 @@ class VoiceController(
     private var activeSessionId: Long? = null
     private var nextAttemptId = 0L
     private var fallbackAttempted = false
-    private var currentLanguageTag = "ja-JP"
+    private var currentLanguageTag = AppPrefs.VOICE_LANGUAGE_AUTO
     private var ttsReady = false
 
     private val tts = TextToSpeech(appContext) { status ->
@@ -148,10 +151,33 @@ class VoiceController(
 
     private fun recognitionIntent(): Intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE, currentLanguageTag)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, recognitionLanguageTag())
         putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+        if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_DETECTION, true)
+            putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_SWITCH, RecognizerIntent.LANGUAGE_SWITCH_BALANCED)
+            putStringArrayListExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_DETECTION_ALLOWED_LANGUAGES,
+                ArrayList(SUPPORTED_LANGUAGE_TAGS)
+            )
+            putStringArrayListExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_SWITCH_ALLOWED_LANGUAGES,
+                ArrayList(SUPPORTED_LANGUAGE_TAGS)
+            )
+        }
     }
+
+    private fun recognitionLanguageTag(): String =
+        if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO) {
+            when (Locale.getDefault().language) {
+                "de" -> "de-DE"
+                "en" -> "en-US"
+                else -> "ja-JP"
+            }
+        } else {
+            currentLanguageTag
+        }
 
     private fun startAttempt(sessionId: Long, preferOnDevice: Boolean) {
         if (activeSessionId != sessionId) return
@@ -192,6 +218,21 @@ class VoiceController(
                 if (isCurrent(attempt)) listener.onStatus(sessionId, "音声を確認しています")
             }
             override fun onEvent(eventType: Int, params: Bundle?) = Unit
+            override fun onLanguageDetection(results: Bundle) {
+                if (!isCurrent(attempt) || currentLanguageTag != AppPrefs.VOICE_LANGUAGE_AUTO) return
+                val detected = normalizeSupportedLanguage(
+                    results.getString(SpeechRecognizer.DETECTED_LANGUAGE)
+                ) ?: return
+                if (attempt.detectedLanguageTag != detected) {
+                    attempt.detectedLanguageTag = detected
+                    listener.onLanguageDetected(sessionId, detected)
+                    val confidence = results.getInt(
+                        SpeechRecognizer.LANGUAGE_DETECTION_CONFIDENCE_LEVEL,
+                        SpeechRecognizer.LANGUAGE_DETECTION_CONFIDENCE_LEVEL_UNKNOWN
+                    )
+                    listener.onDiagnostic(sessionId, "attempt=$attemptId; detected-language=$detected; confidence=$confidence")
+                }
+            }
             override fun onPartialResults(partialResults: Bundle?) {
                 if (!isCurrent(attempt)) return
                 val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().trim()
@@ -200,6 +241,12 @@ class VoiceController(
             override fun onResults(results: Bundle?) {
                 if (!isCurrent(attempt)) return
                 val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().trim()
+                if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO && attempt.detectedLanguageTag == null) {
+                    inferJapanese(text)?.let {
+                        attempt.detectedLanguageTag = it
+                        listener.onLanguageDetected(sessionId, it)
+                    }
+                }
                 finishAttempt(attempt)
                 listener.onListeningChanged(sessionId, false)
                 if (text.isBlank()) finishWithError(sessionId, "音声を認識できませんでした。もう一度話してください", "attempt=$attemptId; result=blank")
@@ -249,10 +296,15 @@ class VoiceController(
                     if (!isCurrent(attempt) || resolved) return
                     resolved = true
                     mainHandler.removeCallbacks(supportTimeout)
-                    val requestedLanguage = Locale.forLanguageTag(currentLanguageTag).language
-                    val ready = support.installedOnDeviceLanguages.any {
-                        Locale.forLanguageTag(it).language.equals(requestedLanguage, ignoreCase = true)
+                    val requestedLanguages = if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO) {
+                        SUPPORTED_LANGUAGE_TAGS.map { Locale.forLanguageTag(it).language }.toSet()
+                    } else {
+                        setOf(Locale.forLanguageTag(currentLanguageTag).language)
                     }
+                    val installedLanguages = support.installedOnDeviceLanguages
+                        .map { Locale.forLanguageTag(it).language.lowercase() }
+                        .toSet()
+                    val ready = requestedLanguages.all { it.lowercase() in installedLanguages }
                     if (ready) {
                         beginRecognition(attempt)
                     } else {
@@ -316,6 +368,16 @@ class VoiceController(
     private fun isLanguageUnavailable(error: Int): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         (error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED || error == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE)
 
+    private fun normalizeSupportedLanguage(languageTag: String?): String? {
+        val language = languageTag?.let(Locale::forLanguageTag)?.language?.lowercase() ?: return null
+        return SUPPORTED_LANGUAGE_TAGS.firstOrNull {
+            Locale.forLanguageTag(it).language.lowercase() == language
+        }
+    }
+
+    private fun inferJapanese(text: String): String? =
+        if (text.any { it in '\u3040'..'\u30ff' || it in '\u4e00'..'\u9fff' }) "ja-JP" else null
+
     private fun isCurrent(attempt: Attempt): Boolean = activeSessionId == attempt.sessionId && currentAttempt?.id == attempt.id
 
     private fun finishAttempt(attempt: Attempt) {
@@ -362,5 +424,6 @@ class VoiceController(
     private companion object {
         const val SUPPORT_CHECK_TIMEOUT_MS = 1_800L
         const val READY_TIMEOUT_MS = 10_000L
+        val SUPPORTED_LANGUAGE_TAGS = listOf("ja-JP", "en-US", "de-DE")
     }
 }
