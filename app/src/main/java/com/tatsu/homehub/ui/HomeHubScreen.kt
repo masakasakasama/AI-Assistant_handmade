@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tatsu.homehub.BuildConfig
 import com.tatsu.homehub.data.AiDispatchResult
+import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.WeatherClient
 import com.tatsu.homehub.data.WeatherSnapshot
 import com.tatsu.homehub.model.AcControlState
@@ -573,7 +574,7 @@ private fun VoicePocCard(
                 Column(Modifier.weight(1f)) {
                     Text("音声入力", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "${state.status.ifBlank { phaseLabel }} · ${when (voiceLanguageTag) { "de-DE" -> "Deutsch"; "en-US" -> "English"; else -> "日本語" }}",
+                        "${state.status.ifBlank { phaseLabel }} · ${voiceLanguageLabel(voiceLanguageTag, state.detectedLanguageTag)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -661,6 +662,20 @@ private fun VoicePocCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+private fun voiceLanguageLabel(configuredTag: String, detectedTag: String?): String {
+    fun label(tag: String): String = when (tag) {
+        "de-DE" -> "Deutsch"
+        "en-US" -> "English"
+        "ja-JP" -> "日本語"
+        else -> "自動"
+    }
+    return if (configuredTag == AppPrefs.VOICE_LANGUAGE_AUTO) {
+        detectedTag?.let { "自動 → ${label(it)}" } ?: "自動（日・英・独）"
+    } else {
+        label(configuredTag)
     }
 }
 
@@ -921,10 +936,18 @@ private fun SettingsDialog(
 
                 Spacer(Modifier.height(20.dp))
                 Text("音声入力", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("認識する言語を選択してください", style = MaterialTheme.typography.bodySmall,
+                Text("自動では日本語・英語・ドイツ語を発話ごとに判定します", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("ja-JP" to "日本語", "en-US" to "English", "de-DE" to "Deutsch").forEach { (tag, label) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        AppPrefs.VOICE_LANGUAGE_AUTO to "自動",
+                        "ja-JP" to "日本語",
+                        "en-US" to "English",
+                        "de-DE" to "Deutsch"
+                    ).forEach { (tag, label) ->
                         FilterChip(selected = voiceLanguageTag == tag, onClick = { voiceLanguageTag = tag }, label = { Text(label) })
                     }
                 }

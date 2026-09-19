@@ -19,5 +19,6 @@ data class VoiceSessionState(
     val latencyMs: Long? = null,
     val error: String? = null,
     val status: String = "",
-    val diagnostic: String = ""
+    val diagnostic: String = "",
+    val detectedLanguageTag: String? = null
 )
