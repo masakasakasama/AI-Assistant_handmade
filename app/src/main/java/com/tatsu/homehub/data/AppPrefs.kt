@@ -2,6 +2,7 @@ package com.tatsu.homehub.data
 
 import android.content.Context
 import org.json.JSONObject
+import java.util.Locale
 
 class AppPrefs(context: Context) {
     private val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -34,6 +35,14 @@ class AppPrefs(context: Context) {
         get() = prefs.getString(KEY_AI_BACKEND_URL, "") ?: ""
         set(value) = prefs.edit().putString(KEY_AI_BACKEND_URL, value.trim()).apply()
 
+    var voiceLanguageTag: String
+        get() = prefs.getString(KEY_VOICE_LANGUAGE_TAG, null)
+            ?.let(::normalizeVoiceLanguageTag)
+            ?: defaultVoiceLanguageTag()
+        set(value) = prefs.edit()
+            .putString(KEY_VOICE_LANGUAGE_TAG, normalizeVoiceLanguageTag(value))
+            .apply()
+
     fun saveWeatherCache(snapshot: WeatherSnapshot) {
         val json = JSONObject()
             .put("label", snapshot.label)
@@ -65,6 +74,21 @@ class AppPrefs(context: Context) {
         private const val KEY_LAST_UPDATE_CHECK = "last_update_check"
         private const val KEY_WEATHER_CACHE = "weather_cache"
         private const val KEY_AI_BACKEND_URL = "ai_backend_url"
+        private const val KEY_VOICE_LANGUAGE_TAG = "voice_language_tag"
+
+        private fun normalizeVoiceLanguageTag(value: String): String = when (
+            value.trim().lowercase(Locale.ROOT)
+        ) {
+            "en", "en-us", "en_us" -> "en-US"
+            "de", "de-de", "de_de" -> "de-DE"
+            else -> "ja-JP"
+        }
+
+        private fun defaultVoiceLanguageTag(): String = when (Locale.getDefault().language) {
+            "en" -> "en-US"
+            "de" -> "de-DE"
+            else -> "ja-JP"
+        }
 
         private const val DEFAULT_LAT = 35.7126
         private const val DEFAULT_LON = 139.7800
