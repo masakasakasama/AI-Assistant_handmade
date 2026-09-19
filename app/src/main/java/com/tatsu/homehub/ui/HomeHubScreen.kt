@@ -1,5 +1,7 @@
 package com.tatsu.homehub.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -51,6 +53,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -94,6 +97,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val aiResult by viewModel.aiResult.collectAsState()
     val aiBackendOnline by viewModel.aiBackendOnline.collectAsState()
     val voiceState by viewModel.voiceState.collectAsState()
+    val voiceLanguageTag by viewModel.voiceLanguageTag.collectAsState()
 
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     var tab by remember { mutableStateOf(DashboardTab.HOME) }
@@ -232,6 +236,8 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                             VoicePocCard(
                                 state = voiceState,
                                 backendUrl = viewModel.aiBackendUrl(),
+                                languageTag = voiceLanguageTag,
+                                onLanguageChange = viewModel::saveVoiceLanguageTag,
                                 onStart = viewModel::startVoiceSession,
                                 onStopListening = viewModel::stopVoiceListening,
                                 onCancel = viewModel::cancelVoiceSession,
@@ -536,34 +542,59 @@ private fun DeviceList(
 private fun VoicePocCard(
     state: VoiceSessionState,
     backendUrl: String,
+    languageTag: String,
+    onLanguageChange: (String) -> Unit,
     onStart: () -> Unit,
     onStopListening: () -> Unit,
     onCancel: () -> Unit,
     onSettings: () -> Unit
 ) {
+    val context = LocalContext.current
+    var showDiagnostics by remember { mutableStateOf(false) }
+
     val phaseLabel = when (state.phase) {
         VoicePhase.IDLE -> "待機"
-        VoicePhase.LISTENING -> "聞き取り中"
+        VoicePhase.PREPARING -> "準備中"
+        VoicePhase.LISTENING -> "受付中"
+        VoicePhase.SWITCHING -> "切替中"
         VoicePhase.THINKING -> "処理中"
         VoicePhase.SPEAKING -> "発話中"
-        VoicePhase.ERROR -> "エラー"
+        VoicePhase.ERROR -> "失敗"
     }
+    val recognizerLabel = when (state.recognizerMode) {
+        com.tatsu.homehub.voice.VoiceRecognizerMode.ON_DEVICE -> "オンデバイス"
+        com.tatsu.homehub.voice.VoiceRecognizerMode.SYSTEM -> "システム"
+        null -> "未選択"
+    }
+    val canChangeLanguage =
+        state.phase == VoicePhase.IDLE || state.phase == VoicePhase.ERROR
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.primaryContainer
     ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    if (state.phase == VoicePhase.LISTENING) Icons.Outlined.Hearing else Icons.Outlined.Mic,
+                    if (state.phase == VoicePhase.LISTENING) {
+                        Icons.Outlined.Hearing
+                    } else {
+                        Icons.Outlined.Mic
+                    },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Galaxy Voice PoC", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Galaxy Voice PoC",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Text(
                         "マイク → STT → Luna → 必要時Sol high → TTS",
                         style = MaterialTheme.typography.bodySmall,
@@ -573,12 +604,40 @@ private fun VoicePocCard(
                 Text(phaseLabel, style = MaterialTheme.typography.labelLarge)
             }
 
+            Text(
+                "音声入力: $recognizerLabel · $languageTag",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "ja-JP" to "日本語",
+                    "en-US" to "English",
+                    "de-DE" to "Deutsch"
+                ).forEach { (tag, label) ->
+                    FilterChip(
+                        selected = languageTag == tag,
+                        onClick = { onLanguageChange(tag) },
+                        enabled = canChangeLanguage,
+                        label = { Text(label) }
+                    )
+                }
+            }
+
             if (backendUrl.isBlank()) {
                 Text("AI Backend URLを設定してください")
                 TextButton(onClick = onSettings) { Text("設定する") }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     when (state.phase) {
+                        VoicePhase.PREPARING,
+                        VoicePhase.SWITCHING -> {
+                            OutlinedButton(onClick = onCancel) { Text("キャンセル") }
+                        }
                         VoicePhase.LISTENING -> {
                             Button(onClick = onStopListening) {
                                 Icon(Icons.Outlined.Stop, null)
@@ -613,9 +672,17 @@ private fun VoicePocCard(
                 }
             }
 
+            state.statusMessage?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
             val heard = state.partialText.ifBlank { state.finalText }
             if (heard.isNotBlank()) {
-                Text("認識: " + heard, style = MaterialTheme.typography.bodyMedium)
+                Text("認識: $heard", style = MaterialTheme.typography.bodyMedium)
             }
             if (state.responseText.isNotBlank()) {
                 Text("返答: " + state.responseText, style = MaterialTheme.typography.bodyMedium)
@@ -624,21 +691,69 @@ private fun VoicePocCard(
                 Text(
                     listOfNotNull(
                         state.route?.let { "route=" + it },
-                        state.latencyMs?.let { "E2E " + it + "ms" }
+                        state.latencyMs?.let { "AI " + it + "ms" }
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             state.error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
+
+            if (state.diagnostics.isNotBlank()) {
+                TextButton(onClick = { showDiagnostics = true }) {
+                    Icon(Icons.Outlined.BugReport, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("診断情報")
+                }
+            }
+
             Text(
-                "STTはAndroidのオンデバイス認識を優先し、非対応端末ではシステム認識へフォールバック。物理操作は最終認識結果だけを使い、曖昧な対象は実行しません。",
+                "選択した言語を明示して認識します。オンデバイス認識が言語非対応なら、同じ言語のシステム認識へ最大1回だけ切り替えます。古い結果・重複結果はAIや物理操作へ渡しません。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+
+    if (showDiagnostics) {
+        AlertDialog(
+            onDismissRequest = { showDiagnostics = false },
+            title = { Text("音声診断情報") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 480.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        state.diagnostics,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                    clipboard?.setPrimaryClip(
+                        ClipData.newPlainText("Tatsu Home voice diagnostics", state.diagnostics)
+                    )
+                    showDiagnostics = false
+                }) {
+                    Text("コピー")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiagnostics = false }) {
+                    Text("閉じる")
+                }
+            }
+        )
     }
 }
 
@@ -674,9 +789,18 @@ private fun AiCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                val backendLabel = when (online) {
+                    true -> "● 接続"
+                    false -> "● 接続失敗"
+                    null -> "○ 未確認"
+                }
                 Text(
-                    if (online == true) "● 接続" else "● 未接続",
-                    color = if (online == true) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                    backendLabel,
+                    color = if (online == true) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
 
