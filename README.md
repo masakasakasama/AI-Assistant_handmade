@@ -23,7 +23,7 @@ Google Home / Alexaの全機能コピーではなく、自然な会話、SwitchB
 | AIテキスト検証UI / HTTP Backend | 実装あり。AI操作案を表示するだけで、物理操作しない |
 | Luna単一呼び出し / Sol high既定 / 区間計測 | 実装・オフラインテストあり。mediumとの実API比較は未測定 |
 | 性能比較CLI | 日英独21ケース・4経路。初期データセットはスモーク用 |
-| Galaxy STT / Android TTS / 音声キャンセル | v0.4.0で縦切り実装。v0.4.2で音声言語選択・言語別STT切替・セッション無効化・診断表示を追加。実Galaxy評価前 |
+| Galaxy STT / Android TTS / 音声キャンセル | v0.4.0で縦切り実装。v0.4.2で音声言語選択・言語別STT切替・セッション無効化・診断表示を追加。v0.4.3でBackend URLを初期設定。実Galaxy評価前 |
 | OpenAI STT比較 / Live | 後続のPhase 0比較対象 |
 | 音声→家電／アラームの安全な実行 | 次のPhase 0実装対象 |
 | 外部PCM入力 / AEC / Wake / 2〜5m / 72時間 | 未検証 |
