@@ -20,6 +20,7 @@ import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.update.UpdateManager
 import com.tatsu.homehub.voice.VoiceController
 import com.tatsu.homehub.voice.VoicePhase
+import com.tatsu.homehub.voice.VoiceRecognizerMode
 import com.tatsu.homehub.voice.VoiceSessionState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -85,8 +86,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _switchBotTokenSuffix = MutableStateFlow(securePrefs.switchBotTokenSuffix())
     val switchBotTokenSuffix: StateFlow<String?> = _switchBotTokenSuffix.asStateFlow()
 
-    private val _voiceState = MutableStateFlow(VoiceSessionState())
+    private val _voiceState = MutableStateFlow(VoiceSessionState(languageTag = appPrefs.voiceLanguageTag))
     val voiceState: StateFlow<VoiceSessionState> = _voiceState.asStateFlow()
+
+    private val _voiceLanguageTag = MutableStateFlow(appPrefs.voiceLanguageTag)
+    val voiceLanguageTag: StateFlow<String> = _voiceLanguageTag.asStateFlow()
 
     private var voiceGeneration = 0L
     private var currentVoiceJob: Job? = null
@@ -94,37 +98,74 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val executedVoiceOperations = LinkedHashSet<String>()
 
     private val voiceController = VoiceController(application, object : VoiceController.Listener {
-        override fun onListeningChanged(listening: Boolean) {
+        override fun onRecognitionState(
+            sessionId: Long,
+            attemptId: Long,
+            phase: VoicePhase,
+            mode: VoiceRecognizerMode?,
+            message: String?
+        ) {
+            if (sessionId != voiceGeneration) return
             val current = _voiceState.value
-            if (listening) {
-                _voiceState.value = current.copy(phase = VoicePhase.LISTENING, error = null)
-            } else if (current.phase == VoicePhase.LISTENING) {
-                _voiceState.value = current.copy(phase = VoicePhase.IDLE)
-            }
+            _voiceState.value = current.copy(
+                phase = phase,
+                sessionId = sessionId,
+                attemptId = attemptId,
+                languageTag = _voiceLanguageTag.value,
+                recognizerMode = mode,
+                statusMessage = message,
+                error = null
+            )
         }
 
-        override fun onPartialText(text: String) {
-            _voiceState.value = _voiceState.value.copy(partialText = text)
+        override fun onPartialText(sessionId: Long, attemptId: Long, text: String) {
+            val current = _voiceState.value
+            if (sessionId != voiceGeneration || attemptId != current.attemptId) return
+            _voiceState.value = current.copy(partialText = text)
         }
 
-        override fun onFinalText(text: String) {
-            val generation = _voiceState.value.generationId
-            processVoiceText(text, generation)
+        override fun onFinalText(sessionId: Long, attemptId: Long, text: String) {
+            val current = _voiceState.value
+            if (sessionId != voiceGeneration || attemptId != current.attemptId) return
+            processVoiceText(text, sessionId)
         }
 
-        override fun onSpeakingChanged(speaking: Boolean) {
+        override fun onSpeakingChanged(sessionId: Long, speaking: Boolean) {
+            if (sessionId != voiceGeneration) return
             val current = _voiceState.value
             _voiceState.value = if (speaking) {
-                current.copy(phase = VoicePhase.SPEAKING, error = null)
+                current.copy(
+                    phase = VoicePhase.SPEAKING,
+                    statusMessage = "読み上げ中",
+                    error = null
+                )
             } else if (current.phase == VoicePhase.SPEAKING) {
-                current.copy(phase = VoicePhase.IDLE)
+                current.copy(
+                    phase = VoicePhase.IDLE,
+                    statusMessage = "話しかけられます"
+                )
             } else {
                 current
             }
         }
 
-        override fun onError(message: String) {
-            _voiceState.value = _voiceState.value.copy(phase = VoicePhase.ERROR, error = message)
+        override fun onError(sessionId: Long, attemptId: Long, message: String) {
+            if (sessionId == 0L || sessionId != voiceGeneration) return
+            val current = _voiceState.value
+            if (
+                attemptId != 0L &&
+                current.attemptId != 0L &&
+                attemptId != current.attemptId
+            ) return
+            _voiceState.value = current.copy(
+                phase = VoicePhase.ERROR,
+                statusMessage = null,
+                error = message
+            )
+        }
+
+        override fun onDiagnosticsChanged(report: String) {
+            _voiceState.value = _voiceState.value.copy(diagnostics = report)
         }
     })
 
@@ -137,6 +178,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     fun aiBackendUrl(): String = appPrefs.aiBackendUrl
+
+    fun saveVoiceLanguageTag(languageTag: String) {
+        appPrefs.voiceLanguageTag = languageTag
+        val normalized = appPrefs.voiceLanguageTag
+        _voiceLanguageTag.value = normalized
+        voiceController.resetLanguageSupport(normalized)
+        _voiceState.value = _voiceState.value.copy(languageTag = normalized)
+    }
 
     init {
         viewModelScope.launch {
@@ -382,25 +431,33 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         voiceGeneration += 1
         currentVoiceJob?.cancel()
         voiceController.stopSpeaking()
+        val languageTag = _voiceLanguageTag.value
         _voiceState.value = VoiceSessionState(
-            phase = VoicePhase.LISTENING,
-            generationId = voiceGeneration
+            phase = VoicePhase.PREPARING,
+            generationId = voiceGeneration,
+            sessionId = voiceGeneration,
+            languageTag = languageTag,
+            statusMessage = "音声入力を準備しています"
         )
-        voiceController.startListening()
+        voiceController.startListening(voiceGeneration, languageTag)
     }
 
     fun stopVoiceListening() {
-        voiceController.stopListening()
+        voiceController.stopListening(voiceGeneration)
     }
 
     fun cancelVoiceSession() {
+        val cancelledSession = voiceGeneration
         voiceGeneration += 1
         currentVoiceJob?.cancel()
-        voiceController.cancelListening()
+        voiceController.cancelListening(cancelledSession)
         voiceController.stopSpeaking()
         _voiceState.value = VoiceSessionState(
             phase = VoicePhase.IDLE,
-            generationId = voiceGeneration
+            generationId = voiceGeneration,
+            sessionId = voiceGeneration,
+            languageTag = _voiceLanguageTag.value,
+            statusMessage = "話しかけられます"
         )
     }
 
@@ -411,6 +468,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         _voiceState.value = _voiceState.value.copy(
             phase = VoicePhase.THINKING,
+            statusMessage = "応答を準備しています",
             partialText = "",
             finalText = text,
             responseText = "",
@@ -418,6 +476,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             error = null
         )
 
+        voiceController.recordExternal(generation, "ai_dispatch_start")
         currentVoiceJob?.cancel()
         currentVoiceJob = viewModelScope.launch {
             val started = android.os.SystemClock.elapsedRealtime()
@@ -430,17 +489,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     if (generation != voiceGeneration || response.isBlank()) return@onSuccess
                     rememberConversation(text, response)
                     val elapsed = android.os.SystemClock.elapsedRealtime() - started
+                    voiceController.recordExternal(
+                        generation,
+                        "ai_dispatch_done duration_ms=$elapsed route=${result.route}"
+                    )
                     _voiceState.value = _voiceState.value.copy(
                         phase = VoicePhase.THINKING,
+                        statusMessage = "音声を準備しています",
                         responseText = response,
                         route = result.route,
                         latencyMs = elapsed,
                         error = null
                     )
-                    voiceController.speak(response, result.language, "voice-$generation")
+                    voiceController.speak(
+                        response,
+                        result.language,
+                        "voice-$generation",
+                        generation
+                    )
                 }
                 .onFailure { error ->
                     if (generation != voiceGeneration) return@onFailure
+                    voiceController.recordExternal(
+                        generation,
+                        "ai_dispatch_failed error=" + (error.message ?: "unknown")
+                    )
                     _aiBackendOnline.value = false
                     _voiceState.value = _voiceState.value.copy(
                         phase = VoicePhase.ERROR,
