@@ -1,6 +1,7 @@
 package com.tatsu.homehub.data
 
 import android.content.Context
+import com.tatsu.homehub.BuildConfig
 import org.json.JSONObject
 
 class AppPrefs(context: Context) {
@@ -31,7 +32,9 @@ class AppPrefs(context: Context) {
         set(value) = prefs.edit().putLong(KEY_LAST_UPDATE_CHECK, value).apply()
 
     var aiBackendUrl: String
-        get() = prefs.getString(KEY_AI_BACKEND_URL, "") ?: ""
+        get() = prefs.getString(KEY_AI_BACKEND_URL, null)
+            ?.takeIf(String::isNotBlank)
+            ?: BuildConfig.DEFAULT_AI_BACKEND_URL
         set(value) = prefs.edit().putString(KEY_AI_BACKEND_URL, value.trim()).apply()
 
     var voiceLanguageTag: String

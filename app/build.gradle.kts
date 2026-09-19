@@ -13,8 +13,13 @@ android {
         applicationId = "com.tatsu.homehub"
         minSdk = 28
         targetSdk = 35
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 8
-        versionName = System.getenv("VERSION_NAME") ?: "0.4.2"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 9
+        versionName = System.getenv("VERSION_NAME") ?: "0.4.3"
+        buildConfigField(
+            "String",
+            "DEFAULT_AI_BACKEND_URL",
+            "\"https://ai-assistant-handmade.vercel.app\""
+        )
     }
 
     val releaseStorePath = System.getenv("ANDROID_KEYSTORE_PATH")
