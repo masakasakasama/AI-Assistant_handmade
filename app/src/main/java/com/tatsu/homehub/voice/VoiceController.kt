@@ -15,6 +15,7 @@ import android.speech.RecognitionSupportCallback
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import com.tatsu.homehub.BuildConfig
 import java.util.ArrayDeque
@@ -264,8 +265,12 @@ class VoiceController(
 
         val speech = runCatching {
             when (mode) {
-                VoiceRecognizerMode.ON_DEVICE ->
+                VoiceRecognizerMode.ON_DEVICE -> {
+                    check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        "On-device recognition requires Android 12 or later"
+                    }
                     SpeechRecognizer.createOnDeviceSpeechRecognizer(appContext)
+                }
                 VoiceRecognizerMode.SYSTEM ->
                     SpeechRecognizer.createSpeechRecognizer(appContext)
             }
@@ -341,6 +346,7 @@ class VoiceController(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun checkSupportThenStart(
         speech: SpeechRecognizer,
         intent: Intent,
