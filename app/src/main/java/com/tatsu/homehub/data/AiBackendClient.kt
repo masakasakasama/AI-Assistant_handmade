@@ -50,10 +50,23 @@ class AiBackendClient {
         baseUrl: String,
         text: String,
         context: String = ""
+    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch")
+
+    suspend fun dispatchJev(
+        baseUrl: String,
+        text: String,
+        context: String = ""
+    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch-jev")
+
+    private suspend fun dispatchAt(
+        baseUrl: String,
+        text: String,
+        context: String,
+        path: String
     ): Result<AiDispatchResult> = withContext(Dispatchers.IO) {
         runCatching {
             val started = android.os.SystemClock.elapsedRealtime()
-            val endpoint = baseUrl.trim().trimEnd('/') + "/api/dispatch"
+            val endpoint = baseUrl.trim().trimEnd('/') + path
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 12_000
