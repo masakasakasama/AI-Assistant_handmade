@@ -6,6 +6,25 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+data class RouterDecisionResult(
+    val ok: Boolean,
+    val provider: String,
+    val model: String,
+    val route: String?,
+    val confidence: Double?,
+    val latencyMs: Long,
+    val error: String?
+)
+
+data class RouterCompareResult(
+    val requestId: String,
+    val luna: RouterDecisionResult,
+    val jev: RouterDecisionResult,
+    val deltaMs: Long?,
+    val faster: String?,
+    val clientLatencyMs: Long
+)
+
 data class AiDispatchResult(
     val requestId: String,
     val routerModel: String,
@@ -83,6 +102,68 @@ class AiBackendClient {
                 routerMs = json.optJSONObject("timings")?.optLong("routerMs") ?: 0,
                 answerMs = json.optJSONObject("timings")?.optLong("answerMs") ?: 0,
                 latencyMs = json.optLong("latencyMs", 0L)
+            )
+        }
+    }
+
+    suspend fun compareRouters(
+        baseUrl: String,
+        text: String,
+        context: String = ""
+    ): Result<RouterCompareResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            val started = android.os.SystemClock.elapsedRealtime()
+            val endpoint = baseUrl.trim().trimEnd('/') + "/api/router-compare"
+            val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 12_000
+                readTimeout = 60_000
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                setRequestProperty("Accept", "application/json")
+                doOutput = true
+            }
+
+            val payload = JSONObject()
+                .put("text", text)
+                .put("context", context)
+
+            connection.outputStream.use {
+                it.write(payload.toString().toByteArray(Charsets.UTF_8))
+            }
+
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val raw = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            connection.disconnect()
+
+            if (code !in 200..299) {
+                error("Router compare HTTP $code: $raw")
+            }
+
+            val json = JSONObject(raw)
+            fun parseDecision(name: String): RouterDecisionResult {
+                val decision = json.getJSONObject(name)
+                val confidence = if (decision.has("confidence") && !decision.isNull("confidence")) {
+                    decision.optDouble("confidence").takeIf { !it.isNaN() }
+                } else null
+                return RouterDecisionResult(
+                    ok = decision.optBoolean("ok", false),
+                    provider = decision.optString("provider", name),
+                    model = decision.optString("model", "unknown"),
+                    route = decision.optString("route").takeIf { it.isNotBlank() && it != "null" },
+                    confidence = confidence,
+                    latencyMs = decision.optLong("latencyMs", 0L),
+                    error = decision.optString("error").takeIf { it.isNotBlank() && it != "null" }
+                )
+            }
+
+            RouterCompareResult(
+                requestId = json.optString("requestId", ""),
+                luna = parseDecision("luna"),
+                jev = parseDecision("jev"),
+                deltaMs = if (json.has("deltaMs") && !json.isNull("deltaMs")) json.optLong("deltaMs") else null,
+                faster = json.optString("faster").takeIf { it.isNotBlank() && it != "null" },
+                clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started
             )
         }
     }
