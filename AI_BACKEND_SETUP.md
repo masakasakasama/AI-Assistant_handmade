@@ -14,12 +14,13 @@
 
 ## 実装状況
 
-Luna 1回→簡単な回答、深い質問だけSol。STT/TTSとGPT-Liveはまだ接続されていない。
+Luna-firstはLuna 1回で分類とsimple_chat回答を兼ね、深い質問だけSol。
+Jev-firstはJev 1回でrouteと閉じた操作パラメータを判断し、simple_chatだけLuna、deep_reasoningだけSol highへ送る。家電・アラーム・天気はAndroid側で処理する。
 通常モードも将来は音声の途中停止を実装。Live限定機能にしない。
 
 ## Vercel
 
-HTTP Functions用の設定あり。GET /api/health、POST /api/dispatch、POST /api/router-compare。router-compareはLunaとJevを並列に呼び、物理操作を実行しない。
+HTTP Functions用の設定あり。GET /api/health、POST /api/dispatch、POST /api/dispatch-jev、POST /api/router-compare。router-compareはLunaとJevを並列に呼び、物理操作を実行しない。
 Androidの設定にプロジェクトのベースURLだけを入力する。末尾へ/apiを付けない。
 以前のAndroidの/health呼び出しは/api/healthへ修正済み。
 AI設定の保存にSwitchBotのToken/Secretは不要。
