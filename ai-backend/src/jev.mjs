@@ -1,5 +1,5 @@
-export const JEV_MODEL = process.env.JEV_MODEL || "jev-1.13.0";
-export const JEV_ENDPOINT = process.env.JEV_ENDPOINT || "https://api.typesafe.ai/v1/systemone";
+export const JEV_MODEL = process.env.JEV_MODEL || "typesafe/jev-1.13";
+export const JEV_ENDPOINT = process.env.JEV_ENDPOINT || "https://openrouter.ai/api/alpha/decisions";
 
 const ROUTE_CRITERIA = {
   device_action: "A direct request to control a home or SwitchBot device, including power, mode, or temperature.",
@@ -174,8 +174,8 @@ export function parseJevRouteResponse(payload, metadata = {}) {
 
 export async function routeIntentJev({ text, context = "" }, dependencies = {}) {
   if (typeof text !== "string" || !text.trim()) throw new Error("text is required");
-  const apiKey = dependencies.apiKey ?? process.env.TYPESAFE_API_KEY;
-  if (!apiKey) throw new Error("TYPESAFE_API_KEY is not configured");
+  const apiKey = dependencies.apiKey ?? process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
   const devices = knownDevices(context);
   const alarms = knownAlarms(context);
