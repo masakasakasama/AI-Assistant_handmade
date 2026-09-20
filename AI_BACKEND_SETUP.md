@@ -8,7 +8,7 @@
 | ROUTER_MODEL | 既定gpt-5.6-luna |
 | REASONING_MODEL | 既定gpt-5.6-sol |
 | REASONING_EFFORT | 既定high。品質を落とさず、mediumはbenchmarkで比較する |
-| OPENROUTER_API_KEY | Jev用。Backendのみに保存し、APKへ入れない |
+| JEV_OPENROUTER_API_KEY | Jev用。Backendのみに保存し、APKへ入れない |
 | JEV_MODEL | 既定typesafe/jev-1.13。比較再現性のため固定版を使用 |
 | JEV_ENDPOINT | 既定https://openrouter.ai/api/alpha/decisions |
 
