@@ -256,6 +256,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 routerComparison = routerCompareResult,
                                 routerComparing = routerComparing,
                                 onStart = viewModel::startVoiceSession,
+                                onStartJev = viewModel::startVoiceSessionJev,
                                 onCompare = viewModel::startVoiceRouterComparison,
                                 onStopListening = viewModel::stopVoiceListening,
                                 onCancel = viewModel::cancelVoiceSession,
@@ -569,6 +570,7 @@ private fun VoicePocCard(
     routerComparison: RouterCompareResult?,
     routerComparing: Boolean,
     onStart: () -> Unit,
+    onStartJev: () -> Unit,
     onCompare: () -> Unit,
     onStopListening: () -> Unit,
     onCancel: () -> Unit,
@@ -617,7 +619,10 @@ private fun VoicePocCard(
                 Text("AI Backend URLを設定してください")
                 TextButton(onClick = onSettings) { Text("設定する") }
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     when (state.phase) {
                         VoicePhase.PREPARING -> {
                             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -650,10 +655,13 @@ private fun VoicePocCard(
                             Button(onClick = onStart) {
                                 Icon(Icons.Outlined.Mic, null)
                                 Spacer(Modifier.width(6.dp))
-                                Text("話す")
+                                Text("Lunaで話す")
+                            }
+                            OutlinedButton(onClick = onStartJev) {
+                                Text("Jevで話す")
                             }
                             OutlinedButton(onClick = onCompare, enabled = !routerComparing) {
-                                Text(if (routerComparing) "比較中" else "Luna vs Jev")
+                                Text(if (routerComparing) "比較中" else "判定比較")
                             }
                         }
                     }
@@ -694,7 +702,7 @@ private fun VoicePocCard(
                 }
             }
             Text(
-                "STTはAndroidのオンデバイス認識を優先し、非対応端末ではシステム認識へフォールバック。物理操作は最終認識結果だけを使い、曖昧な対象は実行しません。",
+                "Jev経路は STT → Jev → simple_chatはLuna / deep_reasoningはSol high / 家電・アラーム・天気はAndroid。比較は同じ認識文で初段判定だけを測ります。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
