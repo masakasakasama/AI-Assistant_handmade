@@ -1,6 +1,10 @@
 package com.tatsu.homehub.data
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.InternalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -63,40 +67,12 @@ class AiBackendClient {
         text: String,
         context: String,
         path: String
-    ): Result<AiDispatchResult> = withContext(Dispatchers.IO) {
-        runCatching {
-            val started = android.os.SystemClock.elapsedRealtime()
-            val endpoint = baseUrl.trim().trimEnd('/') + path
-            val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 12_000
-                readTimeout = 60_000
-                setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                setRequestProperty("Accept", "application/json")
-                doOutput = true
-            }
+    ): Result<AiDispatchResult> = try {
+        val (json, started) = postJson(baseUrl, path, text, context)
+        val route = json.getJSONObject("route")
+        val answer = json.optJSONObject("answer")
 
-            val payload = JSONObject()
-                .put("text", text)
-                .put("context", context)
-
-            connection.outputStream.use {
-                it.write(payload.toString().toByteArray(Charsets.UTF_8))
-            }
-
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val raw = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            connection.disconnect()
-
-            if (code !in 200..299) {
-                error("AI Backend HTTP $code: $raw")
-            }
-
-            val json = JSONObject(raw)
-            val route = json.getJSONObject("route")
-            val answer = json.optJSONObject("answer")
-
+        Result.success(
             AiDispatchResult(
                 requestId = json.optString("requestId", ""),
                 routerModel = json.optString("routerModel", "unknown"),
@@ -116,17 +92,22 @@ class AiBackendClient {
                 answerMs = json.optJSONObject("timings")?.optLong("answerMs") ?: 0,
                 latencyMs = json.optLong("latencyMs", 0L)
             )
-        }
+        )
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Throwable) {
+        Result.failure(error)
     }
 
-    suspend fun compareRouters(
+    @OptIn(InternalCoroutinesApi::class)
+    private suspend fun postJson(
         baseUrl: String,
+        path: String,
         text: String,
-        context: String = ""
-    ): Result<RouterCompareResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        context: String
+    ): Pair<JSONObject, Long> = withContext(Dispatchers.IO) {
             val started = android.os.SystemClock.elapsedRealtime()
-            val endpoint = baseUrl.trim().trimEnd('/') + "/api/router-compare"
+            val endpoint = baseUrl.trim().trimEnd('/') + path
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 12_000
@@ -135,25 +116,30 @@ class AiBackendClient {
                 setRequestProperty("Accept", "application/json")
                 doOutput = true
             }
-
-            val payload = JSONObject()
-                .put("text", text)
-                .put("context", context)
-
-            connection.outputStream.use {
-                it.write(payload.toString().toByteArray(Charsets.UTF_8))
+            val cancellation = currentCoroutineContext().job.invokeOnCompletion(
+                onCancelling = true,
+                invokeImmediately = true
+            ) { cause -> if (cause != null) connection.disconnect() }
+            try {
+                val payload = JSONObject().put("text", text).put("context", context)
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val raw = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (code !in 200..299) error("AI Backend HTTP $code: $raw")
+                JSONObject(raw) to started
+            } finally {
+                cancellation.dispose()
+                connection.disconnect()
             }
+        }
 
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val raw = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            connection.disconnect()
-
-            if (code !in 200..299) {
-                error("Router compare HTTP $code: $raw")
-            }
-
-            val json = JSONObject(raw)
+    suspend fun compareRouters(
+        baseUrl: String,
+        text: String,
+        context: String = ""
+    ): Result<RouterCompareResult> = try {
+            val (json, started) = postJson(baseUrl, "/api/router-compare", text, context)
             fun parseDecision(name: String): RouterDecisionResult {
                 val decision = json.getJSONObject(name)
                 val confidence = if (decision.has("confidence") && !decision.isNull("confidence")) {
@@ -170,16 +156,19 @@ class AiBackendClient {
                 )
             }
 
-            RouterCompareResult(
+            Result.success(RouterCompareResult(
                 requestId = json.optString("requestId", ""),
                 luna = parseDecision("luna"),
                 jev = parseDecision("jev"),
                 deltaMs = if (json.has("deltaMs") && !json.isNull("deltaMs")) json.optLong("deltaMs") else null,
                 faster = json.optString("faster").takeIf { it.isNotBlank() && it != "null" },
                 clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started
-            )
+            ))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            Result.failure(error)
         }
-    }
 
     suspend fun health(baseUrl: String): Result<Boolean> = withContext(Dispatchers.IO) {
         runCatching {

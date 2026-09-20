@@ -29,7 +29,7 @@ class VoiceController(
         fun onLanguageDetected(sessionId: Long, languageTag: String)
         fun onPartialText(sessionId: Long, text: String)
         fun onFinalText(sessionId: Long, text: String)
-        fun onSpeakingChanged(speaking: Boolean)
+        fun onSpeakingChanged(sessionId: Long, speaking: Boolean)
         fun onError(sessionId: Long, message: String)
     }
 
@@ -51,6 +51,8 @@ class VoiceController(
     private var fallbackAttempted = false
     private var currentLanguageTag = AppPrefs.VOICE_LANGUAGE_AUTO
     private var ttsReady = false
+    private var activeUtteranceId: String? = null
+    private val utteranceSessions = mutableMapOf<String, Long>()
 
     private val tts = TextToSpeech(appContext) { status ->
         ttsReady = status == TextToSpeech.SUCCESS
@@ -58,16 +60,22 @@ class VoiceController(
     }.apply {
         setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {
-                mainHandler.post { listener.onSpeakingChanged(true) }
+                mainHandler.post {
+                    val id = utteranceId ?: return@post
+                    val session = utteranceSessions[id] ?: return@post
+                    if (activeUtteranceId == id) listener.onSpeakingChanged(session, true)
+                }
             }
             override fun onDone(utteranceId: String?) {
-                mainHandler.post { listener.onSpeakingChanged(false) }
+                mainHandler.post { finishUtterance(utteranceId, false) }
             }
             @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) {
                 mainHandler.post {
-                    listener.onSpeakingChanged(false)
-                    listener.onError(activeSessionId ?: 0L, "読み上げに失敗しました")
+                    val id = utteranceId ?: return@post
+                    val session = utteranceSessions[id]
+                    finishUtterance(id, false)
+                    if (session != null) listener.onError(session, "読み上げに失敗しました")
                 }
             }
             override fun onError(utteranceId: String?, errorCode: Int) = onError(utteranceId)
@@ -114,11 +122,11 @@ class VoiceController(
         }
     }
 
-    fun speak(text: String, languageCode: String, utteranceId: String) {
+    fun speak(sessionId: Long, text: String, languageCode: String, utteranceId: String) {
         if (text.isBlank()) return
         mainHandler.post {
             if (!ttsReady) {
-                listener.onError(activeSessionId ?: 0L, "読み上げの準備中です")
+                listener.onError(sessionId, "読み上げの準備中です")
                 return@post
             }
             val locale = when (languageCode) {
@@ -127,13 +135,26 @@ class VoiceController(
                 else -> Locale.JAPANESE
             }
             tts.setLanguage(locale)
+            if (activeUtteranceId != null) stopSpeakingNow()
+            activeUtteranceId = utteranceId
+            utteranceSessions[utteranceId] = sessionId
             if (tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
-                listener.onError(activeSessionId ?: 0L, "読み上げを開始できませんでした")
+                finishUtterance(utteranceId, false)
+                listener.onError(sessionId, "読み上げを開始できませんでした")
             }
         }
     }
 
-    fun stopSpeaking() = mainHandler.post { stopSpeakingNow() }
+    fun cancelSession(sessionId: Long) {
+        mainHandler.post {
+            if (activeSessionId == sessionId) {
+                invalidateCurrentAttempt()
+                activeSessionId = null
+                listener.onListeningChanged(sessionId, false)
+            }
+            if (activeUtteranceId?.let { utteranceSessions[it] } == sessionId) stopSpeakingNow()
+        }
+    }
 
     fun release() {
         mainHandler.post {
@@ -146,7 +167,15 @@ class VoiceController(
 
     private fun stopSpeakingNow() {
         tts.stop()
-        listener.onSpeakingChanged(false)
+        finishUtterance(activeUtteranceId, false)
+    }
+
+    private fun finishUtterance(utteranceId: String?, speaking: Boolean?) {
+        val id = utteranceId ?: return
+        val sessionId = utteranceSessions.remove(id) ?: return
+        if (activeUtteranceId != id) return
+        activeUtteranceId = null
+        if (speaking != null) listener.onSpeakingChanged(sessionId, speaking)
     }
 
     private fun recognitionIntent(): Intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {

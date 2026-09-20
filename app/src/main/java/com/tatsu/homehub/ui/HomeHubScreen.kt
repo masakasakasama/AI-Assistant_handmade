@@ -86,6 +86,9 @@ import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.voice.VoicePhase
 import com.tatsu.homehub.voice.VoiceSessionState
+import com.tatsu.homehub.voice.AnswerComparisonState
+import com.tatsu.homehub.voice.AnswerComparisonSide
+import com.tatsu.homehub.voice.VoiceMode
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -112,6 +115,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val aiResult by viewModel.aiResult.collectAsState()
     val routerComparing by viewModel.routerComparing.collectAsState()
     val routerCompareResult by viewModel.routerCompareResult.collectAsState()
+    val answerComparison by viewModel.answerComparison.collectAsState()
     val aiBackendOnline by viewModel.aiBackendOnline.collectAsState()
     val voiceState by viewModel.voiceState.collectAsState()
 
@@ -251,13 +255,17 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                         item {
                             VoicePocCard(
                                 state = voiceState,
+                                weather = weather,
                                 backendUrl = viewModel.aiBackendUrl(),
                                 voiceLanguageTag = viewModel.voiceLanguageTag,
                                 routerComparison = routerCompareResult,
                                 routerComparing = routerComparing,
+                                answerComparison = answerComparison,
                                 onStart = viewModel::startVoiceSession,
                                 onStartJev = viewModel::startVoiceSessionJev,
                                 onCompare = viewModel::startVoiceRouterComparison,
+                                onCompareAnswers = viewModel::startVoiceAnswerComparison,
+                                onSpeakComparison = viewModel::speakComparisonAnswer,
                                 onStopListening = viewModel::stopVoiceListening,
                                 onCancel = viewModel::cancelVoiceSession,
                                 onSettings = { showSettings = true }
@@ -270,9 +278,13 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 result = aiResult,
                                 routerComparison = routerCompareResult,
                                 routerComparing = routerComparing,
+                                answerComparison = answerComparison,
+                                weather = weather,
                                 backendUrl = viewModel.aiBackendUrl(),
                                 onTest = viewModel::testAi,
                                 onCompare = viewModel::compareRouters,
+                                onCompareAnswers = viewModel::compareAnswers,
+                                onSpeakComparison = viewModel::speakComparisonAnswer,
                                 onCheck = { viewModel.checkAiBackend() },
                                 onSettings = { showSettings = true }
                             )
@@ -565,13 +577,17 @@ private fun DeviceList(
 @Composable
 private fun VoicePocCard(
     state: VoiceSessionState,
+    weather: WeatherSnapshot?,
     backendUrl: String,
     voiceLanguageTag: String,
     routerComparison: RouterCompareResult?,
     routerComparing: Boolean,
+    answerComparison: AnswerComparisonState?,
     onStart: () -> Unit,
     onStartJev: () -> Unit,
     onCompare: () -> Unit,
+    onCompareAnswers: () -> Unit,
+    onSpeakComparison: (AiDispatchResult) -> Unit,
     onStopListening: () -> Unit,
     onCancel: () -> Unit,
     onSettings: () -> Unit
@@ -582,6 +598,7 @@ private fun VoicePocCard(
         VoicePhase.PREPARING -> "準備中"
         VoicePhase.LISTENING -> "聞き取り中"
         VoicePhase.THINKING -> "処理中"
+        VoicePhase.ANSWER_READY -> "返答あり"
         VoicePhase.SPEAKING -> "発話中"
         VoicePhase.ERROR -> "エラー"
     }
@@ -661,7 +678,10 @@ private fun VoicePocCard(
                                 Text("Jevで話す")
                             }
                             OutlinedButton(onClick = onCompare, enabled = !routerComparing) {
-                                Text(if (routerComparing) "比較中" else "判定比較")
+                                Text("判定比較")
+                            }
+                            OutlinedButton(onClick = onCompareAnswers, enabled = !routerComparing) {
+                                Text(if (routerComparing && answerComparison != null) "回答比較中" else "回答比較")
                             }
                         }
                     }
@@ -679,7 +699,7 @@ private fun VoicePocCard(
                 Text(
                     listOfNotNull(
                         state.route?.let { "route=" + it },
-                        state.latencyMs?.let { "E2E " + it + "ms" }
+                        state.latencyMs?.let { "認識後の回答 " + it + "ms" }
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -687,6 +707,9 @@ private fun VoicePocCard(
             }
             if (state.finalText.isNotBlank() && routerComparison != null) {
                 RouterComparisonView(routerComparison)
+            }
+            answerComparison?.let { comparison ->
+                AnswerComparisonView(comparison, weather, onSpeakComparison) { text -> clipboard.setText(AnnotatedString(text)) }
             }
             state.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -702,7 +725,7 @@ private fun VoicePocCard(
                 }
             }
             Text(
-                "Jev経路は STT → Jev → simple_chatはLuna / deep_reasoningはSol high / 家電・アラーム・天気はAndroid。比較は同じ認識文で初段判定だけを測ります。",
+                "Luna経路とJev経路は同じ認識文で回答比較できます。判定比較は初段だけを測定し、回答比較でも家電・アラームは実行しません。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -755,6 +778,7 @@ private fun TatsuMascot(phase: VoicePhase, recognizedText: String) {
         VoicePhase.PREPARING -> "じゅんび中…"
         VoicePhase.LISTENING -> "きいてるよ"
         VoicePhase.THINKING -> "かんがえ中…"
+        VoicePhase.ANSWER_READY -> "返答を表示したよ"
         VoicePhase.SPEAKING -> "お話し中♪"
         VoicePhase.ERROR -> "もう一度ためしてね"
         VoicePhase.IDLE -> "話しかけてね"
@@ -834,13 +858,18 @@ private fun AiCard(
     result: AiDispatchResult?,
     routerComparison: RouterCompareResult?,
     routerComparing: Boolean,
+    answerComparison: AnswerComparisonState?,
+    weather: WeatherSnapshot?,
     backendUrl: String,
     onTest: (String) -> Unit,
     onCompare: (String) -> Unit,
+    onCompareAnswers: (String) -> Unit,
+    onSpeakComparison: (AiDispatchResult) -> Unit,
     onCheck: () -> Unit,
     onSettings: () -> Unit
 ) {
     var prompt by remember { mutableStateOf("エアコンを26度にして") }
+    val clipboard = LocalClipboardManager.current
 
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -896,7 +925,10 @@ private fun AiCard(
                         Text(if (testing) "判定中" else "試す")
                     }
                     OutlinedButton(onClick = { onCompare(prompt) }, enabled = !routerComparing) {
-                        Text(if (routerComparing) "比較中" else "Luna vs Jev")
+                        Text("判定比較")
+                    }
+                    OutlinedButton(onClick = { onCompareAnswers(prompt) }, enabled = !routerComparing) {
+                        Text(if (routerComparing && answerComparison != null) "回答比較中" else "回答比較")
                     }
                 }
             }
@@ -904,6 +936,11 @@ private fun AiCard(
             routerComparison?.let {
                 Spacer(Modifier.height(14.dp))
                 RouterComparisonView(it)
+            }
+
+            answerComparison?.let {
+                Spacer(Modifier.height(14.dp))
+                AnswerComparisonView(it, weather, onSpeakComparison) { text -> clipboard.setText(AnnotatedString(text)) }
             }
 
             result?.let {
@@ -967,6 +1004,131 @@ private fun RouterComparisonView(result: RouterCompareResult) {
             )
         }
     }
+}
+
+@Composable
+private fun AnswerComparisonView(
+    comparison: AnswerComparisonState,
+    weather: WeatherSnapshot?,
+    onSpeak: (AiDispatchResult) -> Unit,
+    onCopy: (String) -> Unit
+) {
+    var nowElapsed by remember(comparison.startedAtElapsedMs) {
+        mutableStateOf(android.os.SystemClock.elapsedRealtime())
+    }
+    val hasPending = comparison.luna.pending || comparison.jev.pending
+    LaunchedEffect(comparison.startedAtElapsedMs, hasPending) {
+        while (hasPending) {
+            nowElapsed = android.os.SystemClock.elapsedRealtime()
+            delay(250)
+        }
+    }
+    val pendingElapsedMs = (nowElapsed - comparison.startedAtElapsedMs).coerceAtLeast(0)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("同じ質問への回答", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text("「${comparison.query}」", style = MaterialTheme.typography.bodyMedium)
+        AnswerComparisonCard("Luna経路", comparison.luna, weather, pendingElapsedMs, onSpeak, onCopy)
+        AnswerComparisonCard("Jev経路", comparison.jev, weather, pendingElapsedMs, onSpeak, onCopy)
+        val lunaMs = comparison.luna.clientLatencyMs
+        val jevMs = comparison.jev.clientLatencyMs
+        if (!comparison.luna.pending && !comparison.jev.pending && lunaMs != null && jevMs != null) {
+            val faster = when {
+                lunaMs < jevMs -> "Luna経路が ${jevMs - lunaMs}ms 短い"
+                jevMs < lunaMs -> "Jev経路が ${lunaMs - jevMs}ms 短い"
+                else -> "回答までの時間は同じ"
+            }
+            Text("$faster · 時間だけで回答品質は判断できません", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun AnswerComparisonCard(
+    title: String,
+    side: AnswerComparisonSide,
+    weather: WeatherSnapshot?,
+    pendingElapsedMs: Long,
+    onSpeak: (AiDispatchResult) -> Unit,
+    onCopy: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                Text(
+                    when {
+                        side.pending -> "回答待ち"
+                        side.error != null -> "失敗"
+                        else -> "完了"
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (side.error == null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
+                )
+            }
+            val result = side.result
+            when {
+                side.pending -> Text(
+                    "回答待ち · ${String.format("%.1f", pendingElapsedMs / 1000.0)}秒",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                side.error != null -> Text(side.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                result != null -> {
+                    val body = comparisonBody(result, weather)
+                    Text(body, style = MaterialTheme.typography.bodyMedium)
+                    if (result.route == "device_action" || result.route == "alarm_action") {
+                        Text("比較用の操作案です。家電・アラームは実行していません。", style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text(
+                        "回答まで ${side.clientLatencyMs?.let { "${it}ms" } ?: "—"} · 判定 ${result.routerMs}ms · 追加生成 ${result.answerMs}ms",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "判定 ${result.route} · 判定モデル ${result.routerModel} · 回答モデル ${result.answerModel ?: "—"}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text("requestId ${result.requestId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TextButton(onClick = { onSpeak(result) }) { Text("読み上げ") }
+                        if (body.isNotBlank()) TextButton(onClick = { onCopy(body) }) { Text("回答をコピー") }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun comparisonBody(result: AiDispatchResult, weather: WeatherSnapshot?): String = when (result.route) {
+    "device_action" -> listOfNotNull(
+        result.target?.let { "対象: $it" },
+        result.action?.let { "操作案: ${comparisonActionLabel(it)}" },
+        result.temperatureC?.let { "設定温度: ${it}°C" }
+    ).joinToString("\n").ifBlank { "家電操作の提案を取得しました" }
+    "alarm_action" -> listOfNotNull(
+        result.action?.let { "操作案: ${comparisonActionLabel(it)}" },
+        result.target?.let { "対象: $it" },
+        result.referenceTimeLocal?.let { "変更前: $it" },
+        result.timeLocal?.let { "時刻: $it" }
+    ).joinToString("\n").ifBlank { "アラーム操作の提案を取得しました" }
+    "weather" -> weather?.let {
+        "端末の天気データ（オンライン検索なし）\n${it.label}: ${String.format("%.0f", it.temperatureC)}° · ${WeatherClient.weatherLabel(it.weatherCode)}"
+    } ?: "端末の天気データがありません。オンライン検索は行っていません。"
+    else -> result.answerText.orEmpty().ifBlank { "返答文がありませんでした。判定詳細を確認してください。" }
+}
+
+private fun comparisonActionLabel(action: String): String = when (action) {
+    "turn_on" -> "電源を入れる"
+    "turn_off" -> "電源を切る"
+    "set_ac" -> "エアコンを設定する"
+    "alarm_create" -> "アラームを作成する"
+    "alarm_update" -> "アラームを変更する"
+    "alarm_delete" -> "アラームを削除する"
+    else -> action
 }
 
 @Composable
