@@ -6,12 +6,12 @@
 
 | 経路 | 意図 |
 |---|---|
-| routed | 本番想定。Luna 1回、簡単な回答も同時生成、深い質問だけSol high |
-| legacy-two-call | 分類のみLuna＋回答モデル。旧2段構成の比較用近似 |
+| luna-first | Luna 1回で初段判定。simple_chatは同一呼び出し、deep_reasoningだけSol high |
+| jev-first | Jev 1回でrouteと閉じたパラメータを判定。simple_chatはLuna、deep_reasoningはSol high、物理系はAndroid |
 | sol-medium | チャットケースをSolへ直結し、ルーターの待ち時間と品質差を評価 |
 | sol-high | 同じチャットケースをhighで比較 |
 
-旧経路は現在のschemaでreplyTextをnullにする近似であり、旧コミットの完全再現ではない。
+初段比較UIは同じSTT最終文をLuna分類とJev分類へ並列送信し、routerMsの差を見る。物理操作は比較中に実行しない。
 ソル直結の結果を物理操作用に使わない。Liveと音声STT/TTSは別のPhase 0B試験。
 分類の正解と回答品質は別。AIの自己申告confidenceを正解確率として使わない。
 
@@ -64,7 +64,7 @@ CLIはバックエンド完了時間のみで、音声応答開始・物理動�
 | ローカル検出→再生停止 | p95 250ms以内 |
 | アラーム | 対象ID・保存内容・予約内容の一致。故障時もローカル発音 |
 
-守れない場合はまずSTT終端・LLM二重呼出し・TTS全量待ち・音声バッファを確認。
+守れない場合はまずSTT終端・不要なLLM二重呼出し・TTS全量待ち・音声バッファを確認。simple_chatではJev-firstが直列で1呼び出し増える点を必ず分離して見る。
 モデルの変更、上位モデルへの昇格率、発話長は同じ条件で比較。失敗率が高い経路を速度だけで採用しない。
 
 ## 費用・品質
