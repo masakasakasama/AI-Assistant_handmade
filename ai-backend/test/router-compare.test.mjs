@@ -59,10 +59,10 @@ test("router comparison keeps Luna and Jev independent", async () => {
 test("router comparison reports one provider failure without hiding the other", async () => {
   const result = await compareRouters({ text: "hello" }, {
     routeIntent: async () => ({ route: "simple_chat", confidence: 0.8 }),
-    routeIntentJev: async () => { throw new Error("OPENROUTER_API_KEY is not configured"); }
+    routeIntentJev: async () => { throw new Error("JEV_OPENROUTER_API_KEY is not configured"); }
   });
   assert.equal(result.luna.ok, true);
   assert.equal(result.jev.ok, false);
-  assert.match(result.jev.error, /OPENROUTER_API_KEY/);
+  assert.match(result.jev.error, /JEV_OPENROUTER_API_KEY/);
   assert.equal(result.deltaMs, null);
 });
