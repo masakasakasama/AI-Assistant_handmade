@@ -2,22 +2,27 @@
 
 更新: 2026-09-13。実装済み・予定・実測を混同しない。
 
-## 通常経路
+## 比較する通常経路
 
 ```text
-Galaxyマイク（Phase 1ではXVF3800 → ESP32 → Wi-Fi）
-→ 音声セッション管理 / STT
-→ 少数のローカル処理（停止など）
-→ 認証付きTatsu Backend
-→ Luna 1回：操作案 / 確認 / 簡単な回答 / 深い質問の判定
-→ 深い質問だけSol（本番既定high。mediumは速度・費用比較用）
-→ Androidの操作検証・実行層
-→ 実行結果または回答 → 定型文 / TTS → 再生
+A: Luna-first
+音声 → STT → Luna
+  ├ 家電 / アラーム / 天気 → Android
+  ├ simple_chat → Lunaの同一応答
+  ├ deep_reasoning → Sol high
+  └ clarify → Lunaの同一応答
+
+B: Jev-first
+音声 → STT → Jev
+  ├ 家電 / アラーム / 天気 → Android
+  ├ simple_chat → Luna
+  ├ deep_reasoning → Sol high
+  └ clarify → ローカル定型確認
 ```
 
-STT、TTS、認証付き実行連携はまだ未完成。現在のdispatchは提案を返すだけ。
-simple_chatとclarifyはLunaのreplyTextを使い、回答用の追加LLM呼び出しをしない。
-深い会話の継続・明示的な「詳しく考えて」は将来Solへ直接送る。初版では未実装。
+Jevは自由文を生成しない。1回のSystem One呼び出しでrouteに加え、家電action・既知対象・16〜30℃・アラームaction・既知対象・新旧の時分を閉じたChoiceとして並列判定する。
+Androidは最終的な対象ID、範囲、重複、現在状態を再検証してから物理操作する。
+simple_chatはLuna-firstが1回、Jev-firstがJev＋Lunaの2回になるため、Jev-firstが必ず速いわけではない。deep_reasoningと物理系は初段ルーター差がそのまま短縮候補になる。
 
 ## Conversation Mode
 

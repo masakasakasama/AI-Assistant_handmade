@@ -75,6 +75,8 @@ import androidx.compose.ui.unit.sp
 import com.tatsu.homehub.BuildConfig
 import com.tatsu.homehub.R
 import com.tatsu.homehub.data.AiDispatchResult
+import com.tatsu.homehub.data.RouterCompareResult
+import com.tatsu.homehub.data.RouterDecisionResult
 import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.WeatherClient
 import com.tatsu.homehub.data.WeatherSnapshot
@@ -108,6 +110,8 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val switchBotTokenSuffix by viewModel.switchBotTokenSuffix.collectAsState()
     val aiTesting by viewModel.aiTesting.collectAsState()
     val aiResult by viewModel.aiResult.collectAsState()
+    val routerComparing by viewModel.routerComparing.collectAsState()
+    val routerCompareResult by viewModel.routerCompareResult.collectAsState()
     val aiBackendOnline by viewModel.aiBackendOnline.collectAsState()
     val voiceState by viewModel.voiceState.collectAsState()
 
@@ -249,7 +253,11 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 state = voiceState,
                                 backendUrl = viewModel.aiBackendUrl(),
                                 voiceLanguageTag = viewModel.voiceLanguageTag,
+                                routerComparison = routerCompareResult,
+                                routerComparing = routerComparing,
                                 onStart = viewModel::startVoiceSession,
+                                onStartJev = viewModel::startVoiceSessionJev,
+                                onCompare = viewModel::startVoiceRouterComparison,
                                 onStopListening = viewModel::stopVoiceListening,
                                 onCancel = viewModel::cancelVoiceSession,
                                 onSettings = { showSettings = true }
@@ -260,8 +268,11 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 online = aiBackendOnline,
                                 testing = aiTesting,
                                 result = aiResult,
+                                routerComparison = routerCompareResult,
+                                routerComparing = routerComparing,
                                 backendUrl = viewModel.aiBackendUrl(),
                                 onTest = viewModel::testAi,
+                                onCompare = viewModel::compareRouters,
                                 onCheck = { viewModel.checkAiBackend() },
                                 onSettings = { showSettings = true }
                             )
@@ -556,7 +567,11 @@ private fun VoicePocCard(
     state: VoiceSessionState,
     backendUrl: String,
     voiceLanguageTag: String,
+    routerComparison: RouterCompareResult?,
+    routerComparing: Boolean,
     onStart: () -> Unit,
+    onStartJev: () -> Unit,
+    onCompare: () -> Unit,
     onStopListening: () -> Unit,
     onCancel: () -> Unit,
     onSettings: () -> Unit
@@ -604,7 +619,10 @@ private fun VoicePocCard(
                 Text("AI Backend URLを設定してください")
                 TextButton(onClick = onSettings) { Text("設定する") }
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     when (state.phase) {
                         VoicePhase.PREPARING -> {
                             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -637,7 +655,13 @@ private fun VoicePocCard(
                             Button(onClick = onStart) {
                                 Icon(Icons.Outlined.Mic, null)
                                 Spacer(Modifier.width(6.dp))
-                                Text("話す")
+                                Text("Lunaで話す")
+                            }
+                            OutlinedButton(onClick = onStartJev) {
+                                Text("Jevで話す")
+                            }
+                            OutlinedButton(onClick = onCompare, enabled = !routerComparing) {
+                                Text(if (routerComparing) "比較中" else "判定比較")
                             }
                         }
                     }
@@ -661,6 +685,9 @@ private fun VoicePocCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            if (state.finalText.isNotBlank() && routerComparison != null) {
+                RouterComparisonView(routerComparison)
+            }
             state.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
@@ -675,7 +702,7 @@ private fun VoicePocCard(
                 }
             }
             Text(
-                "STTはAndroidのオンデバイス認識を優先し、非対応端末ではシステム認識へフォールバック。物理操作は最終認識結果だけを使い、曖昧な対象は実行しません。",
+                "Jev経路は STT → Jev → simple_chatはLuna / deep_reasoningはSol high / 家電・アラーム・天気はAndroid。比較は同じ認識文で初段判定だけを測ります。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -805,8 +832,11 @@ private fun AiCard(
     online: Boolean?,
     testing: Boolean,
     result: AiDispatchResult?,
+    routerComparison: RouterCompareResult?,
+    routerComparing: Boolean,
     backendUrl: String,
     onTest: (String) -> Unit,
+    onCompare: (String) -> Unit,
     onCheck: () -> Unit,
     onSettings: () -> Unit
 ) {
@@ -853,7 +883,10 @@ private fun AiCard(
                     minLines = 2
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedButton(onClick = onCheck) { Text("接続確認") }
                     Button(onClick = { onTest(prompt) }, enabled = !testing) {
                         if (testing) {
@@ -862,7 +895,15 @@ private fun AiCard(
                         }
                         Text(if (testing) "判定中" else "試す")
                     }
+                    OutlinedButton(onClick = { onCompare(prompt) }, enabled = !routerComparing) {
+                        Text(if (routerComparing) "比較中" else "Luna vs Jev")
+                    }
                 }
+            }
+
+            routerComparison?.let {
+                Spacer(Modifier.height(14.dp))
+                RouterComparisonView(it)
             }
 
             result?.let {
@@ -888,6 +929,63 @@ private fun AiCard(
                             Text(text)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RouterComparisonView(result: RouterCompareResult) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("最初の判定を同じ入力で比較", fontWeight = FontWeight.SemiBold)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RouterDecisionPanel("Luna", result.luna, Modifier.weight(1f))
+                RouterDecisionPanel("Jev", result.jev, Modifier.weight(1f))
+            }
+            result.deltaMs?.let { delta ->
+                val label = when {
+                    delta > 0 -> "Jevが ${delta}ms 短い"
+                    delta < 0 -> "Lunaが ${-delta}ms 短い"
+                    else -> "同じ"
+                }
+                Text(label + " · 端末往復 ${result.clientLatencyMs}ms", style = MaterialTheme.typography.bodySmall)
+            } ?: Text(
+                "片方が未設定または失敗しています · 端末往復 ${result.clientLatencyMs}ms",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "比較はルーティング判定だけです。家電・アラームは実行しません。",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun RouterDecisionPanel(label: String, decision: RouterDecisionResult, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, fontWeight = FontWeight.SemiBold)
+            if (decision.ok) {
+                Text(decision.route ?: "unknown", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "${decision.latencyMs}ms" + (decision.confidence?.let { " · conf " + String.format("%.2f", it) } ?: ""),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(decision.model, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Text("失敗 ${decision.latencyMs}ms", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                decision.error?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                 }
             }
         }

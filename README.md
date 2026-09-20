@@ -8,8 +8,8 @@ Google Home / Alexaの全機能コピーではなく、自然な会話、SwitchB
 
 **Phase 0は手持ちGalaxyで、AIの回答から音声出力・操作結果までを検証する。合格まで音響HW・中古タブレットは買わない。**
 
-- 通常経路：STT → Luna 1回 → 必要時のみSol → TTS。通常の読み上げも中断可能にする。
-- 簡単な回答は分類と同じLuna呼び出しで生成。深い質問のSolはhighを既定に維持し、mediumは速度・費用比較用に評価する。
+- 比較中の2経路：Luna-first（STT → Luna → 必要時Sol）とJev-first（STT → Jev → simple_chatはLuna / deep_reasoningはSol high / 家電・アラーム・天気はAndroid）。
+- Jevは文章生成に使わず、route・action・対象・温度・時刻などの閉じた判断を1回で返す。simple_chatだけはJev後にLunaが追加されるため、速度メリットが出るとは限らない。
 - GPT-Liveは任意のConversation Mode。通常経路と同じ状態・操作実行層を使う。
 - confidenceは診断情報。操作許可には使わず、対象ID・状態・値・有効期限をAndroidで検証する。
 - アラームはAndroidで永続化・発火。AI障害とローカル鳴動を分離する。
@@ -22,8 +22,9 @@ Google Home / Alexaの全機能コピーではなく、自然な会話、SwitchB
 | SwitchBot / Room / AlarmManager / 天気 / 更新 | Android実装あり。故障注入と長期試験は未完了 |
 | AIテキスト検証UI / HTTP Backend | 実装あり。AI操作案を表示するだけで、物理操作しない |
 | Luna単一呼び出し / Sol high既定 / 区間計測 | 実装・オフラインテストあり。mediumとの実API比較は未測定 |
+| Luna vs Jev 初段ルーター比較 | v0.4.6で文字・音声の比較PoCを追加。Luna-firstとJev-firstを個別に音声実行でき、判定比較中は物理操作を実行しない |
 | 性能比較CLI | 日英独21ケース・4経路。初期データセットはスモーク用 |
-| Galaxy STT / Android TTS / 音声キャンセル | v0.4.0で縦切り実装。v0.4.2で言語別STT切替・診断表示を追加。v0.4.3でBackend URLを初期設定。v0.4.4で日英独の自動言語検出を既定化。v0.4.5で音声状態と同期するマスコット表示を追加。実Galaxy評価中 |
+| Galaxy STT / Android TTS / 音声キャンセル | v0.4.0で縦切り実装。v0.4.2で言語別STT切替・診断表示を追加。v0.4.3でBackend URLを初期設定。v0.4.4で日英独の自動言語検出を既定化。v0.4.5で音声状態と同期するマスコット表示を追加。v0.4.6でLuna-first / Jev-firstの音声比較と初段判定比較を追加。実Galaxy評価中 |
 | OpenAI STT比較 / Live | 後続のPhase 0比較対象 |
 | 音声→家電／アラームの安全な実行 | 次のPhase 0実装対象 |
 | 外部PCM入力 / AEC / Wake / 2〜5m / 72時間 | 未検証 |

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
 import com.tatsu.homehub.data.AiBackendClient
 import com.tatsu.homehub.data.AiDispatchResult
+import com.tatsu.homehub.data.RouterCompareResult
 import com.tatsu.homehub.data.AlarmRepository
 import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.NetworkMonitor
@@ -76,6 +77,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _aiResult = MutableStateFlow<AiDispatchResult?>(null)
     val aiResult: StateFlow<AiDispatchResult?> = _aiResult.asStateFlow()
 
+    private val _routerComparing = MutableStateFlow(false)
+    val routerComparing: StateFlow<Boolean> = _routerComparing.asStateFlow()
+
+    private val _routerCompareResult = MutableStateFlow<RouterCompareResult?>(null)
+    val routerCompareResult: StateFlow<RouterCompareResult?> = _routerCompareResult.asStateFlow()
+
     private val _aiBackendOnline = MutableStateFlow<Boolean?>(null)
     val aiBackendOnline: StateFlow<Boolean?> = _aiBackendOnline.asStateFlow()
 
@@ -91,6 +98,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private var voiceGeneration = 0L
     private var currentVoiceJob: Job? = null
+    private var voiceComparisonOnly = false
+    private var voiceUseJev = false
     private val conversationHistory = mutableListOf<String>()
     private val executedVoiceOperations = LinkedHashSet<String>()
 
@@ -410,13 +419,54 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startVoiceSession() {
+    fun compareRouters(text: String) {
+        val query = text.trim()
+        if (query.isBlank()) {
+            _message.value = "比較する文を入力してください"
+            return
+        }
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) {
             _message.value = "設定からAI Backend URLを登録してください"
             return
         }
 
+        viewModelScope.launch {
+            _routerComparing.value = true
+            aiBackendClient.compareRouters(url, query)
+                .onSuccess { result ->
+                    _routerCompareResult.value = result
+                    _aiBackendOnline.value = true
+                }
+                .onFailure { error ->
+                    _aiBackendOnline.value = false
+                    _message.value = "ルーター比較失敗: " + (error.message ?: "unknown")
+                }
+            _routerComparing.value = false
+        }
+    }
+
+    fun startVoiceSession() {
+        startVoiceSessionInternal(compareOnly = false, useJev = false)
+    }
+
+    fun startVoiceSessionJev() {
+        startVoiceSessionInternal(compareOnly = false, useJev = true)
+    }
+
+    fun startVoiceRouterComparison() {
+        startVoiceSessionInternal(compareOnly = true, useJev = false)
+    }
+
+    private fun startVoiceSessionInternal(compareOnly: Boolean, useJev: Boolean) {
+        val url = appPrefs.aiBackendUrl
+        if (url.isBlank()) {
+            _message.value = "設定からAI Backend URLを登録してください"
+            return
+        }
+
+        voiceComparisonOnly = compareOnly
+        voiceUseJev = useJev
         val previousGeneration = voiceGeneration
         voiceGeneration += 1
         if (previousGeneration > 0) voiceController.cancelListening(previousGeneration)
@@ -425,7 +475,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _voiceState.value = VoiceSessionState(
             phase = VoicePhase.PREPARING,
             generationId = voiceGeneration,
-            status = "音声入力を準備しています",
+            status = when {
+                compareOnly -> "Luna / Jev 比較用の音声入力を準備しています"
+                useJev -> "Jevルートで音声入力を準備しています"
+                else -> "Lunaルートで音声入力を準備しています"
+            },
             diagnostic = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})",
             detectedLanguageTag = null
         )
@@ -438,6 +492,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cancelVoiceSession() {
         voiceGeneration += 1
+        voiceComparisonOnly = false
+        voiceUseJev = false
         currentVoiceJob?.cancel()
         voiceController.cancelListening(voiceGeneration - 1)
         voiceController.stopSpeaking()
@@ -461,10 +517,49 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             error = null
         )
 
+        if (voiceComparisonOnly) {
+            currentVoiceJob?.cancel()
+            currentVoiceJob = viewModelScope.launch {
+                _routerComparing.value = true
+                val started = android.os.SystemClock.elapsedRealtime()
+                aiBackendClient.compareRouters(url, text, buildVoiceContext())
+                    .onSuccess { result ->
+                        if (generation != voiceGeneration) return@onSuccess
+                        _routerCompareResult.value = result
+                        _aiBackendOnline.value = true
+                        val elapsed = android.os.SystemClock.elapsedRealtime() - started
+                        _voiceState.value = _voiceState.value.copy(
+                            phase = VoicePhase.IDLE,
+                            status = "Luna / Jev 比較完了",
+                            responseText = "判定だけ比較しました。家電・アラームは実行していません。",
+                            latencyMs = elapsed,
+                            error = null
+                        )
+                        voiceComparisonOnly = false
+                    }
+                    .onFailure { error ->
+                        if (generation != voiceGeneration) return@onFailure
+                        _aiBackendOnline.value = false
+                        _voiceState.value = _voiceState.value.copy(
+                            phase = VoicePhase.ERROR,
+                            error = "ルーター比較失敗: " + (error.message ?: "unknown")
+                        )
+                        voiceComparisonOnly = false
+                    }
+                _routerComparing.value = false
+            }
+            return
+        }
+
         currentVoiceJob?.cancel()
         currentVoiceJob = viewModelScope.launch {
             val started = android.os.SystemClock.elapsedRealtime()
-            aiBackendClient.dispatch(url, text, buildVoiceContext())
+            val dispatchCall = if (voiceUseJev) {
+                aiBackendClient.dispatchJev(url, text, buildVoiceContext())
+            } else {
+                aiBackendClient.dispatch(url, text, buildVoiceContext())
+            }
+            dispatchCall
                 .onSuccess { result ->
                     if (generation != voiceGeneration) return@onSuccess
                     _aiResult.value = result
