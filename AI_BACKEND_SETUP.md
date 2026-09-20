@@ -8,6 +8,9 @@
 | ROUTER_MODEL | 既定gpt-5.6-luna |
 | REASONING_MODEL | 既定gpt-5.6-sol |
 | REASONING_EFFORT | 既定high。品質を落とさず、mediumはbenchmarkで比較する |
+| TYPESAFE_API_KEY | Jev比較用。Backendのみに保存し、APKへ入れない |
+| JEV_MODEL | 既定jev-1.13.0。比較再現性のため固定版を使用 |
+| JEV_ENDPOINT | 既定https://api.typesafe.ai/v1/systemone |
 
 ## 実装状況
 
@@ -16,7 +19,7 @@ Luna 1回→簡単な回答、深い質問だけSol。STT/TTSとGPT-Liveはま�
 
 ## Vercel
 
-HTTP Functions用の設定あり。GET /api/health、POST /api/dispatch。
+HTTP Functions用の設定あり。GET /api/health、POST /api/dispatch、POST /api/router-compare。router-compareはLunaとJevを並列に呼び、物理操作を実行しない。
 Androidの設定にプロジェクトのベースURLだけを入力する。末尾へ/apiを付けない。
 以前のAndroidの/health呼び出しは/api/healthへ修正済み。
 AI設定の保存にSwitchBotのToken/Secretは不要。
