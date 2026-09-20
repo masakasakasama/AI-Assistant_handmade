@@ -1,6 +1,7 @@
 import http from "node:http";
 import { dispatch } from "./dispatch.mjs";
 import { compareRouters } from "./router-compare.mjs";
+import { dispatchJev } from "./dispatch-jev.mjs";
 
 const port = Number(process.env.PORT || 8787);
 
@@ -33,6 +34,18 @@ const server = http.createServer(async (req, res) => {
         openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
         jevConfigured: Boolean(process.env.TYPESAFE_API_KEY)
       });
+    }
+
+    if (req.method === "POST" && req.url === "/api/dispatch-jev") {
+      const body = await readJson(req);
+      if (typeof body.text !== "string" || !body.text.trim()) {
+        return json(res, 400, { error: "text is required" });
+      }
+      const result = await dispatchJev({
+        text: body.text.trim(),
+        context: typeof body.context === "string" ? body.context : ""
+      });
+      return json(res, 200, result);
     }
 
     if (req.method === "POST" && req.url === "/api/router-compare") {
