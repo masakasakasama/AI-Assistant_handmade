@@ -99,6 +99,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var voiceGeneration = 0L
     private var currentVoiceJob: Job? = null
     private var voiceComparisonOnly = false
+    private var voiceUseJev = false
     private val conversationHistory = mutableListOf<String>()
     private val executedVoiceOperations = LinkedHashSet<String>()
 
@@ -446,14 +447,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startVoiceSession() {
-        startVoiceSessionInternal(compareOnly = false)
+        startVoiceSessionInternal(compareOnly = false, useJev = false)
+    }
+
+    fun startVoiceSessionJev() {
+        startVoiceSessionInternal(compareOnly = false, useJev = true)
     }
 
     fun startVoiceRouterComparison() {
-        startVoiceSessionInternal(compareOnly = true)
+        startVoiceSessionInternal(compareOnly = true, useJev = false)
     }
 
-    private fun startVoiceSessionInternal(compareOnly: Boolean) {
+    private fun startVoiceSessionInternal(compareOnly: Boolean, useJev: Boolean) {
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) {
             _message.value = "設定からAI Backend URLを登録してください"
@@ -461,6 +466,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         voiceComparisonOnly = compareOnly
+        voiceUseJev = useJev
         val previousGeneration = voiceGeneration
         voiceGeneration += 1
         if (previousGeneration > 0) voiceController.cancelListening(previousGeneration)
@@ -469,7 +475,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _voiceState.value = VoiceSessionState(
             phase = VoicePhase.PREPARING,
             generationId = voiceGeneration,
-            status = if (compareOnly) "Luna / Jev 比較用の音声入力を準備しています" else "音声入力を準備しています",
+            status = when {
+                compareOnly -> "Luna / Jev 比較用の音声入力を準備しています"
+                useJev -> "Jevルートで音声入力を準備しています"
+                else -> "Lunaルートで音声入力を準備しています"
+            },
             diagnostic = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})",
             detectedLanguageTag = null
         )
@@ -483,6 +493,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelVoiceSession() {
         voiceGeneration += 1
         voiceComparisonOnly = false
+        voiceUseJev = false
         currentVoiceJob?.cancel()
         voiceController.cancelListening(voiceGeneration - 1)
         voiceController.stopSpeaking()
@@ -543,7 +554,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         currentVoiceJob?.cancel()
         currentVoiceJob = viewModelScope.launch {
             val started = android.os.SystemClock.elapsedRealtime()
-            aiBackendClient.dispatch(url, text, buildVoiceContext())
+            val dispatchCall = if (voiceUseJev) {
+                aiBackendClient.dispatchJev(url, text, buildVoiceContext())
+            } else {
+                aiBackendClient.dispatch(url, text, buildVoiceContext())
+            }
+            dispatchCall
                 .onSuccess { result ->
                     if (generation != voiceGeneration) return@onSuccess
                     _aiResult.value = result
