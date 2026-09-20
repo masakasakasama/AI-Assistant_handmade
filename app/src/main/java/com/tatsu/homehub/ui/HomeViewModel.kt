@@ -20,10 +20,17 @@ import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.update.UpdateManager
 import com.tatsu.homehub.voice.VoiceController
+import com.tatsu.homehub.voice.AnswerComparisonSide
+import com.tatsu.homehub.voice.AnswerComparisonState
+import com.tatsu.homehub.voice.VoiceMode
 import com.tatsu.homehub.voice.VoicePhase
 import com.tatsu.homehub.voice.VoiceSessionState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,6 +90,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _routerCompareResult = MutableStateFlow<RouterCompareResult?>(null)
     val routerCompareResult: StateFlow<RouterCompareResult?> = _routerCompareResult.asStateFlow()
 
+    private val _answerComparison = MutableStateFlow<AnswerComparisonState?>(null)
+    val answerComparison: StateFlow<AnswerComparisonState?> = _answerComparison.asStateFlow()
+
     private val _aiBackendOnline = MutableStateFlow<Boolean?>(null)
     val aiBackendOnline: StateFlow<Boolean?> = _aiBackendOnline.asStateFlow()
 
@@ -98,8 +108,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private var voiceGeneration = 0L
     private var currentVoiceJob: Job? = null
-    private var voiceComparisonOnly = false
-    private var voiceUseJev = false
+    private var routerComparisonJob: Job? = null
+    private var comparisonGeneration = 0L
+    private var processedVoiceGeneration: Long? = null
     private val conversationHistory = mutableListOf<String>()
     private val executedVoiceOperations = LinkedHashSet<String>()
 
@@ -150,8 +161,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             processVoiceText(text, sessionId)
         }
 
-        override fun onSpeakingChanged(speaking: Boolean) {
+        override fun onSpeakingChanged(sessionId: Long, speaking: Boolean) {
             val current = _voiceState.value
+            if (sessionId != current.generationId) return
             _voiceState.value = if (speaking) {
                 current.copy(phase = VoicePhase.SPEAKING, error = null)
             } else if (current.phase == VoicePhase.SPEAKING) {
@@ -431,54 +443,136 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        viewModelScope.launch {
+        val request = ++comparisonGeneration
+        routerComparisonJob?.cancel()
+        _routerCompareResult.value = null
+        _answerComparison.value = null
+        val job = viewModelScope.launch {
             _routerComparing.value = true
-            aiBackendClient.compareRouters(url, query)
-                .onSuccess { result ->
+            try {
+                val result = withTimeout(60_000) {
+                    aiBackendClient.compareRouters(url, query).getOrThrow()
+                }
+                if (request == comparisonGeneration) {
                     _routerCompareResult.value = result
                     _aiBackendOnline.value = true
                 }
-                .onFailure { error ->
-                    _aiBackendOnline.value = false
-                    _message.value = "ルーター比較失敗: " + (error.message ?: "unknown")
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                if (cancelled is kotlinx.coroutines.TimeoutCancellationException && request == comparisonGeneration) {
+                    _message.value = "ルーター比較が60秒でタイムアウトしました"
+                    return@launch
                 }
-            _routerComparing.value = false
+                throw cancelled
+            } catch (error: Throwable) {
+                if (request == comparisonGeneration) {
+                    _aiBackendOnline.value = false
+                    _message.value = "ルーター比較失敗: ${error.message ?: "unknown"}"
+                }
+            } finally {
+                if (request == comparisonGeneration) _routerComparing.value = false
+            }
         }
+        routerComparisonJob = job
+    }
+
+    fun compareAnswers(text: String) {
+        val query = text.trim()
+        if (query.isBlank()) {
+            _message.value = "比較する文を入力してください"
+            return
+        }
+        val url = appPrefs.aiBackendUrl
+        if (url.isBlank()) {
+            _message.value = "設定からAI Backend URLを登録してください"
+            return
+        }
+        val runId = ++comparisonGeneration
+        routerComparisonJob?.cancel()
+        _routerCompareResult.value = null
+        _answerComparison.value = null
+        val job = viewModelScope.launch {
+            startAnswerComparison(query, buildVoiceContext(), url, runId, voiceSessionGeneration = null)
+        }
+        routerComparisonJob = job
     }
 
     fun startVoiceSession() {
-        startVoiceSessionInternal(compareOnly = false, useJev = false)
+        startVoiceSessionInternal(VoiceMode.LUNA)
     }
 
     fun startVoiceSessionJev() {
-        startVoiceSessionInternal(compareOnly = false, useJev = true)
+        startVoiceSessionInternal(VoiceMode.JEV)
     }
 
     fun startVoiceRouterComparison() {
-        startVoiceSessionInternal(compareOnly = true, useJev = false)
+        startVoiceSessionInternal(VoiceMode.ROUTER_COMPARE)
     }
 
-    private fun startVoiceSessionInternal(compareOnly: Boolean, useJev: Boolean) {
+    fun startVoiceAnswerComparison() {
+        startVoiceSessionInternal(VoiceMode.ANSWER_COMPARE)
+    }
+
+    fun speakComparisonAnswer(result: AiDispatchResult) {
+        val text = when (result.route) {
+            "device_action", "alarm_action" -> listOfNotNull(
+                result.target?.let { "対象は $it。" },
+                result.action?.let { comparisonActionText(it, result.language) },
+                result.temperatureC?.let { "温度は ${it} 度。" },
+                result.referenceTimeLocal?.let { "変更前は $it。" },
+                result.timeLocal?.let { "変更後は $it。" },
+                if (result.route == "device_action" || result.route == "alarm_action") {
+                    localized(result.language, "比較用の提案で、操作は実行していません。", "This is a comparison proposal. Nothing was executed.", "Dies ist ein Vergleichsvorschlag. Es wurde nichts ausgeführt.")
+                } else null
+            ).joinToString(" ")
+            "weather" -> weatherVoiceResponse(result.language)
+            else -> result.answerText.orEmpty()
+        }.ifBlank { localized(result.language, "返答文がありません", "No reply text is available.", "Es liegt kein Antworttext vor.") }
+        val generation = voiceGeneration
+        _voiceState.value = _voiceState.value.copy(
+            phase = VoicePhase.ANSWER_READY,
+            status = "比較した回答を読み上げます",
+            responseText = text
+        )
+        voiceController.speak(generation, text, result.language, "comparison-$generation-${UUID.randomUUID()}")
+    }
+
+    private fun comparisonActionText(action: String, language: String): String = when (action) {
+        "turn_on" -> localized(language, "電源を入れる案です。", "The proposal is to turn it on.", "Der Vorschlag ist, es einzuschalten.")
+        "turn_off" -> localized(language, "電源を切る案です。", "The proposal is to turn it off.", "Der Vorschlag ist, es auszuschalten.")
+        "set_ac" -> localized(language, "エアコンを設定する案です。", "The proposal is to set the air conditioner.", "Der Vorschlag ist, die Klimaanlage einzustellen.")
+        "alarm_create" -> localized(language, "アラームを作成する案です。", "The proposal is to create an alarm.", "Der Vorschlag ist, einen Alarm zu erstellen.")
+        "alarm_update" -> localized(language, "アラームを変更する案です。", "The proposal is to update the alarm.", "Der Vorschlag ist, den Alarm zu ändern.")
+        "alarm_delete" -> localized(language, "アラームを削除する案です。", "The proposal is to delete the alarm.", "Der Vorschlag ist, den Alarm zu löschen.")
+        else -> localized(language, "操作案です。", "This is an action proposal.", "Dies ist ein Handlungsvorschlag.")
+    }
+
+    private fun startVoiceSessionInternal(mode: VoiceMode) {
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) {
             _message.value = "設定からAI Backend URLを登録してください"
             return
         }
 
-        voiceComparisonOnly = compareOnly
-        voiceUseJev = useJev
         val previousGeneration = voiceGeneration
         voiceGeneration += 1
-        if (previousGeneration > 0) voiceController.cancelListening(previousGeneration)
+        comparisonGeneration += 1
+        if (previousGeneration > 0) voiceController.cancelSession(previousGeneration)
         currentVoiceJob?.cancel()
-        voiceController.stopSpeaking()
+        routerComparisonJob?.cancel()
+        routerComparisonJob = null
+        processedVoiceGeneration = null
+        _routerComparing.value = false
+        _routerCompareResult.value = null
+        _answerComparison.value = null
         _voiceState.value = VoiceSessionState(
             phase = VoicePhase.PREPARING,
+            mode = mode,
             generationId = voiceGeneration,
             status = when {
-                compareOnly -> "Luna / Jev 比較用の音声入力を準備しています"
-                useJev -> "Jevルートで音声入力を準備しています"
-                else -> "Lunaルートで音声入力を準備しています"
+                mode == VoiceMode.ANSWER_COMPARE -> "同じ質問への回答を比較します。家電・アラームは実行しません"
+                mode == VoiceMode.ROUTER_COMPARE -> "Luna / Jevの判定を比較します"
+                mode == VoiceMode.JEV -> "Jev経路で音声入力を準備しています"
+                else -> "Luna経路で音声入力を準備しています"
             },
             diagnostic = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})",
             detectedLanguageTag = null
@@ -491,12 +585,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun cancelVoiceSession() {
+        val previousGeneration = voiceGeneration
         voiceGeneration += 1
-        voiceComparisonOnly = false
-        voiceUseJev = false
+        comparisonGeneration += 1
         currentVoiceJob?.cancel()
-        voiceController.cancelListening(voiceGeneration - 1)
-        voiceController.stopSpeaking()
+        routerComparisonJob?.cancel()
+        routerComparisonJob = null
+        voiceController.cancelSession(previousGeneration)
+        _routerComparing.value = false
+        _routerCompareResult.value = null
+        _answerComparison.value = null
         _voiceState.value = VoiceSessionState(
             phase = VoicePhase.IDLE,
             generationId = voiceGeneration
@@ -504,9 +602,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun processVoiceText(text: String, generation: Long) {
-        if (generation != voiceGeneration || text.isBlank()) return
+        if (generation != voiceGeneration || text.isBlank() || processedVoiceGeneration == generation) return
+        processedVoiceGeneration = generation
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) return
+        val mode = _voiceState.value.mode
+        val context = buildVoiceContext()
+        val comparisonRunId = ++comparisonGeneration
+        routerComparisonJob?.cancel()
+        routerComparisonJob = null
+        _routerComparing.value = false
+        _routerCompareResult.value = null
+        _answerComparison.value = null
 
         _voiceState.value = _voiceState.value.copy(
             phase = VoicePhase.THINKING,
@@ -517,36 +624,48 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             error = null
         )
 
-        if (voiceComparisonOnly) {
+        if (mode == VoiceMode.ROUTER_COMPARE) {
             currentVoiceJob?.cancel()
             currentVoiceJob = viewModelScope.launch {
                 _routerComparing.value = true
                 val started = android.os.SystemClock.elapsedRealtime()
-                aiBackendClient.compareRouters(url, text, buildVoiceContext())
-                    .onSuccess { result ->
-                        if (generation != voiceGeneration) return@onSuccess
-                        _routerCompareResult.value = result
-                        _aiBackendOnline.value = true
-                        val elapsed = android.os.SystemClock.elapsedRealtime() - started
-                        _voiceState.value = _voiceState.value.copy(
-                            phase = VoicePhase.IDLE,
-                            status = "Luna / Jev 比較完了",
-                            responseText = "判定だけ比較しました。家電・アラームは実行していません。",
-                            latencyMs = elapsed,
-                            error = null
-                        )
-                        voiceComparisonOnly = false
+                try {
+                    val result = withTimeout(60_000) {
+                        aiBackendClient.compareRouters(url, text, context).getOrThrow()
                     }
-                    .onFailure { error ->
-                        if (generation != voiceGeneration) return@onFailure
-                        _aiBackendOnline.value = false
-                        _voiceState.value = _voiceState.value.copy(
-                            phase = VoicePhase.ERROR,
-                            error = "ルーター比較失敗: " + (error.message ?: "unknown")
-                        )
-                        voiceComparisonOnly = false
-                    }
-                _routerComparing.value = false
+                    if (generation != voiceGeneration) return@launch
+                    _routerCompareResult.value = result
+                    _aiBackendOnline.value = true
+                    _voiceState.value = _voiceState.value.copy(
+                        phase = VoicePhase.IDLE,
+                        status = "Luna / Jev 判定比較完了",
+                        responseText = "判定だけ比較しました。家電・アラームは実行していません。",
+                        latencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                        error = null
+                    )
+                } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+                    if (generation == voiceGeneration) _voiceState.value = _voiceState.value.copy(
+                        phase = VoicePhase.ERROR,
+                        error = "判定比較が60秒でタイムアウトしました"
+                    )
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    if (generation == voiceGeneration) _voiceState.value = _voiceState.value.copy(
+                        phase = VoicePhase.ERROR,
+                        error = "ルーター比較失敗: ${error.message ?: "unknown"}"
+                    )
+                } finally {
+                    if (generation == voiceGeneration) _routerComparing.value = false
+                }
+            }
+            return
+        }
+
+        if (mode == VoiceMode.ANSWER_COMPARE) {
+            currentVoiceJob?.cancel()
+            currentVoiceJob = viewModelScope.launch {
+                startAnswerComparison(text, context, url, comparisonRunId, voiceSessionGeneration = generation)
             }
             return
         }
@@ -554,39 +673,136 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         currentVoiceJob?.cancel()
         currentVoiceJob = viewModelScope.launch {
             val started = android.os.SystemClock.elapsedRealtime()
-            val dispatchCall = if (voiceUseJev) {
-                aiBackendClient.dispatchJev(url, text, buildVoiceContext())
-            } else {
-                aiBackendClient.dispatch(url, text, buildVoiceContext())
-            }
-            dispatchCall
-                .onSuccess { result ->
-                    if (generation != voiceGeneration) return@onSuccess
-                    _aiResult.value = result
-                    _aiBackendOnline.value = true
-                    val response = handleVoiceResult(result, generation)
-                    if (generation != voiceGeneration || response.isBlank()) return@onSuccess
-                    rememberConversation(text, response)
-                    val elapsed = android.os.SystemClock.elapsedRealtime() - started
+            try {
+                val result = withTimeout(60_000) {
+                    if (mode == VoiceMode.JEV) aiBackendClient.dispatchJev(url, text, context)
+                    else aiBackendClient.dispatch(url, text, context)
+                }.getOrThrow()
+                if (generation != voiceGeneration) return@launch
+                _aiResult.value = result
+                _aiBackendOnline.value = true
+                val response = handleVoiceResult(result, generation)
+                if (generation != voiceGeneration) return@launch
+                if (response.isBlank()) error("返答が空でした")
+                rememberConversation(text, response)
+                _voiceState.value = _voiceState.value.copy(
+                    phase = VoicePhase.ANSWER_READY,
+                    status = "返答を表示しました",
+                    responseText = response,
+                    route = result.route,
+                    latencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                    error = null
+                )
+                voiceController.speak(generation, response, result.language, "voice-$generation")
+            } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+                if (generation == voiceGeneration) {
                     _voiceState.value = _voiceState.value.copy(
-                        phase = VoicePhase.THINKING,
-                        responseText = response,
-                        route = result.route,
-                        latencyMs = elapsed,
-                        error = null
+                        phase = VoicePhase.ERROR,
+                        error = "AIから60秒以内に応答がありませんでした。もう一度お試しください"
                     )
-                    voiceController.speak(response, result.language, "voice-$generation")
                 }
-                .onFailure { error ->
-                    if (generation != voiceGeneration) return@onFailure
+                return@launch
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                if (generation == voiceGeneration) {
                     _aiBackendOnline.value = false
                     _voiceState.value = _voiceState.value.copy(
                         phase = VoicePhase.ERROR,
-                        error = "AI処理失敗: " + (error.message ?: "unknown")
+                        error = "AI処理失敗: ${error.message ?: "unknown"}"
                     )
                 }
+            }
         }
     }
+
+    private suspend fun startAnswerComparison(
+        text: String,
+        context: String,
+        url: String,
+        runId: Long,
+        voiceSessionGeneration: Long?
+    ) {
+        val active: () -> Boolean = {
+            runId == comparisonGeneration &&
+                (voiceSessionGeneration == null || voiceSessionGeneration == voiceGeneration)
+        }
+        _routerComparing.value = true
+        _answerComparison.value = AnswerComparisonState(
+            query = text,
+            startedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
+        )
+        if (voiceSessionGeneration != null) {
+            _voiceState.value = _voiceState.value.copy(
+                phase = VoicePhase.THINKING,
+                status = "Luna経路とJev経路の返答を作成中",
+                responseText = "",
+                error = null
+            )
+        }
+        try {
+            coroutineScope {
+                val luna = async {
+                    runAnswerRoute(url, text, context, useJev = false).also { side ->
+                        if (active()) _answerComparison.value = _answerComparison.value?.copy(luna = side)
+                    }
+                }
+                val jev = async {
+                    runAnswerRoute(url, text, context, useJev = true).also { side ->
+                        if (active()) _answerComparison.value = _answerComparison.value?.copy(jev = side)
+                    }
+                }
+                awaitAll(luna, jev)
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } finally {
+            if (active()) _routerComparing.value = false
+        }
+        if (active()) {
+            val current = _answerComparison.value
+            val completed = listOfNotNull(current?.luna, current?.jev).count { !it.pending }
+            _aiBackendOnline.value = completed > 0
+            if (voiceSessionGeneration != null) {
+                _voiceState.value = _voiceState.value.copy(
+                    phase = VoicePhase.IDLE,
+                    status = if (completed == 2) "回答比較完了" else "比較終了。失敗した経路は再実行できます",
+                    latencyMs = current?.let { android.os.SystemClock.elapsedRealtime() - it.startedAtElapsedMs },
+                    error = if (completed == 0) "両方の経路で回答を取得できませんでした" else null
+                )
+            }
+        }
+    }
+
+    private suspend fun runAnswerRoute(url: String, text: String, context: String, useJev: Boolean): AnswerComparisonSide {
+        val started = android.os.SystemClock.elapsedRealtime()
+        return try {
+            val result = withTimeout(60_000) {
+                if (useJev) aiBackendClient.dispatchJev(url, text, context)
+                else aiBackendClient.dispatch(url, text, context)
+            }.getOrThrow()
+            AnswerComparisonSide(
+                result = result,
+                clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                pending = false
+            )
+        } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+            AnswerComparisonSide(
+                error = "60秒で応答がありませんでした",
+                clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                pending = false
+            )
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            AnswerComparisonSide(
+                error = error.message ?: if (error is kotlinx.coroutines.TimeoutCancellationException) "60秒で応答がありませんでした" else "回答の取得に失敗しました",
+                clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                pending = false
+            )
+        }
+    }
+
 
     private suspend fun handleVoiceResult(result: AiDispatchResult, generation: Long): String {
         if (generation != voiceGeneration) return ""
@@ -757,6 +973,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun buildVoiceContext(): String {
+        val referenceTime = java.time.ZonedDateTime.now().toOffsetDateTime().toString()
+        val timeZone = java.time.ZoneId.systemDefault().id
         val devices = _devices.value.joinToString("\n") {
             "- ${it.name} | type=${it.type} | id=${it.deviceId}"
         }.ifBlank { "- none" }
@@ -767,6 +985,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return """
 Known devices:
 $devices
+
+Current local date and time: $referenceTime
+Current time zone: $timeZone
 
 Current alarms:
 $alarms

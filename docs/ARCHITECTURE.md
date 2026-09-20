@@ -24,6 +24,12 @@ Jevは自由文を生成しない。1回のSystem One呼び出しでrouteに加�
 Androidは最終的な対象ID、範囲、重複、現在状態を再検証してから物理操作する。
 simple_chatはLuna-firstが1回、Jev-firstがJev＋Lunaの2回になるため、Jev-firstが必ず速いわけではない。deep_reasoningと物理系は初段ルーター差がそのまま短縮候補になる。
 
+## 回答比較
+
+Luna-firstとJev-firstへ同じ確定済みSTT文脈を並列送信し、回答本文・route・モデル・端末往復時間・requestIdを個別に表示する。両結果は別々に保持し、一方の失敗や遅延で他方の回答を消さない。比較要求はキャンセル可能で、各経路は60秒で終了する。
+比較モードではSwitchBot／AlarmManager実行層へ入らない。家電・アラームrouteは実行前の提案として表示するだけ。weatherもAndroidにある同一キャッシュを参照し、比較だけのために追加取得しない。速度差だけから回答品質の優劣を決めない。
+比較完了後の通常Luna／Jev音声セッションは、新しい世代IDを発行して前の比較要求・TTSを破棄する。古い応答・TTS callbackが新しいセッションを更新しない。
+
 ## Conversation Mode
 
 GPT-Liveを任意起動。通常のSTT/LLM/TTSと並行して二重にマイクを消費しない。
