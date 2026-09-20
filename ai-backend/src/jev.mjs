@@ -174,8 +174,8 @@ export function parseJevRouteResponse(payload, metadata = {}) {
 
 export async function routeIntentJev({ text, context = "" }, dependencies = {}) {
   if (typeof text !== "string" || !text.trim()) throw new Error("text is required");
-  const apiKey = dependencies.apiKey ?? process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
+  const apiKey = dependencies.apiKey ?? process.env.JEV_OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("JEV_OPENROUTER_API_KEY is not configured");
 
   const devices = knownDevices(context);
   const alarms = knownAlarms(context);
