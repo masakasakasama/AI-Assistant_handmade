@@ -22,6 +22,7 @@ Jev-firstはJev 1回でrouteと閉じた操作パラメータを判断し、simp
 
 HTTP Functions用の設定あり。GET /api/health、POST /api/dispatch、POST /api/dispatch-jev、POST /api/router-compare。router-compareはLunaとJevを並列に呼び、物理操作を実行しない。
 Androidの設定にプロジェクトのベースURLだけを入力する。末尾へ/apiを付けない。
+環境変数を追加・変更した後は新しいDeploymentを作成する。既存Deploymentには新しい値は反映されない。
 以前のAndroidの/health呼び出しは/api/healthへ修正済み。
 AI設定の保存にSwitchBotのToken/Secretは不要。
 
