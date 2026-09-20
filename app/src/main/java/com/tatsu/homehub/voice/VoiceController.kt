@@ -89,7 +89,7 @@ class VoiceController(
             val onDeviceAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && runCatching {
                 SpeechRecognizer.isOnDeviceRecognitionAvailable(appContext)
             }.getOrDefault(false)
-            listener.onDiagnostic(sessionId, "lang=$languageTag; recognizer=${if (onDeviceAvailable) "on-device-first" else "system-only"}; version=${appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName}")
+            listener.onDiagnostic(sessionId, "lang=$languageTag; resolved=${recognitionLanguageTag()}; recognizer=${if (onDeviceAvailable) "on-device-first" else "system-only"}; version=${appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName}")
             startAttempt(sessionId, preferOnDevice = onDeviceAvailable)
         }
     }
@@ -170,11 +170,7 @@ class VoiceController(
 
     private fun recognitionLanguageTag(): String =
         if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO) {
-            when (Locale.getDefault().language) {
-                "de" -> "de-DE"
-                "en" -> "en-US"
-                else -> "ja-JP"
-            }
+            AUTO_BASE_LANGUAGE_TAG
         } else {
             currentLanguageTag
         }
@@ -296,11 +292,9 @@ class VoiceController(
                     if (!isCurrent(attempt) || resolved) return
                     resolved = true
                     mainHandler.removeCallbacks(supportTimeout)
-                    val requestedLanguages = if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO) {
-                        SUPPORTED_LANGUAGE_TAGS.map { Locale.forLanguageTag(it).language }.toSet()
-                    } else {
-                        setOf(Locale.forLanguageTag(currentLanguageTag).language)
-                    }
+                    val requestedLanguages = setOf(
+                        Locale.forLanguageTag(recognitionLanguageTag()).language
+                    )
                     val installedLanguages = support.installedOnDeviceLanguages
                         .map { Locale.forLanguageTag(it).language.lowercase() }
                         .toSet()
@@ -424,6 +418,7 @@ class VoiceController(
     private companion object {
         const val SUPPORT_CHECK_TIMEOUT_MS = 1_800L
         const val READY_TIMEOUT_MS = 10_000L
+        const val AUTO_BASE_LANGUAGE_TAG = "ja-JP"
         val SUPPORTED_LANGUAGE_TAGS = listOf("ja-JP", "en-US", "de-DE")
     }
 }
