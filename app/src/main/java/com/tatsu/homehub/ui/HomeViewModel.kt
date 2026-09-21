@@ -850,7 +850,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 else -> Result.failure(IllegalArgumentException("Unsupported resolved action: " + action.type))
             }
-            if (operation.isFailure) break
+            if (operation?.isFailure == true) break
         }
 
         return (operation ?: Result.success(Unit)).fold(
