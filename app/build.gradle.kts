@@ -13,8 +13,8 @@ android {
         applicationId = "com.tatsu.homehub"
         minSdk = 28
         targetSdk = 35
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 14
-        versionName = System.getenv("VERSION_NAME") ?: "0.4.8"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 15
+        versionName = System.getenv("VERSION_NAME") ?: "0.4.9"
         buildConfigField(
             "String",
             "DEFAULT_AI_BACKEND_URL",
@@ -72,4 +72,5 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling:1.8.0")
+    testImplementation("junit:junit:4.13.2")
 }

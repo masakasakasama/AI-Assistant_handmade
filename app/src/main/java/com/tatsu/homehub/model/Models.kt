@@ -18,6 +18,16 @@ data class AcControlState(
     val power: Boolean = false
 )
 
+data class SwitchBotDeviceState(
+    val power: Boolean? = null,
+    val temperature: Int? = null,
+    val mode: Int? = null,
+    val fanSpeed: Int? = null,
+    val brightness: Int? = null,
+    val retrievedAtElapsedMs: Long,
+    val rawJson: String
+)
+
 data class LocalAlarm(
     val id: String,
     val hour: Int,

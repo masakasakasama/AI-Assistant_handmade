@@ -28,6 +28,10 @@ test("Jev simple_chat routes to Luna after Jev", async () => {
   });
   assert.equal(result.answer.model, "gpt-5.6-luna");
   assert.equal(result.calls.length, 2);
+  assert.ok(result.timings.totalMs >= result.timings.routerMs);
+  assert.ok(result.timings.unaccountedMs >= 0);
+  assert.ok(result.timings.timestamps.server_t3_routing_complete != null);
+  assert.equal(result.timings.timingError, null);
 });
 
 test("Jev deep_reasoning routes to Sol high", async () => {

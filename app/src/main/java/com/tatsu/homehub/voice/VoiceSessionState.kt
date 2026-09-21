@@ -1,5 +1,7 @@
 package com.tatsu.homehub.voice
 
+import com.tatsu.homehub.data.AiPipelineTimings
+
 enum class VoicePhase {
     IDLE,
     PREPARING,
@@ -21,6 +23,8 @@ data class AnswerComparisonSide(
     val result: com.tatsu.homehub.data.AiDispatchResult? = null,
     val error: String? = null,
     val clientLatencyMs: Long? = null,
+    val timings: AiPipelineTimings? = null,
+    val actionPlanJson: String? = null,
     val pending: Boolean = true
 )
 
@@ -43,5 +47,7 @@ data class VoiceSessionState(
     val error: String? = null,
     val status: String = "",
     val diagnostic: String = "",
-    val detectedLanguageTag: String? = null
+    val detectedLanguageTag: String? = null,
+    val actionPlanJson: String? = null,
+    val timings: AiPipelineTimings = AiPipelineTimings()
 )

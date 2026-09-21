@@ -27,6 +27,7 @@ export async function answerSimple({ text, context = "", language = "ja" }) {
   return {
     model: process.env.ROUTER_MODEL || "gpt-5.6-luna",
     text: outputText(response),
-    usage: response.usage ?? null
+    usage: response.usage ?? null,
+    timings: response._timings ?? null
   };
 }

@@ -35,23 +35,30 @@ benchmark-results/へsamples.jsonlとsummary.jsonを保存し、Git管理から�
 実モデル比較はこのCLIで実施。HTTP経路はAndroid UIの端末往復時間を別測定。
 CLIはバックエンド完了時間のみで、音声応答開始・物理動作開始・Vercelネットワーク時間を含まない。
 
-## 測定点
+## 実装済みの計測点
 
-| 記号 | イベント |
-|---|---|
-| t0 | ユーザーの実際の発話終了（参照録音で確定） |
-| t1 | VADの終端確定 |
-| t2 | STT最終結果 |
-| t3 | Androidがdispatch送信 |
-| t4 | Routerの構造化結果確定 |
-| t5 | 回答確定／操作送信 |
-| t6 | TTS先頭音声到着／API受付 |
-| t7 | スピーカーで実際に聞こえた時点／物理動作開始 |
+| 記号 | イベント | 時計 |
+|---|---|---|
+| t0 | 発話終了／Android SpeechRecognizerの終端 | Android monotonic |
+| t1 | STT最終結果 | Android monotonic |
+| t2 | Backend dispatch開始 | Android monotonic |
+| t3 | Intent routing完了 | Backend monotonic |
+| t4 | 後段処理開始 | Android monotonic |
+| t5 / t6 | Device state取得開始／完了 | Android monotonic |
+| t7 | Action Resolver完了 | Android monotonic |
+| t8 | Policy完了 | Android monotonic |
+| t9 / t10 | Device Adapter開始／結果受信 | Android monotonic |
+| t8 (server) / t9 (server) | LLM first token／生成完了 | Backend monotonic |
+| t10 / t11 | 回答組み立て開始／完了 | AndroidまたはBackend monotonic |
+| t11 / t12 / t13 | TTS要求／再生開始／再生完了 | Android monotonic |
 
-端末・Backend間は異なる時計。区間は各機器のmonotonic clockで測り、requestIdで照合。
-端末往復からサーバー時間を引いた差は通信・待ち等の合計であって純粋なRTTではない。
-「考えています」の音声は有用な回答開始に数えない。TTFT、回答完了、音声開始を区別する。
-現在の実装はrouterMs / answerMs / latencyMs / clientLatencyMsまで。t0〜t7全体は未実装。
+各レスポンスの共通timingsにはSTT、判定前後待機、ルーティング、状態取得、Resolver、Policy、Device実行、回答開始待ち、TTFT、TTFT後生成、回答組み立て、TTS開始待ち、TTS準備、判定後合計、総時間、未配賦を格納する。比較画面は同じ列定義でLuna / Jev / `Jev - Luna`を表示する。`—`は工程なし／未計測、`0ms`は実測0。
+
+排他的区間だけを足し、親区間を重ねない。TTFTは回答生成全体と重なるので、生成時間は呼出全体からTTFTを差し引いた区間として記録する。負値や合計超過は丸めて隠さず`timingError`へ出す。
+
+AndroidとBackendのclock originは異なる。timestampは`client_*`と`server_*`に分け、requestIdで照合する。比較のdevice_actionはstate → Resolver → Policyまでdry-runし、機器実行時間は実行しないので`—`。同様に比較画面はTTSを実行しないためTTS時間も`—`。通常音声セッションでは実際のTTS lifecycleを測る。
+
+比較画面の1回分は端末での実測だが、1回だけで性能結論を出さない。同一文・同一端末で複数回比較し、将来はmedian / p50 / p95へ集計する。オフラインテストの時間は実API性能として扱わない。
 
 ## 初期の合格目標（実測値ではない）
 

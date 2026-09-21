@@ -30,6 +30,8 @@ class VoiceController(
         fun onPartialText(sessionId: Long, text: String)
         fun onFinalText(sessionId: Long, text: String)
         fun onSpeakingChanged(sessionId: Long, speaking: Boolean)
+        fun onSpeechEnded(sessionId: Long, elapsedRealtimeMs: Long)
+        fun onTtsLifecycle(sessionId: Long, event: String, elapsedRealtimeMs: Long)
         fun onError(sessionId: Long, message: String)
     }
 
@@ -63,11 +65,20 @@ class VoiceController(
                 mainHandler.post {
                     val id = utteranceId ?: return@post
                     val session = utteranceSessions[id] ?: return@post
-                    if (activeUtteranceId == id) listener.onSpeakingChanged(session, true)
+                    if (activeUtteranceId == id) {
+                        listener.onTtsLifecycle(session, "started", android.os.SystemClock.elapsedRealtime())
+                        listener.onSpeakingChanged(session, true)
+                    }
                 }
             }
             override fun onDone(utteranceId: String?) {
-                mainHandler.post { finishUtterance(utteranceId, false) }
+                mainHandler.post {
+                    val session = utteranceId?.let(utteranceSessions::get)
+                    if (session != null && activeUtteranceId == utteranceId) {
+                        listener.onTtsLifecycle(session, "completed", android.os.SystemClock.elapsedRealtime())
+                    }
+                    finishUtterance(utteranceId, false)
+                }
             }
             @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) {
@@ -138,6 +149,7 @@ class VoiceController(
             if (activeUtteranceId != null) stopSpeakingNow()
             activeUtteranceId = utteranceId
             utteranceSessions[utteranceId] = sessionId
+            listener.onTtsLifecycle(sessionId, "requested", android.os.SystemClock.elapsedRealtime())
             if (tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
                 finishUtterance(utteranceId, false)
                 listener.onError(sessionId, "読み上げを開始できませんでした")
@@ -240,7 +252,10 @@ class VoiceController(
             override fun onRmsChanged(rmsdB: Float) = Unit
             override fun onBufferReceived(buffer: ByteArray?) = Unit
             override fun onEndOfSpeech() {
-                if (isCurrent(attempt)) listener.onStatus(sessionId, "音声を確認しています")
+                if (isCurrent(attempt)) {
+                    listener.onSpeechEnded(sessionId, android.os.SystemClock.elapsedRealtime())
+                    listener.onStatus(sessionId, "音声を確認しています")
+                }
             }
             override fun onEvent(eventType: Int, params: Bundle?) = Unit
             override fun onLanguageDetection(results: Bundle) {

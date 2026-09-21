@@ -2,12 +2,29 @@ export const JEV_MODEL = process.env.JEV_MODEL || "typesafe/jev-1.13";
 export const JEV_ENDPOINT = process.env.JEV_ENDPOINT || "https://openrouter.ai/api/alpha/decisions";
 
 const ROUTE_CRITERIA = {
-  device_action: "A direct request to control a home or SwitchBot device, including power, mode, or temperature.",
+  device_action: "An explicit device command OR an implied home-comfort goal (for example feeling hot/cold/dark) that a known device could satisfy.",
   alarm_action: "A request to create, update, delete, enable, disable, or inspect an alarm.",
   weather: "A direct request for current or forecast weather.",
   simple_chat: "Lightweight conversation or a short factual request that does not require substantial reasoning.",
   deep_reasoning: "A request needing nontrivial reasoning, planning, comparison, explanation, research-like synthesis, or a high-quality long answer.",
   clarify: "An unclear or ambiguous request where the assistant should ask a concise clarification before acting."
+};
+
+const DEVICE_GOAL_CRITERIA = {
+  none: "No device goal is stated or implied.",
+  cooler: "The user wants the room or device to feel cooler, including saying they feel hot.",
+  warmer: "The user wants the room or device to feel warmer, including saying they feel cold.",
+  brighter: "The user wants more light.",
+  darker: "The user wants less light.",
+  on: "The user explicitly wants a device turned on.",
+  off: "The user explicitly wants a device turned off.",
+  increase: "The user wants an existing numeric setting increased but did not name its type.",
+  decrease: "The user wants an existing numeric setting decreased but did not name its type.",
+  set: "The user explicitly specifies a setting value.",
+  open: "The user wants a device opened.",
+  close: "The user wants a device closed.",
+  start: "The user wants an activity started.",
+  stop: "The user wants an activity stopped."
 };
 
 const LANGUAGE_CRITERIA = {
@@ -21,18 +38,7 @@ const DEVICE_ACTION_CRITERIA = {
   turn_on: "Turn a known device on.",
   turn_off: "Turn a known device off.",
   set_ac: "Set an air conditioner's temperature or operating state.",
-  none: "No explicit concrete action; a device-related goal may still exist."
-};
-
-const DEVICE_GOAL_CRITERIA = {
-  cooler: "The user wants the environment to feel cooler, including statements such as 暑い or もっと涼しく.",
-  warmer: "The user wants the environment to feel warmer, including statements such as 寒い.",
-  brighter: "The user wants the environment brighter.",
-  darker: "The user wants the environment darker.",
-  on: "The user explicitly wants a device turned on.",
-  off: "The user explicitly wants a device turned off.",
-  set: "The user explicitly requests a concrete device setting.",
-  none: "There is no device-control goal."
+  none: "No supported device action is explicitly requested."
 };
 
 const ALARM_ACTION_CRITERIA = {
@@ -83,7 +89,14 @@ function candidateCriteria(items, label, description) {
   items.slice(0, 254).forEach((item, index) => {
     const key = `item_${index}`;
     criteria[key] = description(item);
-    map.set(key, item);
+    const rawType = item.description.match(/\btype=([^|]+)/i)?.[1]?.trim() ?? "unknown";
+    const lowerType = rawType.toLowerCase();
+    map.set(key, {
+      ...item,
+      targetType: lowerType.includes("air conditioner") ? "air_conditioner"
+        : lowerType.includes("bulb") || lowerType.includes("light") ? "light"
+          : lowerType.includes("plug") ? "plug" : lowerType.includes("bot") ? "bot" : "device"
+    });
   });
   return { criteria, map };
 }
@@ -104,9 +117,9 @@ function parseChoice(payload, key) {
   return answer;
 }
 
-function parseOptionalChoice(payload, key, fallback = "none") {
-  const answer = payload?.answers?.[key];
-  return answer && typeof answer.choice === "string" ? answer : { choice: fallback, confidence: 0 };
+function optionalChoice(payload, key, fallback = "none") {
+  const value = payload?.answers?.[key]?.choice;
+  return typeof value === "string" ? value : fallback;
 }
 
 function choiceNumber(answer, min, max) {
@@ -130,7 +143,7 @@ export function parseJevRouteResponse(payload, metadata = {}) {
   const language = languageAnswer.choice in LANGUAGE_CRITERIA ? languageAnswer.choice : "other";
 
   const deviceActionAnswer = parseChoice(payload, "device_action");
-  const deviceGoalAnswer = parseOptionalChoice(payload, "device_goal");
+  const deviceGoal = optionalChoice(payload, "device_goal");
   const alarmActionAnswer = parseChoice(payload, "alarm_action");
   const deviceTargetAnswer = parseChoice(payload, "device_target");
   const alarmTargetAnswer = parseChoice(payload, "alarm_target");
@@ -142,22 +155,25 @@ export function parseJevRouteResponse(payload, metadata = {}) {
 
   const route = routeAnswer.choice;
   let action = null;
-  let goal = null;
   let target = null;
   let temperatureC = null;
   let timeLocal = null;
   let referenceTimeLocal = null;
+  let targetType = null;
+  let executionMode = "none";
 
   if (route === "device_action") {
     action = deviceActionAnswer.choice !== "none" ? deviceActionAnswer.choice : null;
-    goal = deviceGoalAnswer.choice !== "none" ? deviceGoalAnswer.choice : null;
-    target = metadata.deviceMap?.get(deviceTargetAnswer.choice)?.name ?? null;
+    const device = metadata.deviceMap?.get(deviceTargetAnswer.choice) ?? null;
+    target = device?.name ?? null;
+    targetType = device?.targetType ?? null;
     const numericTemperature = temperatureAnswer.choice?.startsWith("t")
       ? Number(temperatureAnswer.choice.slice(1))
       : NaN;
     temperatureC = Number.isFinite(numericTemperature) && numericTemperature >= 16 && numericTemperature <= 30
       ? numericTemperature
       : null;
+    executionMode = action || temperatureC != null ? "execute" : deviceGoal !== "none" ? "resolve" : "clarify";
   }
 
   if (route === "alarm_action") {
@@ -179,8 +195,11 @@ export function parseJevRouteResponse(payload, metadata = {}) {
     route,
     confidence: Number.isFinite(routeAnswer.confidence) ? routeAnswer.confidence : 0,
     action,
-    goal,
     target,
+    targetType,
+    goal: route === "device_action" ? (deviceGoal === "none" && action === "turn_on" ? "on" : deviceGoal === "none" && action === "turn_off" ? "off" : deviceGoal === "none" && action === "set_ac" ? "set" : deviceGoal) : null,
+    parameters: temperatureC == null ? {} : { temperature: temperatureC },
+    executionMode,
     temperatureC,
     timeLocal,
     referenceTimeLocal,
@@ -242,12 +261,12 @@ export async function routeIntentJev({ text, context = "" }, dependencies = {}) 
         },
         device_action: {
           type: "choice",
-          instructions: "If the utterance is a device command, choose the requested action. Otherwise choose none.",
+          instructions: "Choose a concrete action only if the user explicitly requested that specific operation. For implied comfort goals (feeling hot/cold/dark) choose none; the Android Action Resolver will choose an operation using current device state.",
           criteria: DEVICE_ACTION_CRITERIA
         },
         device_goal: {
           type: "choice",
-          instructions: "For device-related utterances, infer the user\'s desired environmental/device goal. A state complaint such as 暑い is device_action with goal cooler even when no concrete action is explicitly stated. Otherwise choose none.",
+          instructions: "Extract the user's desired end state. Use cooler/warmer/brighter/darker for implied comfort goals such as feeling hot/cold. Do not turn an implied goal into a concrete device action. Use none if unrelated to a device.",
           criteria: DEVICE_GOAL_CRITERIA
         },
         device_target: {

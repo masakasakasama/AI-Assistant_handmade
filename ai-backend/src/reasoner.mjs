@@ -34,6 +34,7 @@ Reply in the user's language. Requested language code: ${language}.
   return {
     model: REASONING_MODEL,
     text: outputText(response),
-    usage: response.usage ?? null
+    usage: response.usage ?? null,
+    timings: response._timings ?? null
   };
 }
