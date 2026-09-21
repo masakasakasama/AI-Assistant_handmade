@@ -1029,6 +1029,7 @@ private fun AnswerComparisonView(
         Text("「${comparison.query}」", style = MaterialTheme.typography.bodyMedium)
         AnswerComparisonCard("Luna経路", comparison.luna, weather, pendingElapsedMs, onSpeak, onCopy)
         AnswerComparisonCard("Jev経路", comparison.jev, weather, pendingElapsedMs, onSpeak, onCopy)
+        TimingComparisonTable(comparison)
         val lunaMs = comparison.luna.clientLatencyMs
         val jevMs = comparison.jev.clientLatencyMs
         if (!comparison.luna.pending && !comparison.jev.pending && lunaMs != null && jevMs != null) {
@@ -1038,6 +1039,75 @@ private fun AnswerComparisonView(
                 else -> "回答までの時間は同じ"
             }
             Text("$faster · 時間だけで回答品質は判断できません", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun TimingComparisonTable(comparison: AnswerComparisonState) {
+    val luna = comparison.luna.result
+    val jev = comparison.jev.result
+    val lunaTotal = comparison.luna.clientLatencyMs
+    val jevTotal = comparison.jev.clientLatencyMs
+    if (luna == null || jev == null || lunaTotal == null || jevTotal == null) return
+
+    data class TimingRow(val label: String, val luna: Long?, val jev: Long?, val strong: Boolean = false)
+    val lunaAfter = (lunaTotal - luna.routerMs).takeIf { it >= 0 }
+    val jevAfter = (jevTotal - jev.routerMs).takeIf { it >= 0 }
+    val lunaOther = (lunaTotal - luna.routerMs - luna.answerMs).takeIf { it >= 0 }
+    val jevOther = (jevTotal - jev.routerMs - jev.answerMs).takeIf { it >= 0 }
+    val rows = listOf(
+        TimingRow("STT", null, null),
+        TimingRow("判定前待機", null, null),
+        TimingRow("ルーティング", luna.routerMs, jev.routerMs, true),
+        TimingRow("判定後待機", null, null),
+        TimingRow("状態/API取得", null, null),
+        TimingRow("Action Resolver", null, null, true),
+        TimingRow("Policy", null, null),
+        TimingRow("Device実行", null, null, true),
+        TimingRow("回答LLM開始待ち", null, null),
+        TimingRow("LLM TTFT", null, null),
+        TimingRow("LLM生成", luna.answerMs.takeIf { it > 0 }, jev.answerMs.takeIf { it > 0 }),
+        TimingRow("回答組み立て", null, null),
+        TimingRow("TTS開始待ち", null, null),
+        TimingRow("TTS準備", null, null),
+        TimingRow("その他", lunaOther, jevOther),
+        TimingRow("判定後合計", lunaAfter, jevAfter, true),
+        TimingRow("総時間", lunaTotal, jevTotal, true)
+    )
+    fun value(v: Long?) = v?.let { "${it}ms" } ?: "—"
+    fun delta(a: Long?, b: Long?) = if (a == null || b == null) "—" else {
+        val d = b - a
+        when { d > 0 -> "+${d}ms"; d < 0 -> "${d}ms"; else -> "0ms" }
+    }
+
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("処理時間比較", fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth()) {
+                Text("処理", Modifier.weight(1.45f), style = MaterialTheme.typography.labelSmall)
+                Text("Luna", Modifier.weight(.8f), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall)
+                Text("Jev", Modifier.weight(.8f), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall)
+                Text("差", Modifier.weight(.8f), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall)
+            }
+            rows.forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    val style = if (row.strong) MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold) else MaterialTheme.typography.bodySmall
+                    Text(row.label, Modifier.weight(1.45f), style = style)
+                    Text(value(row.luna), Modifier.weight(.8f), textAlign = TextAlign.End, style = style)
+                    Text(value(row.jev), Modifier.weight(.8f), textAlign = TextAlign.End, style = style)
+                    Text(delta(row.luna, row.jev), Modifier.weight(.8f), textAlign = TextAlign.End, style = style)
+                }
+            }
+            val saved = lunaTotal - jevTotal
+            val pct = if (lunaTotal > 0) saved * 100.0 / lunaTotal else 0.0
+            Text(
+                if (saved >= 0) "Jev経路  ${saved}ms高速 · ${String.format("%.1f", pct)}%短縮"
+                else "Luna経路  ${-saved}ms高速 · ${String.format("%.1f", -pct)}%短縮",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text("— は未計測/未実行。推定値は表示しません。差 = Jev - Luna", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
