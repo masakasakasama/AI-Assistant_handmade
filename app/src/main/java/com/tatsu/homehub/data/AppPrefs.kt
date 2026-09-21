@@ -53,6 +53,20 @@ class AppPrefs(context: Context) {
             .putBoolean(KEY_VOICE_AUTO_MIGRATED, true)
             .apply()
 
+    fun loadTemporaryRoomAssignments(): Map<String, String> {
+        val raw = prefs.getString(KEY_TEMPORARY_ROOM_ASSIGNMENTS, null) ?: return emptyMap()
+        return runCatching {
+            val json = JSONObject(raw)
+            buildMap { json.keys().forEach { deviceId -> put(deviceId, json.optString(deviceId, "")) } }
+        }.getOrDefault(emptyMap())
+    }
+
+    fun saveTemporaryRoomAssignments(assignments: Map<String, String>) {
+        val json = JSONObject()
+        assignments.forEach { (deviceId, room) -> json.put(deviceId, room) }
+        prefs.edit().putString(KEY_TEMPORARY_ROOM_ASSIGNMENTS, json.toString()).apply()
+    }
+
     fun saveWeatherCache(snapshot: WeatherSnapshot) {
         val json = JSONObject()
             .put("label", snapshot.label)
@@ -86,6 +100,7 @@ class AppPrefs(context: Context) {
         private const val KEY_AI_BACKEND_URL = "ai_backend_url"
         private const val KEY_VOICE_LANGUAGE = "voice_language_tag"
         private const val KEY_VOICE_AUTO_MIGRATED = "voice_language_auto_migrated_v044"
+        private const val KEY_TEMPORARY_ROOM_ASSIGNMENTS = "temporary_switchbot_room_assignments_v1"
 
         const val VOICE_LANGUAGE_AUTO = "auto"
 
