@@ -21,7 +21,18 @@ const DEVICE_ACTION_CRITERIA = {
   turn_on: "Turn a known device on.",
   turn_off: "Turn a known device off.",
   set_ac: "Set an air conditioner's temperature or operating state.",
-  none: "No supported device action is explicitly requested."
+  none: "No explicit concrete action; a device-related goal may still exist."
+};
+
+const DEVICE_GOAL_CRITERIA = {
+  cooler: "The user wants the environment to feel cooler, including statements such as 暑い or もっと涼しく.",
+  warmer: "The user wants the environment to feel warmer, including statements such as 寒い.",
+  brighter: "The user wants the environment brighter.",
+  darker: "The user wants the environment darker.",
+  on: "The user explicitly wants a device turned on.",
+  off: "The user explicitly wants a device turned off.",
+  set: "The user explicitly requests a concrete device setting.",
+  none: "There is no device-control goal."
 };
 
 const ALARM_ACTION_CRITERIA = {
@@ -114,6 +125,7 @@ export function parseJevRouteResponse(payload, metadata = {}) {
   const language = languageAnswer.choice in LANGUAGE_CRITERIA ? languageAnswer.choice : "other";
 
   const deviceActionAnswer = parseChoice(payload, "device_action");
+  const deviceGoalAnswer = parseChoice(payload, "device_goal");
   const alarmActionAnswer = parseChoice(payload, "alarm_action");
   const deviceTargetAnswer = parseChoice(payload, "device_target");
   const alarmTargetAnswer = parseChoice(payload, "alarm_target");
@@ -125,6 +137,7 @@ export function parseJevRouteResponse(payload, metadata = {}) {
 
   const route = routeAnswer.choice;
   let action = null;
+  let goal = null;
   let target = null;
   let temperatureC = null;
   let timeLocal = null;
@@ -132,6 +145,7 @@ export function parseJevRouteResponse(payload, metadata = {}) {
 
   if (route === "device_action") {
     action = deviceActionAnswer.choice !== "none" ? deviceActionAnswer.choice : null;
+    goal = deviceGoalAnswer.choice !== "none" ? deviceGoalAnswer.choice : null;
     target = metadata.deviceMap?.get(deviceTargetAnswer.choice)?.name ?? null;
     const numericTemperature = temperatureAnswer.choice?.startsWith("t")
       ? Number(temperatureAnswer.choice.slice(1))
@@ -160,6 +174,7 @@ export function parseJevRouteResponse(payload, metadata = {}) {
     route,
     confidence: Number.isFinite(routeAnswer.confidence) ? routeAnswer.confidence : 0,
     action,
+    goal,
     target,
     temperatureC,
     timeLocal,
@@ -224,6 +239,11 @@ export async function routeIntentJev({ text, context = "" }, dependencies = {}) 
           type: "choice",
           instructions: "If the utterance is a device command, choose the requested action. Otherwise choose none.",
           criteria: DEVICE_ACTION_CRITERIA
+        },
+        device_goal: {
+          type: "choice",
+          instructions: "For device-related utterances, infer the user\'s desired environmental/device goal. A state complaint such as 暑い is device_action with goal cooler even when no concrete action is explicitly stated. Otherwise choose none.",
+          criteria: DEVICE_GOAL_CRITERIA
         },
         device_target: {
           type: "choice",
