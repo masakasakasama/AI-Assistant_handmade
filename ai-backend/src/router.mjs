@@ -121,5 +121,5 @@ export async function routeIntent({ text, context = "", benchmarkClassificationO
     max_output_tokens: 600
   });
 
-  return { ...JSON.parse(outputText(response)), _usage: response.usage ?? null };
+  return { ...JSON.parse(outputText(response)), _usage: response.usage ?? null, _timings: response._timings ?? null };
 }

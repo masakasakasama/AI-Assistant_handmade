@@ -1029,15 +1029,26 @@ private fun AnswerComparisonView(
         Text("「${comparison.query}」", style = MaterialTheme.typography.bodyMedium)
         AnswerComparisonCard("Luna経路", comparison.luna, weather, pendingElapsedMs, onSpeak, onCopy)
         AnswerComparisonCard("Jev経路", comparison.jev, weather, pendingElapsedMs, onSpeak, onCopy)
-        val lunaMs = comparison.luna.clientLatencyMs
-        val jevMs = comparison.jev.clientLatencyMs
-        if (!comparison.luna.pending && !comparison.jev.pending && lunaMs != null && jevMs != null) {
-            val faster = when {
-                lunaMs < jevMs -> "Luna経路が ${jevMs - lunaMs}ms 短い"
-                jevMs < lunaMs -> "Jev経路が ${lunaMs - jevMs}ms 短い"
-                else -> "回答までの時間は同じ"
-            }
-            Text("$faster · 時間だけで回答品質は判断できません", style = MaterialTheme.typography.bodySmall)
+        AnswerTimingComparison(comparison)
+        val lunaTotal = comparison.luna.timings?.totalMs
+        val jevTotal = comparison.jev.timings?.totalMs
+        if (!comparison.luna.pending && !comparison.jev.pending && lunaTotal != null && jevTotal != null && lunaTotal > 0) {
+            val saved = lunaTotal - jevTotal
+            val percent = saved * 100.0 / lunaTotal
+            Text(
+                if (saved >= 0) "Jev経路 ${saved}ms短縮（${String.format("%.1f", percent)}%）"
+                else "Jev経路 ${-saved}ms遅延（${String.format("%.1f", -percent)}%）",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text("実測時間の比較です。回答内容の良し悪しは回答欄で確認してください。", style = MaterialTheme.typography.bodySmall)
+        }
+        var diagnosticsExpanded by remember(comparison.startedAtElapsedMs) { mutableStateOf(false) }
+        TextButton(onClick = { diagnosticsExpanded = !diagnosticsExpanded }) {
+            Text(if (diagnosticsExpanded) "診断情報を閉じる" else "診断情報を表示")
+        }
+        if (diagnosticsExpanded) {
+            ComparisonDiagnostics(comparison)
         }
     }
 }
@@ -1077,22 +1088,17 @@ private fun AnswerComparisonCard(
                 )
                 side.error != null -> Text(side.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 result != null -> {
-                    val body = comparisonBody(result, weather)
+                    val body = comparisonBody(result, weather, side.actionPlanJson)
                     Text(body, style = MaterialTheme.typography.bodyMedium)
                     if (result.route == "device_action" || result.route == "alarm_action") {
                         Text("比較用の操作案です。家電・アラームは実行していません。", style = MaterialTheme.typography.labelSmall)
                     }
                     Text(
-                        "回答まで ${side.clientLatencyMs?.let { "${it}ms" } ?: "—"} · 判定 ${result.routerMs}ms · 追加生成 ${result.answerMs}ms",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "判定 ${result.route} · 判定モデル ${result.routerModel} · 回答モデル ${result.answerModel ?: "—"}",
+                        "判定: ${result.route} · 回答: ${result.answerModel ?: "—"}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text("requestId ${result.requestId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("総時間 ${side.timings?.totalMs?.let { "${it}ms" } ?: side.clientLatencyMs?.let { "${it}ms" } ?: "—"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         TextButton(onClick = { onSpeak(result) }) { Text("読み上げ") }
                         if (body.isNotBlank()) TextButton(onClick = { onCopy(body) }) { Text("回答をコピー") }
@@ -1103,18 +1109,94 @@ private fun AnswerComparisonCard(
     }
 }
 
-private fun comparisonBody(result: AiDispatchResult, weather: WeatherSnapshot?): String = when (result.route) {
+@Composable
+private fun AnswerTimingComparison(comparison: AnswerComparisonState) {
+    data class TimingRow(val label: String, val value: (AnswerComparisonSide) -> Long?, val key: String)
+    val rows = listOf(
+        TimingRow("STT", { it.timings?.sttMs }, "stt"),
+        TimingRow("判定前待機", { it.timings?.preRoutingWaitMs }, "pre"),
+        TimingRow("ルーティング", { it.timings?.routingMs }, "route"),
+        TimingRow("判定後待機", { it.timings?.postRoutingWaitMs }, "post"),
+        TimingRow("状態 / API取得", { it.timings?.stateFetchMs }, "state"),
+        TimingRow("Action Resolver", { it.timings?.resolverMs }, "resolver"),
+        TimingRow("Policy", { it.timings?.policyMs }, "policy"),
+        TimingRow("Device実行", { it.timings?.deviceExecutionMs }, "device"),
+        TimingRow("回答LLM開始待ち", { it.timings?.answerStartWaitMs }, "answerWait"),
+        TimingRow("LLM TTFT", { it.timings?.answerTtftMs }, "ttft"),
+        TimingRow("LLM生成", { it.timings?.answerGenerationMs }, "generation"),
+        TimingRow("回答組み立て", { it.timings?.responseAssemblyMs }, "assembly"),
+        TimingRow("TTS開始待ち", { it.timings?.ttsStartWaitMs }, "ttsWait"),
+        TimingRow("TTS準備", { it.timings?.ttsPreparationMs }, "ttsPrep"),
+        TimingRow("その他", { it.timings?.unaccountedMs }, "other"),
+        TimingRow("判定後合計", { it.timings?.afterRoutingMs }, "after"),
+        TimingRow("総時間", { it.timings?.totalMs }, "total")
+    )
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(Modifier.fillMaxWidth()) {
+                Text("処理", Modifier.weight(1.45f), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
+                Text("Luna", Modifier.weight(0.8f), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
+                Text("Jev", Modifier.weight(0.8f), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
+                Text("差", Modifier.weight(0.8f), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
+            }
+            rows.forEach { row ->
+                val luna = row.value(comparison.luna)
+                val jev = row.value(comparison.jev)
+                val delta = if (luna != null && jev != null) jev - luna else null
+                val emphasized = row.key in setOf("route", "resolver", "device", "after", "total")
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(row.label, Modifier.weight(1.45f), style = if (emphasized) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall, fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal)
+                    Text(luna?.let { "${it}ms" } ?: "—", Modifier.weight(0.8f), style = MaterialTheme.typography.labelSmall)
+                    Text(jev?.let { "${it}ms" } ?: "—", Modifier.weight(0.8f), style = MaterialTheme.typography.labelSmall)
+                    Text(delta?.let { (if (it > 0) "+" else "") + "${it}ms" } ?: "—", Modifier.weight(0.8f), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Text("差 = Jev − Luna。0msは実測値、—は未計測または該当処理なし。比較中のDevice実行は副作用防止のため行いません。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun ComparisonDiagnostics(comparison: AnswerComparisonState) {
+    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Luna" to comparison.luna, "Jev" to comparison.jev).forEach { (label, side) ->
+                Text(label, fontWeight = FontWeight.SemiBold)
+                side.result?.let { result ->
+                    Text("requestId: ${result.requestId}", style = MaterialTheme.typography.labelSmall)
+                    Text("route: ${result.route} · classifier: ${result.routerModel} · answer: ${result.answerModel ?: "—"}", style = MaterialTheme.typography.labelSmall)
+                    side.actionPlanJson?.let { Text("ActionPlan / state / policy / device result:\n$it", style = MaterialTheme.typography.labelSmall) }
+                    Text("raw intent:\n${result.rawIntentJson ?: "—"}", style = MaterialTheme.typography.labelSmall)
+                }
+                Text("timings: ${side.timings ?: "—"}", style = MaterialTheme.typography.labelSmall)
+                Text("timing validation: ${side.timings?.timingError ?: "計測値の負値なし。exclusive区間の合計はその他で照合"}", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+private fun comparisonBody(result: AiDispatchResult, weather: WeatherSnapshot?, actionPlanJson: String?): String = when (result.route) {
     "device_action" -> listOfNotNull(
-        result.target?.let { "対象: $it" },
-        result.action?.let { "操作案: ${comparisonActionLabel(it)}" },
-        result.temperatureC?.let { "設定温度: ${it}°C" }
-    ).joinToString("\n").ifBlank { "家電操作の提案を取得しました" }
+        runCatching { org.json.JSONObject(actionPlanJson.orEmpty()) }.getOrNull()?.optString("response")
+            ?.takeIf { it.isNotBlank() && it != "null" }?.let { "回答案: $it" },
+        runCatching { org.json.JSONObject(actionPlanJson.orEmpty()) }.getOrNull()?.let { plan ->
+            val action = plan.optJSONObject("actionPlan")
+            val type = action?.optString("type")?.takeIf { it.isNotBlank() && it != "null" }
+            val value = action?.opt("temperatureC")?.takeUnless { it == org.json.JSONObject.NULL }
+            val label = type?.let(::comparisonActionLabel)
+            if (label == null) null else "Resolver案: $label${value?.let { " ${it}°C" }.orEmpty()}"
+        },
+        runCatching { org.json.JSONObject(actionPlanJson.orEmpty()).optString("decision") }.getOrNull()
+            ?.takeIf { it.isNotBlank() && it != "null" }?.let { "Action判定: ${comparisonDecisionLabel(it)}" },
+        if (actionPlanJson.isNullOrBlank()) result.action?.let { "明示操作: ${comparisonActionLabel(it)}" } else null,
+        if (actionPlanJson.isNullOrBlank()) result.target?.let { "対象: $it" } else null
+    ).joinToString("\n").ifBlank { "操作案を決定できませんでした。診断情報を確認してください。" }
     "alarm_action" -> listOfNotNull(
         result.action?.let { "操作案: ${comparisonActionLabel(it)}" },
         result.target?.let { "対象: $it" },
         result.referenceTimeLocal?.let { "変更前: $it" },
         result.timeLocal?.let { "時刻: $it" }
-    ).joinToString("\n").ifBlank { "アラーム操作の提案を取得しました" }
+    ).joinToString("\n").ifBlank { "アラーム操作を決定できませんでした。判定内容を確認してください。" }
     "weather" -> weather?.let {
         "端末の天気データ（オンライン検索なし）\n${it.label}: ${String.format("%.0f", it.temperatureC)}° · ${WeatherClient.weatherLabel(it.weatherCode)}"
     } ?: "端末の天気データがありません。オンライン検索は行っていません。"
@@ -1122,13 +1204,21 @@ private fun comparisonBody(result: AiDispatchResult, weather: WeatherSnapshot?):
 }
 
 private fun comparisonActionLabel(action: String): String = when (action) {
-    "turn_on" -> "電源を入れる"
-    "turn_off" -> "電源を切る"
-    "set_ac" -> "エアコンを設定する"
+    "power_on", "turn_on" -> "電源を入れる"
+    "power_off", "turn_off" -> "電源を切る"
+    "set_temperature", "set_ac" -> "温度を設定する"
     "alarm_create" -> "アラームを作成する"
     "alarm_update" -> "アラームを変更する"
     "alarm_delete" -> "アラームを削除する"
     else -> action
+}
+
+private fun comparisonDecisionLabel(decision: String): String = when (decision) {
+    "execute" -> "実行可能（比較中は未実行）"
+    "confirm" -> "確認が必要"
+    "fallback" -> "fallback / 実行しない"
+    "noop" -> "すでに要求状態"
+    else -> decision
 }
 
 @Composable

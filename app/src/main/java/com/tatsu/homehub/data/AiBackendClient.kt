@@ -46,7 +46,35 @@ data class AiDispatchResult(
     val clientLatencyMs: Long = 0,
     val routerMs: Long = 0,
     val answerMs: Long = 0,
-    val latencyMs: Long
+    val latencyMs: Long,
+    val targetType: String? = null,
+    val goal: String? = null,
+    val parameters: Map<String, Double> = emptyMap(),
+    val executionMode: String = "none",
+    val rawIntentJson: String? = null,
+    val timings: AiPipelineTimings = AiPipelineTimings()
+)
+
+data class AiPipelineTimings(
+    val totalMs: Long? = null,
+    val routingMs: Long? = null,
+    val sttMs: Long? = null,
+    val preRoutingWaitMs: Long? = null,
+    val postRoutingWaitMs: Long? = null,
+    val stateFetchMs: Long? = null,
+    val resolverMs: Long? = null,
+    val policyMs: Long? = null,
+    val deviceExecutionMs: Long? = null,
+    val answerStartWaitMs: Long? = null,
+    val answerTtftMs: Long? = null,
+    val answerGenerationMs: Long? = null,
+    val responseAssemblyMs: Long? = null,
+    val ttsStartWaitMs: Long? = null,
+    val ttsPreparationMs: Long? = null,
+    val afterRoutingMs: Long? = null,
+    val unaccountedMs: Long? = null,
+    val timestamps: Map<String, Long?> = emptyMap(),
+    val timingError: String? = null
 )
 
 class AiBackendClient {
@@ -90,13 +118,49 @@ class AiBackendClient {
                 clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
                 routerMs = json.optJSONObject("timings")?.optLong("routerMs") ?: 0,
                 answerMs = json.optJSONObject("timings")?.optLong("answerMs") ?: 0,
-                latencyMs = json.optLong("latencyMs", 0L)
+                latencyMs = json.optLong("latencyMs", 0L),
+                targetType = route.optString("targetType").takeIf { it.isNotBlank() && it != "null" },
+                goal = route.optString("goal").takeIf { it.isNotBlank() && it != "null" },
+                parameters = route.optJSONObject("parameters")?.let { params ->
+                    buildMap { params.keys().forEach { key -> if (!params.isNull(key)) put(key, params.optDouble(key)) } }
+                }.orEmpty(),
+                executionMode = route.optString("executionMode", "none"),
+                rawIntentJson = json.optJSONObject("rawIntent")?.toString(),
+                timings = parseTimings(json.optJSONObject("timings"))
             )
         )
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (error: Throwable) {
         Result.failure(error)
+    }
+
+    private fun parseTimings(json: JSONObject?): AiPipelineTimings {
+        if (json == null) return AiPipelineTimings(timingError = "backend timings missing")
+        fun value(name: String): Long? = if (json.has(name) && !json.isNull(name)) json.optLong(name) else null
+        val fields = listOf("totalMs", "routerMs", "answerStartWaitMs", "answerTtftMs", "answerGenerationMs", "responseAssemblyMs", "stateFetchMs", "resolverMs", "policyMs", "deviceExecutionMs")
+        val invalid = fields.firstOrNull { name -> value(name)?.let { it < 0 } == true }
+        return AiPipelineTimings(
+            totalMs = value("totalMs") ?: value("latencyMs"),
+            routingMs = value("routerMs"),
+            preRoutingWaitMs = value("preRoutingWaitMs"),
+            postRoutingWaitMs = value("postRoutingWaitMs"),
+            stateFetchMs = value("stateFetchMs"),
+            resolverMs = value("resolverMs"),
+            policyMs = value("policyMs"),
+            deviceExecutionMs = value("deviceExecutionMs"),
+            answerStartWaitMs = value("answerStartWaitMs"),
+            answerTtftMs = value("answerTtftMs"),
+            answerGenerationMs = value("answerGenerationMs"),
+            responseAssemblyMs = value("responseAssemblyMs"),
+            afterRoutingMs = value("afterRoutingMs"),
+            unaccountedMs = value("unaccountedMs"),
+            timestamps = json.optJSONObject("timestamps")?.let { ts ->
+                buildMap { ts.keys().forEach { key -> put(key, if (ts.isNull(key)) null else ts.optLong(key)) } }
+            }.orEmpty(),
+            timingError = json.optString("timingError").takeIf { it.isNotBlank() && it != "null" }
+                ?: invalid?.let { "$it is negative" }
+        )
     }
 
     @OptIn(InternalCoroutinesApi::class)

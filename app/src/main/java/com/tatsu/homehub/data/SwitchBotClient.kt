@@ -2,6 +2,7 @@ package com.tatsu.homehub.data
 
 import android.util.Base64
 import com.tatsu.homehub.model.SwitchBotDevice
+import com.tatsu.homehub.model.SwitchBotDeviceState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -15,6 +16,24 @@ class SwitchBotClient(
     private val token: String,
     private val secret: String
 ) {
+    suspend fun getDeviceState(device: SwitchBotDevice): Result<SwitchBotDeviceState> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(!device.infrared) { "SwitchBot OpenAPI does not expose status for infrared remotes" }
+            val json = request("GET", "/devices/${device.deviceId}/status", null).getJSONObject("body")
+            val powerText = json.optString("power", json.optString("powerState")).uppercase()
+            val rawTemperature = json.optDouble("temperature", Double.NaN)
+            val temp = if (rawTemperature.isFinite()) rawTemperature.toInt() else null
+            SwitchBotDeviceState(
+                power = when (powerText) { "ON" -> true; "OFF" -> false; else -> null },
+                temperature = temp,
+                mode = json.optString("mode").toIntOrNull(),
+                fanSpeed = json.optString("fanSpeed").toIntOrNull(),
+                brightness = json.optString("brightness").toIntOrNull(),
+                retrievedAtElapsedMs = android.os.SystemClock.elapsedRealtime(),
+                rawJson = json.toString()
+            )
+        }
+    }
     suspend fun getDevices(): Result<List<SwitchBotDevice>> = withContext(Dispatchers.IO) {
         runCatching {
             val json = request("GET", "/devices", null)

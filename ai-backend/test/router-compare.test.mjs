@@ -14,6 +14,7 @@ test("parses a Jev Choice route", () => {
       route: choice("weather", 0.91),
       language: choice("ja"),
       device_action: choice("none"),
+      device_goal: choice("none"),
       device_target: choice("none"),
       temperature_c: choice("none"),
       alarm_action: choice("none"),
@@ -28,6 +29,41 @@ test("parses a Jev Choice route", () => {
   assert.equal(parsed.route, "weather");
   assert.equal(parsed.language, "ja");
   assert.equal(parsed.confidence, 0.91);
+});
+
+test("Jev extracts hot as a cooler goal without inventing a concrete action", () => {
+  const parsed = parseJevRouteResponse({
+    model: "jev-1.13.0",
+    answers: {
+      route: choice("device_action", .94), language: choice("ja"),
+      device_action: choice("none"), device_goal: choice("cooler"),
+      device_target: choice("item_0"), temperature_c: choice("none"),
+      alarm_action: choice("none"), alarm_target: choice("none"),
+      new_hour: choice("none"), new_minute: choice("none"),
+      reference_hour: choice("none"), reference_minute: choice("none")
+    }
+  }, { deviceMap: new Map([["item_0", { name: "寝室エアコン", targetType: "air_conditioner" }]]) });
+  assert.equal(parsed.route, "device_action");
+  assert.equal(parsed.goal, "cooler");
+  assert.equal(parsed.action, null);
+  assert.equal(parsed.executionMode, "resolve");
+  assert.equal(parsed.targetType, "air_conditioner");
+});
+
+test("explicit air-conditioner setting is an action with structured parameters", () => {
+  const parsed = parseJevRouteResponse({
+    answers: {
+      route: choice("device_action"), language: choice("ja"),
+      device_action: choice("set_ac"), device_goal: choice("set"),
+      device_target: choice("item_0"), temperature_c: choice("t25"),
+      alarm_action: choice("none"), alarm_target: choice("none"),
+      new_hour: choice("none"), new_minute: choice("none"),
+      reference_hour: choice("none"), reference_minute: choice("none")
+    }
+  }, { deviceMap: new Map([["item_0", { name: "エアコン", targetType: "air_conditioner" }]]) });
+  assert.equal(parsed.action, "set_ac");
+  assert.deepEqual(parsed.parameters, { temperature: 25 });
+  assert.equal(parsed.executionMode, "execute");
 });
 
 test("router comparison keeps Luna and Jev independent", async () => {

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
 import com.tatsu.homehub.data.AiBackendClient
 import com.tatsu.homehub.data.AiDispatchResult
+import com.tatsu.homehub.data.AiPipelineTimings
 import com.tatsu.homehub.data.RouterCompareResult
 import com.tatsu.homehub.data.AlarmRepository
 import com.tatsu.homehub.data.AppPrefs
@@ -14,6 +15,13 @@ import com.tatsu.homehub.data.SecurePrefs
 import com.tatsu.homehub.data.SwitchBotClient
 import com.tatsu.homehub.data.WeatherClient
 import com.tatsu.homehub.data.WeatherSnapshot
+import com.tatsu.homehub.domain.ActionDecision
+import com.tatsu.homehub.domain.ActionPlan
+import com.tatsu.homehub.domain.ActionResolver
+import com.tatsu.homehub.domain.ActionPolicyEngine
+import com.tatsu.homehub.domain.DeviceIntent
+import com.tatsu.homehub.domain.ResolvedAction
+import com.tatsu.homehub.domain.SwitchBotActionAdapter
 import com.tatsu.homehub.model.AcControlState
 import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
@@ -51,6 +59,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val alarmRepo = AlarmRepository(application)
     private val weatherClient = WeatherClient()
     private val aiBackendClient = AiBackendClient()
+    private val actionResolver = ActionResolver()
+    private val actionPolicyEngine = ActionPolicyEngine()
     private val updateManager = UpdateManager(application)
     private val networkMonitor = NetworkMonitor(application) {
         if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
@@ -111,8 +121,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var routerComparisonJob: Job? = null
     private var comparisonGeneration = 0L
     private var processedVoiceGeneration: Long? = null
+    private var pendingActionPlan: ActionPlan? = null
+    private var pendingActionExpiresAt: Long = 0L
+    private val executedActionPlanIds = LinkedHashSet<String>()
+    private var voiceSpeechEndedElapsedMs: Long? = null
     private val conversationHistory = mutableListOf<String>()
-    private val executedVoiceOperations = LinkedHashSet<String>()
+    private val executedVoiceOperations = LinkedHashMap<String, Long>()
 
     private val voiceController = VoiceController(application, object : VoiceController.Listener {
         override fun onListeningChanged(sessionId: Long, listening: Boolean) {
@@ -171,6 +185,51 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 current
             }
+        }
+
+        override fun onSpeechEnded(sessionId: Long, elapsedRealtimeMs: Long) {
+            if (sessionId != _voiceState.value.generationId) return
+            voiceSpeechEndedElapsedMs = elapsedRealtimeMs
+            val timestamps = _voiceState.value.timings.timestamps + ("client_t0_speech_end" to elapsedRealtimeMs)
+            _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(timestamps = timestamps))
+        }
+
+        override fun onTtsLifecycle(sessionId: Long, event: String, elapsedRealtimeMs: Long) {
+            if (sessionId != _voiceState.value.generationId) return
+            val current = _voiceState.value.timings
+            val timestampKey = when (event) {
+                "requested" -> "client_t11_tts_request"
+                "started" -> "client_t12_tts_playback_start"
+                else -> "client_t13_tts_playback_complete"
+            }
+            val timestamps = current.timestamps + (timestampKey to elapsedRealtimeMs)
+            val ttsRequest = current.timestamps["client_t11_tts_request"]
+            val responseAssembledAt = current.timestamps["client_t10_response_assembled"]
+            val ttsStartWait = if (event == "requested" && responseAssembledAt != null) elapsedRealtimeMs - responseAssembledAt else current.ttsStartWaitMs
+            val ttsPreparation = if (event == "started" && ttsRequest != null) elapsedRealtimeMs - ttsRequest else current.ttsPreparationMs
+            val total = if (event == "completed" && voiceSpeechEndedElapsedMs != null) elapsedRealtimeMs - voiceSpeechEndedElapsedMs!! else current.totalMs
+            val afterRouting = total?.let { it - (current.sttMs ?: 0L) - (current.preRoutingWaitMs ?: 0L) - (current.routingMs ?: 0L) }
+            val exclusiveIntervals = listOfNotNull(
+                current.sttMs, current.preRoutingWaitMs, current.routingMs, current.postRoutingWaitMs,
+                current.stateFetchMs, current.resolverMs, current.policyMs, current.deviceExecutionMs,
+                current.answerStartWaitMs,
+                if (current.answerStartWaitMs != null) current.answerTtftMs else null,
+                current.answerGenerationMs, current.responseAssemblyMs,
+                current.ttsStartWaitMs, current.ttsPreparationMs
+            )
+            val remainder = total?.minus(exclusiveIntervals.sum())
+            _voiceState.value = _voiceState.value.copy(timings = current.copy(
+                ttsStartWaitMs = ttsStartWait,
+                ttsPreparationMs = ttsPreparation,
+                totalMs = total,
+                afterRoutingMs = afterRouting,
+                unaccountedMs = remainder,
+                timingError = current.timingError ?: when {
+                    listOfNotNull(ttsStartWait, ttsPreparation, total, afterRouting, remainder).any { it < 0 } -> "Android timing interval is negative or exclusive intervals exceed totalMs"
+                    else -> null
+                },
+                timestamps = timestamps
+            ))
         }
 
         override fun onError(sessionId: Long, message: String) {
@@ -561,6 +620,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         routerComparisonJob?.cancel()
         routerComparisonJob = null
         processedVoiceGeneration = null
+        voiceSpeechEndedElapsedMs = null
         _routerComparing.value = false
         _routerCompareResult.value = null
         _answerComparison.value = null
@@ -604,6 +664,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun processVoiceText(text: String, generation: Long) {
         if (generation != voiceGeneration || text.isBlank() || processedVoiceGeneration == generation) return
         processedVoiceGeneration = generation
+        val sttCompletedAt = android.os.SystemClock.elapsedRealtime()
+        val speechEndedAt = voiceSpeechEndedElapsedMs
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) return
         val mode = _voiceState.value.mode
@@ -621,8 +683,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             finalText = text,
             responseText = "",
             route = null,
-            error = null
+            error = null,
+            timings = _voiceState.value.timings.copy(
+                sttMs = speechEndedAt?.let { sttCompletedAt - it },
+                timingError = _voiceState.value.timings.timingError
+                    ?: speechEndedAt?.let { if (sttCompletedAt - it < 0) "STT interval is negative" else null },
+                timestamps = _voiceState.value.timings.timestamps + mapOf(
+                    "client_t1_stt_complete" to sttCompletedAt
+                )
+            )
         )
+
+        if (consumePendingAction(text, generation)) return
 
         if (mode == VoiceMode.ROUTER_COMPARE) {
             currentVoiceJob?.cancel()
@@ -673,6 +745,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         currentVoiceJob?.cancel()
         currentVoiceJob = viewModelScope.launch {
             val started = android.os.SystemClock.elapsedRealtime()
+            val preRoutingWaitMs = started - sttCompletedAt
+            _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(
+                preRoutingWaitMs = preRoutingWaitMs,
+                timingError = _voiceState.value.timings.timingError
+                    ?: if (preRoutingWaitMs < 0) "pre-routing wait interval is negative" else null,
+                timestamps = _voiceState.value.timings.timestamps + ("client_t2_dispatch_start" to started)
+            ))
             try {
                 val result = withTimeout(60_000) {
                     if (mode == VoiceMode.JEV) aiBackendClient.dispatchJev(url, text, context)
@@ -681,9 +760,40 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 if (generation != voiceGeneration) return@launch
                 _aiResult.value = result
                 _aiBackendOnline.value = true
-                val response = handleVoiceResult(result, generation)
+                val backendTimings = result.timings
+                val receivedAt = android.os.SystemClock.elapsedRealtime()
+                _voiceState.value = _voiceState.value.copy(timings = backendTimings.copy(
+                    sttMs = _voiceState.value.timings.sttMs,
+                    totalMs = speechEndedAt?.let { receivedAt - it },
+                    timingError = _voiceState.value.timings.timingError ?: backendTimings.timingError
+                        ?: if (speechEndedAt != null && receivedAt - speechEndedAt < 0) "speech-to-response interval is negative" else null,
+                    timestamps = _voiceState.value.timings.timestamps + backendTimings.timestamps + mapOf(
+                        "client_t3_backend_response_received" to receivedAt
+                    )
+                ))
+                val postRoutingStartedAt = android.os.SystemClock.elapsedRealtime()
+                val postRoutingWaitMs = postRoutingStartedAt - receivedAt
+                _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(
+                    postRoutingWaitMs = postRoutingWaitMs,
+                    timingError = _voiceState.value.timings.timingError
+                        ?: if (postRoutingWaitMs < 0) "post-routing wait interval is negative" else null,
+                    timestamps = _voiceState.value.timings.timestamps + ("client_t4_post_routing_start" to postRoutingStartedAt)
+                ))
+                val response = handleVoiceResult(result, generation, text)
                 if (generation != voiceGeneration) return@launch
                 if (response.isBlank()) error("返答が空でした")
+                val assembledAt = android.os.SystemClock.elapsedRealtime()
+                _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(
+                    totalMs = speechEndedAt?.let { assembledAt - it },
+                    afterRoutingMs = (assembledAt - (speechEndedAt ?: started)) -
+                        (_voiceState.value.timings.sttMs ?: 0L) - preRoutingWaitMs -
+                        (_voiceState.value.timings.routingMs ?: 0L),
+                    timingError = _voiceState.value.timings.timingError
+                        ?: if (assembledAt - (speechEndedAt ?: started) -
+                            (_voiceState.value.timings.sttMs ?: 0L) - preRoutingWaitMs -
+                            (_voiceState.value.timings.routingMs ?: 0L) < 0) "after-routing interval is negative" else null,
+                    timestamps = _voiceState.value.timings.timestamps + ("client_t10_response_assembled" to assembledAt)
+                ))
                 rememberConversation(text, response)
                 _voiceState.value = _voiceState.value.copy(
                     phase = VoicePhase.ANSWER_READY,
@@ -743,12 +853,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         try {
             coroutineScope {
                 val luna = async {
-                    runAnswerRoute(url, text, context, useJev = false).also { side ->
+                    runAnswerRoute(url, text, context, useJev = false, voiceSessionGeneration = voiceSessionGeneration).also { side ->
                         if (active()) _answerComparison.value = _answerComparison.value?.copy(luna = side)
                     }
                 }
                 val jev = async {
-                    runAnswerRoute(url, text, context, useJev = true).also { side ->
+                    runAnswerRoute(url, text, context, useJev = true, voiceSessionGeneration = voiceSessionGeneration).also { side ->
                         if (active()) _answerComparison.value = _answerComparison.value?.copy(jev = side)
                     }
                 }
@@ -774,16 +884,63 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun runAnswerRoute(url: String, text: String, context: String, useJev: Boolean): AnswerComparisonSide {
+    private suspend fun runAnswerRoute(
+        url: String,
+        text: String,
+        context: String,
+        useJev: Boolean,
+        voiceSessionGeneration: Long?
+    ): AnswerComparisonSide {
         val started = android.os.SystemClock.elapsedRealtime()
         return try {
             val result = withTimeout(60_000) {
                 if (useJev) aiBackendClient.dispatchJev(url, text, context)
                 else aiBackendClient.dispatch(url, text, context)
             }.getOrThrow()
+            val responseReceivedAt = android.os.SystemClock.elapsedRealtime()
+            val clientTimes = _voiceState.value.timings.timestamps
+            val speechEndedAt = if (voiceSessionGeneration != null) clientTimes["client_t0_speech_end"] else null
+            val sttCompletedAt = if (voiceSessionGeneration != null) clientTimes["client_t1_stt_complete"] else null
+            val preRoutingWaitMs = sttCompletedAt?.let { started - it }
+            val postRoutingStartedAt = android.os.SystemClock.elapsedRealtime()
+            val postRoutingWaitMs = postRoutingStartedAt - responseReceivedAt
+            val base = result.timings
+            val actionPlan = if (result.route == "device_action") resolveComparisonAction(result) else null
+            val responseCompletedAt = android.os.SystemClock.elapsedRealtime()
+            val totalMs = (speechEndedAt ?: started).let { responseCompletedAt - it }
+            val sttMs = if (voiceSessionGeneration != null) _voiceState.value.timings.sttMs else null
+            val unaccounted = computeUnaccounted(totalMs, base, actionPlan?.second, sttMs, preRoutingWaitMs, postRoutingWaitMs)
+            val completedTimings = base.copy(
+                totalMs = totalMs,
+                sttMs = sttMs,
+                preRoutingWaitMs = preRoutingWaitMs,
+                postRoutingWaitMs = postRoutingWaitMs,
+                afterRoutingMs = totalMs - (sttMs ?: 0L) - (preRoutingWaitMs ?: 0L) - (base.routingMs ?: 0L),
+                stateFetchMs = actionPlan?.second?.stateFetchMs ?: base.stateFetchMs,
+                resolverMs = actionPlan?.second?.resolverMs ?: base.resolverMs,
+                policyMs = actionPlan?.second?.policyMs ?: base.policyMs,
+                deviceExecutionMs = null,
+                unaccountedMs = unaccounted,
+                timingError = base.timingError ?: when {
+                    preRoutingWaitMs != null && preRoutingWaitMs < 0 -> "pre-routing wait interval is negative"
+                    postRoutingWaitMs < 0 -> "post-routing wait interval is negative"
+                    totalMs - (sttMs ?: 0L) - (preRoutingWaitMs ?: 0L) - (base.routingMs ?: 0L) < 0 -> "after-routing interval is negative"
+                    actionPlan?.second?.timingError != null -> actionPlan?.second?.timingError
+                    unaccounted == null -> "exclusive measured intervals exceed totalMs"
+                    else -> null
+                },
+                timestamps = base.timestamps + mapOf(
+                    "client_t2_dispatch_start" to started,
+                    "client_t3_backend_response_received" to responseReceivedAt,
+                    "client_t4_post_routing_start" to postRoutingStartedAt,
+                    "client_t10_response_assembled" to responseCompletedAt
+                )
+            )
             AnswerComparisonSide(
                 result = result,
-                clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                clientLatencyMs = totalMs,
+                timings = completedTimings,
+                actionPlanJson = actionPlan?.first,
                 pending = false
             )
         } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
@@ -803,87 +960,313 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private suspend fun resolveComparisonAction(result: AiDispatchResult): Pair<String, ActionPlan>? {
+        val candidates = resolveDeviceCandidates(result)
+        val device = candidates.singleOrNull()
+        val needsState = result.goal in setOf("cooler", "warmer", "increase", "decrease", "brighter", "darker") || result.action in setOf("turn_on", "turn_off")
+        var state: com.tatsu.homehub.model.SwitchBotDeviceState? = null
+        var stateFetchMs: Long? = null
+        val client = clientOrNull()
+        if (needsState && device != null && !device.infrared && client != null) {
+            val started = android.os.SystemClock.elapsedRealtime()
+            state = client.getDeviceState(device).getOrNull()
+            stateFetchMs = android.os.SystemClock.elapsedRealtime() - started
+        }
+        val intent = DeviceIntent(result.route, result.target, result.targetType, result.action, result.goal,
+            result.temperatureC ?: result.parameters["temperature"], result.confidence, result.language)
+        val plan = actionPolicyEngine.evaluate(actionResolver.resolve(intent, _devices.value, state, stateFetchMs))
+        return actionPlanDiagnostic(result, plan, null) to plan
+    }
 
-    private suspend fun handleVoiceResult(result: AiDispatchResult, generation: Long): String {
+    private fun computeUnaccounted(
+        totalMs: Long,
+        server: AiPipelineTimings,
+        plan: ActionPlan?,
+        sttMs: Long?,
+        preRoutingWaitMs: Long?,
+        postRoutingWaitMs: Long?
+    ): Long? {
+        val exclusive = listOfNotNull(
+            sttMs,
+            preRoutingWaitMs,
+            server.routingMs,
+            postRoutingWaitMs,
+            server.answerStartWaitMs,
+            if (server.answerStartWaitMs != null) server.answerTtftMs else null,
+            server.answerGenerationMs,
+            server.responseAssemblyMs,
+            plan?.stateFetchMs,
+            plan?.resolverMs,
+            plan?.policyMs
+        ).sum()
+        val remaining = totalMs - exclusive
+        return if (remaining < 0) null else remaining
+    }
+
+
+    private suspend fun handleVoiceResult(result: AiDispatchResult, generation: Long, utterance: String): String {
         if (generation != voiceGeneration) return ""
         return when (result.route) {
             "simple_chat", "deep_reasoning", "clarify" ->
                 result.answerText ?: localized(result.language, "もう一度お願いします", "Please try again.", "Bitte noch einmal.")
             "weather" -> weatherVoiceResponse(result.language)
-            "device_action" -> executeVoiceDeviceAction(result, generation)
+            "device_action" -> resolveVoiceDeviceAction(result, generation, utterance, allowLunaFallback = true)
             "alarm_action" -> executeVoiceAlarmAction(result, generation)
             else -> localized(result.language, "その操作にはまだ対応していません", "That action is not supported yet.", "Diese Aktion wird noch nicht unterstützt.")
         }
     }
 
-    private suspend fun executeVoiceDeviceAction(result: AiDispatchResult, generation: Long): String {
+    private suspend fun resolveVoiceDeviceAction(
+        result: AiDispatchResult,
+        generation: Long,
+        utterance: String,
+        allowLunaFallback: Boolean
+    ): String {
         if (generation != voiceGeneration) return ""
-        if (!markVoiceOperationOnce(result, generation)) {
-            return localized(result.language, "同じ操作は重複実行しませんでした", "I blocked a duplicate action.", "Die doppelte Aktion wurde blockiert.")
-        }
-
-        val target = result.target?.trim().orEmpty()
-        if (target.isBlank()) {
-            return localized(result.language, "どの家電を操作しますか？", "Which device should I control?", "Welches Gerät soll ich steuern?")
-        }
-
-        val normalizedTarget = normalizeName(target)
-        val exact = _devices.value.filter { normalizeName(it.name) == normalizedTarget }
-        val candidates = if (exact.isNotEmpty()) exact else _devices.value.filter {
-            val name = normalizeName(it.name)
-            name.contains(normalizedTarget) || normalizedTarget.contains(name)
-        }
-
-        if (candidates.size != 1) {
-            return if (candidates.isEmpty()) {
-                localized(result.language, "対象の家電が見つかりませんでした", "I couldn't find that device.", "Ich konnte dieses Gerät nicht finden.")
-            } else {
-                val names = candidates.take(3).joinToString("、") { it.name }
-                localized(result.language, "対象が複数あります: $names", "I found multiple matching devices: $names", "Ich habe mehrere passende Geräte gefunden: $names")
-            }
-        }
-
         val client = clientOrNull()
             ?: return localized(result.language, "SwitchBotの設定が必要です", "SwitchBot is not configured.", "SwitchBot ist nicht eingerichtet.")
-        val device = candidates.single()
-
-        val operation = when (result.action) {
-            "turn_on" -> client.turnOn(device.deviceId)
-            "turn_off" -> client.turnOff(device.deviceId)
-            "set_ac" -> {
-                if (!device.isAirConditioner) {
-                    return localized(result.language, "その機器は温度設定に対応していません", "That device does not support temperature control.", "Dieses Gerät unterstützt keine Temperatureinstellung.")
+        val candidates = resolveDeviceCandidates(result)
+        val device = candidates.singleOrNull()
+        val stateNeeded = result.goal in setOf("cooler", "warmer", "increase", "decrease", "brighter", "darker") ||
+            result.action in setOf("turn_on", "turn_off")
+        var deviceState: com.tatsu.homehub.model.SwitchBotDeviceState? = null
+        var stateFetchMs: Long? = null
+        var stateStartedAt: Long? = null
+        var stateCompletedAt: Long? = null
+        if (stateNeeded && device != null && !device.infrared) {
+            val stateStarted = android.os.SystemClock.elapsedRealtime()
+            stateStartedAt = stateStarted
+            deviceState = client.getDeviceState(device).getOrNull()
+            stateFetchMs = android.os.SystemClock.elapsedRealtime() - stateStarted
+            stateCompletedAt = android.os.SystemClock.elapsedRealtime()
+        }
+        val resolvedAt = android.os.SystemClock.elapsedRealtime()
+        val intent = DeviceIntent(
+            route = result.route,
+            target = result.target,
+            targetType = result.targetType,
+            action = result.action,
+            goal = result.goal,
+            temperatureC = result.temperatureC ?: result.parameters["temperature"],
+            confidence = result.confidence,
+            language = result.language
+        )
+        val resolvedPlan = actionResolver.resolve(intent, _devices.value, deviceState, stateFetchMs)
+        val resolverCompletedAt = android.os.SystemClock.elapsedRealtime()
+        val plan = actionPolicyEngine.evaluate(resolvedPlan)
+        val policyCompletedAt = android.os.SystemClock.elapsedRealtime()
+        _voiceState.value = _voiceState.value.copy(actionPlanJson = actionPlanDiagnostic(result, plan, null))
+        _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(
+            stateFetchMs = stateFetchMs,
+            resolverMs = plan.resolverMs,
+            policyMs = plan.policyMs,
+            timingError = plan.timingError,
+                    timestamps = _voiceState.value.timings.timestamps + mapOf(
+                "client_action_resolver_start" to resolvedAt,
+                        "client_t5_state_fetch_start" to stateStartedAt,
+                        "client_t6_state_fetch_complete" to stateCompletedAt,
+                        "client_t7_action_resolver_complete" to resolverCompletedAt,
+                        "client_t8_policy_complete" to policyCompletedAt
+            )
+        ))
+        when (plan.decision) {
+            ActionDecision.CONFIRM -> {
+                if (plan.device != null && plan.action != null) {
+                    pendingActionPlan = plan
+                    pendingActionExpiresAt = android.os.SystemClock.elapsedRealtime() + PENDING_ACTION_TTL_MS
                 }
-                val temperature = result.temperatureC?.roundToInt()
-                    ?: return localized(result.language, "温度を確認してください", "Please specify the temperature.", "Bitte nenne die Temperatur.")
-                if (temperature !in 16..30) {
-                    return localized(result.language, "温度は16〜30度で指定してください", "Please choose a temperature from 16 to 30 degrees.", "Bitte wähle eine Temperatur zwischen 16 und 30 Grad.")
-                }
-                val current = _acStates.value[device.deviceId] ?: AcControlState()
-                val next = current.copy(temperature = temperature, power = true)
-                client.setAirConditioner(device.deviceId, next.temperature, next.mode, next.fanSpeed, next.power)
-                    .onSuccess { _acStates.value = _acStates.value + (device.deviceId to next) }
+                return plan.response
             }
-            else -> return localized(result.language, "その家電操作にはまだ対応していません", "That device action is not supported yet.", "Diese Geräteaktion wird noch nicht unterstützt.")
+            ActionDecision.FALLBACK -> {
+                if (plan.policy == com.tatsu.homehub.domain.ActionPolicy.BLOCKED) return plan.response
+                if (allowLunaFallback && utterance.isNotBlank() && appPrefs.aiBackendUrl.isNotBlank()) {
+                    val luna = aiBackendClient.dispatch(appPrefs.aiBackendUrl, utterance, buildVoiceContext()).getOrNull()
+                    if (generation != voiceGeneration) return ""
+                    if (luna != null) {
+                        if (luna.route == "device_action") {
+                            val sameExplicitAction = result.action != null &&
+                                luna.action == result.action &&
+                                luna.temperatureC == result.temperatureC &&
+                                normalizeName(luna.target.orEmpty()) == normalizeName(result.target.orEmpty())
+                            if (!sameExplicitAction) return plan.response
+                            return resolveVoiceDeviceAction(luna, generation, utterance, allowLunaFallback = false)
+                        }
+                        if (luna.answerText != null) return luna.answerText
+                    }
+                }
+                return plan.response
+            }
+            ActionDecision.NOOP -> return plan.response
+            ActionDecision.EXECUTE -> Unit
+        }
+        if (!markVoiceOperationOnce(result)) {
+            return localized(result.language, "同じ操作は重複実行しませんでした", "I blocked a duplicate action.", "Die doppelte Aktion wurde blockiert.")
+        }
+        val adapter = SwitchBotActionAdapter(
+            client,
+            getKnownAcState = { id -> _acStates.value[id] ?: AcControlState() },
+            saveKnownAcState = { id, state -> _acStates.value = _acStates.value + (id to state) }
+        )
+        val adapterStarted = android.os.SystemClock.elapsedRealtime()
+        _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(
+            timestamps = _voiceState.value.timings.timestamps + ("client_t9_device_adapter_start" to adapterStarted)
+        ))
+        val execution = adapter.execute(plan)
+        val adapterCompleted = android.os.SystemClock.elapsedRealtime()
+        _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(
+            deviceExecutionMs = execution.elapsedMs,
+            totalMs = voiceSpeechEndedElapsedMs?.let { adapterCompleted - it },
+            timestamps = _voiceState.value.timings.timestamps + mapOf(
+                "client_t10_device_result_received" to adapterCompleted,
+                "client_device_command_complete" to adapterCompleted
+            )
+        ))
+        _voiceState.value = _voiceState.value.copy(actionPlanJson = actionPlanDiagnostic(result, plan, execution))
+        if (!execution.accepted) {
+            return localized(result.language, "家電への指示送信に失敗しました: ${execution.error ?: "不明なエラー"}", "The device command failed: ${execution.error ?: "unknown error"}.", "Der Gerätebefehl ist fehlgeschlagen: ${execution.error ?: "unbekannter Fehler"}.")
+        }
+        val target = plan.device?.name ?: return plan.response
+        return when (plan.action?.type) {
+            "power_on" -> localized(result.language, "${target}へON指示を送信しました", "Sent ON to ${target}.", "EIN an ${target} gesendet.")
+            "power_off" -> localized(result.language, "${target}へOFF指示を送信しました", "Sent OFF to ${target}.", "AUS an ${target} gesendet.")
+            else -> localized(result.language, "${target}へ${plan.action?.temperatureC}℃の設定を送信しました", "Sent the ${plan.action?.temperatureC}°C setting to ${target}.", "Die Einstellung ${plan.action?.temperatureC}°C wurde an ${target} gesendet.")
+        }
+    }
+
+    private fun resolveDeviceCandidates(result: AiDispatchResult): List<SwitchBotDevice> {
+        val target = result.target?.let(::normalizeName).orEmpty()
+        val named = if (target.isBlank()) emptyList() else _devices.value.filter {
+            val name = normalizeName(it.name)
+            name == target || name.contains(target) || target.contains(name)
+        }
+        if (named.isNotEmpty()) return named.distinctBy { it.deviceId }
+        return when (result.targetType ?: target) {
+            "air_conditioner" -> _devices.value.filter { it.isAirConditioner }
+            "light" -> _devices.value.filter { it.type.contains("light", true) || it.type.contains("bulb", true) }
+            else -> emptyList()
+        }
+    }
+
+    private fun actionPlanDiagnostic(
+        result: AiDispatchResult?,
+        plan: ActionPlan,
+        execution: com.tatsu.homehub.domain.DeviceExecutionResult?
+    ): String = org.json.JSONObject()
+        .put("requestId", result?.requestId ?: org.json.JSONObject.NULL)
+        .put("jevRaw", result?.rawIntentJson ?: org.json.JSONObject.NULL)
+        .put("target", plan.device?.name ?: org.json.JSONObject.NULL)
+        .put("deviceId", plan.device?.deviceId ?: org.json.JSONObject.NULL)
+        .put("deviceState", plan.currentState?.rawJson?.let { org.json.JSONObject(it) } ?: org.json.JSONObject.NULL)
+        .put("goal", plan.intent.goal ?: org.json.JSONObject.NULL)
+        .put("actionPlan", org.json.JSONObject()
+            .put("type", plan.action?.type ?: org.json.JSONObject.NULL)
+            .put("temperatureC", plan.action?.temperatureC ?: org.json.JSONObject.NULL))
+        .put("decision", plan.decision.name.lowercase())
+        .put("policy", plan.policy.name)
+        .put("response", plan.response)
+        .put("reason", plan.reason)
+        .put("timings", org.json.JSONObject()
+            .put("stateFetchMs", plan.stateFetchMs ?: org.json.JSONObject.NULL)
+            .put("resolverMs", plan.resolverMs)
+            .put("policyMs", plan.policyMs)
+            .put("deviceExecutionMs", execution?.elapsedMs ?: org.json.JSONObject.NULL))
+            .put("deviceResult", execution?.let {
+            org.json.JSONObject().put("accepted", it.accepted).put("adapter", it.adapter)
+                .put("command", it.command).put("error", it.error ?: org.json.JSONObject.NULL)
+                .put("timingError", it.timingError ?: org.json.JSONObject.NULL)
+        } ?: org.json.JSONObject.NULL)
+        .toString()
+
+    private fun consumePendingAction(text: String, generation: Long): Boolean {
+        val pending = pendingActionPlan ?: return false
+        if (android.os.SystemClock.elapsedRealtime() > pendingActionExpiresAt) {
+            pendingActionPlan = null
+            pendingActionExpiresAt = 0L
+            return false
+        }
+        val normalized = normalizeName(text)
+        val isYes = normalized in setOf("はい", "うん", "お願い", "いいよ", "そうして", "yes", "yeah", "ok", "okay", "ja", "bitte")
+        val isNo = normalized in setOf("いいえ", "いや", "やめて", "やめる", "no", "nope", "nein", "nicht")
+        val requestedTemperature = Regex("(?:^|\\D)(1[6-9]|2[0-9]|30)(?=\\s*(?:度|°?c)?(?:にして|に|$))", RegexOption.IGNORE_CASE)
+            .find(text)?.groupValues?.get(1)?.toIntOrNull()
+        if (!isYes && !isNo && requestedTemperature == null) {
+            pendingActionPlan = null
+            pendingActionExpiresAt = 0L
+            return false
         }
 
-        return operation.fold(
-            onSuccess = {
-                when (result.action) {
-                    "set_ac" -> localized(result.language, "${device.name}へ${result.temperatureC?.roundToInt()}度の設定を送信しました", "I sent ${result.temperatureC?.roundToInt()} degrees to ${device.name}.", "Ich habe ${result.temperatureC?.roundToInt()} Grad an ${device.name} gesendet.")
-                    "turn_on" -> localized(result.language, "${device.name}へONを送信しました", "I sent ON to ${device.name}.", "Ich habe EIN an ${device.name} gesendet.")
-                    else -> localized(result.language, "${device.name}へOFFを送信しました", "I sent OFF to ${device.name}.", "Ich habe AUS an ${device.name} gesendet.")
+        pendingActionPlan = null
+        pendingActionExpiresAt = 0L
+        currentVoiceJob?.cancel()
+        currentVoiceJob = viewModelScope.launch {
+            val response = when {
+                isNo -> localized(pending.intent.language, "わかりました。操作しません", "Okay, I won't change it.", "Okay, ich ändere nichts.")
+                requestedTemperature != null -> {
+                    if (requestedTemperature !in 16..30 || pending.device?.isAirConditioner != true) {
+                        localized(pending.intent.language, "16〜30度のエアコン設定を指定してください", "Please specify an air-conditioner temperature from 16 to 30 degrees.", "Bitte gib eine Klimaanlagentemperatur zwischen 16 und 30 Grad an.")
+                    } else {
+                        runPendingActionPlan(pending.copy(
+                            action = ResolvedAction("set_temperature", requestedTemperature, power = true),
+                            decision = ActionDecision.EXECUTE,
+                            policy = com.tatsu.homehub.domain.ActionPolicy.SAFE_AUTO,
+                            reason = "user supplied an explicit temperature to the pending plan"
+                        ), generation)
+                    }
                 }
-            },
-            onFailure = { error ->
-                localized(result.language, "家電操作に失敗しました: ${error.message ?: "unknown"}", "Device control failed: ${error.message ?: "unknown"}", "Gerätesteuerung fehlgeschlagen: ${error.message ?: "unknown"}")
+                else -> runPendingActionPlan(pending.copy(
+                    decision = ActionDecision.EXECUTE,
+                    policy = com.tatsu.homehub.domain.ActionPolicy.SAFE_AUTO,
+                    reason = "user confirmed the pending action"
+                ), generation)
             }
+            if (generation != voiceGeneration) return@launch
+            rememberConversation(text, response)
+            _voiceState.value = _voiceState.value.copy(
+                phase = VoicePhase.ANSWER_READY,
+                status = "確認した操作の結果",
+                responseText = response,
+                error = null
+            )
+            voiceController.speak(generation, response, pending.intent.language, "pending-action-$generation-${UUID.randomUUID()}")
+        }
+        return true
+    }
+
+    private suspend fun runPendingActionPlan(plan: ActionPlan, generation: Long): String {
+        if (generation != voiceGeneration) return ""
+        val device = plan.device ?: return localized(plan.intent.language, "対象を指定してください", "Please specify the device.", "Bitte gib das Gerät an.")
+        val action = plan.action ?: return localized(plan.intent.language, "操作を決められませんでした。対象と操作をもう一度指定してください", "I couldn't resolve the action. Please specify the device and action again.", "Ich konnte die Aktion nicht bestimmen. Bitte nenne Gerät und Aktion erneut.")
+        if (!executedActionPlanIds.add(plan.id)) {
+            return localized(plan.intent.language, "同じ操作は重複実行しませんでした", "I blocked a duplicate action.", "Die doppelte Aktion wurde blockiert.")
+        }
+        val client = clientOrNull()
+            ?: return localized(plan.intent.language, "SwitchBotの設定が必要です", "SwitchBot is not configured.", "SwitchBot ist nicht eingerichtet.")
+        if (plan.currentState != null && !device.infrared) {
+            val latest = client.getDeviceState(device).getOrElse {
+                return localized(plan.intent.language, "現在状態を再確認できなかったため実行しませんでした", "I couldn't recheck the device state, so I didn't execute the action.", "Ich konnte den Gerätezustand nicht erneut prüfen und habe nichts ausgeführt.")
+            }
+            val original = plan.currentState
+            if (latest.power != original.power || latest.temperature != original.temperature || latest.mode != original.mode || latest.fanSpeed != original.fanSpeed) {
+                return localized(plan.intent.language, "確認中に家電の状態が変わったため操作しませんでした。もう一度指示してください", "The device state changed while you were confirming, so I didn't act. Please try again.", "Der Gerätezustand hat sich während der Bestätigung geändert. Bitte versuche es erneut.")
+            }
+        }
+        val adapter = SwitchBotActionAdapter(
+            client,
+            getKnownAcState = { id -> _acStates.value[id] ?: AcControlState() },
+            saveKnownAcState = { id, state -> _acStates.value = _acStates.value + (id to state) }
         )
+        val execution = adapter.execute(plan)
+        _voiceState.value = _voiceState.value.copy(actionPlanJson = actionPlanDiagnostic(null, plan, execution))
+        if (!execution.accepted) {
+            return localized(plan.intent.language, "家電への指示送信に失敗しました: ${execution.error ?: "不明なエラー"}", "The device command failed: ${execution.error ?: "unknown error"}.", "Der Gerätebefehl ist fehlgeschlagen: ${execution.error ?: "unbekannter Fehler"}.")
+        }
+        val target = plan.device?.name ?: return plan.response
+        return localized(plan.intent.language, "${target}への指示を送信しました", "Sent the action to ${target}.", "Die Aktion wurde an ${target} gesendet.")
     }
 
     private suspend fun executeVoiceAlarmAction(result: AiDispatchResult, generation: Long): String {
         if (generation != voiceGeneration) return ""
-        if (!markVoiceOperationOnce(result, generation)) {
+        if (!markVoiceOperationOnce(result)) {
             return localized(result.language, "同じ操作は重複実行しませんでした", "I blocked a duplicate action.", "Die doppelte Aktion wurde blockiert.")
         }
 
@@ -955,20 +1338,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return candidates
     }
 
-    private fun markVoiceOperationOnce(result: AiDispatchResult, generation: Long): Boolean {
+    private fun markVoiceOperationOnce(result: AiDispatchResult): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val expired = executedVoiceOperations.filterValues { now - it > VOICE_OPERATION_DEDUPE_WINDOW_MS }.keys
+        expired.forEach(executedVoiceOperations::remove)
         val key = listOf(
-            generation.toString(),
             result.action.orEmpty(),
             result.target.orEmpty(),
+            result.targetType.orEmpty(),
+            result.goal.orEmpty(),
             result.temperatureC?.toString().orEmpty(),
             result.timeLocal.orEmpty(),
             result.referenceTimeLocal.orEmpty()
         ).joinToString("|")
-        if (!executedVoiceOperations.add(key)) return false
-        while (executedVoiceOperations.size > 100) {
-            val first = executedVoiceOperations.firstOrNull() ?: break
-            executedVoiceOperations.remove(first)
-        }
+        if (key in executedVoiceOperations) return false
+        executedVoiceOperations[key] = now
         return true
     }
 
@@ -1020,7 +1404,7 @@ $history
     }
 
     private fun normalizeName(value: String): String =
-        value.lowercase().replace(Regex("""[\s　・_\-:：/]+"""), "")
+        value.lowercase().replace(Regex("""[\s　・_\-:：/、。！？!?.,「」『』（）()]+"""), "")
 
     private fun isGenericAlarmTarget(value: String): Boolean {
         val normalized = normalizeName(value)
@@ -1115,6 +1499,9 @@ $history
     }
 
     companion object {
+        private const val PENDING_ACTION_TTL_MS = 30_000L
+        private const val VOICE_OPERATION_DEDUPE_WINDOW_MS = 30_000L
+
         fun modeName(mode: Int): String = when (mode) {
             1 -> "Auto"
             2 -> "Cool"

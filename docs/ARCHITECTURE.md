@@ -1,6 +1,6 @@
 # Tatsu Home アーキテクチャ
 
-更新: 2026-09-13。実装済み・予定・実測を混同しない。
+更新: 2026-09-21。実装済み・予定・実測を混同しない。
 
 ## 比較する通常経路
 
@@ -20,14 +20,18 @@ B: Jev-first
   └ clarify → ローカル定型確認
 ```
 
-Jevは自由文を生成しない。1回のSystem One呼び出しでrouteに加え、家電action・既知対象・16〜30℃・アラームaction・既知対象・新旧の時分を閉じたChoiceとして並列判定する。
-Androidは最終的な対象ID、範囲、重複、現在状態を再検証してから物理操作する。
+Jevは自由文を生成しない。1回のSystem One呼び出しでrouteに加え、家電action・goal・既知対象・16〜30℃・アラームaction・既知対象・新旧の時分を閉じたChoiceとして並列判定する。Jevは明示ActionとGoalを区別し、「暑い」は`goal=cooler, action=null, executionMode=resolve`として返す。
+AndroidのAction Resolverは現在状態・対象一意性・能力・温度範囲を使ってActionPlanを決め、Policy Engineが実行可否を最終検査し、SwitchBot AdapterだけがAPIを呼ぶ。JevやLunaからDevice Adapterへ直接つながない。
+
+SwitchBotの赤外線エアコンはOpenAPIから現在状態を読めない。状態不明の相対要求は推測操作せずfallback／確認にし、赤外線エアコンへの「暑い」の自動温度変更は行わない。物理デバイスの状態が得られた場合だけ、1℃刻みの相対変更を解決する。
 simple_chatはLuna-firstが1回、Jev-firstがJev＋Lunaの2回になるため、Jev-firstが必ず速いわけではない。deep_reasoningと物理系は初段ルーター差がそのまま短縮候補になる。
 
 ## 回答比較
 
 Luna-firstとJev-firstへ同じ確定済みSTT文脈を並列送信し、回答本文・route・モデル・端末往復時間・requestIdを個別に表示する。両結果は別々に保持し、一方の失敗や遅延で他方の回答を消さない。比較要求はキャンセル可能で、各経路は60秒で終了する。
-比較モードではSwitchBot／AlarmManager実行層へ入らない。家電・アラームrouteは実行前の提案として表示するだけ。weatherもAndroidにある同一キャッシュを参照し、比較だけのために追加取得しない。速度差だけから回答品質の優劣を決めない。
+比較モードではLuna/Jevの各経路についてAndroid側Action ResolverとPolicyまでdry-runし、同じ機器への重複コマンドを防ぐためSwitchBot／AlarmManager実行層へ入らない。家電・アラームrouteはActionPlanを含む実行前提案として表示する。weatherもAndroidにある同一キャッシュを参照し、比較だけのために追加取得しない。速度差だけから回答品質の優劣を決めない。
+
+各経路で共通`AiPipelineTimings`を使う。サーバー時計とAndroidのmonotonic clockは別の名前空間で診断し、跨いだ絶対時刻の差を計算しない。TTFTはモデル呼び出し全体に重ねて足さず、TTFT後の生成時間だけを排他的区間として扱う。比較モードは音声回答を生成しないためTTS行は`—`。
 比較完了後の通常Luna／Jev音声セッションは、新しい世代IDを発行して前の比較要求・TTSを破棄する。古い応答・TTS callbackが新しいセッションを更新しない。
 
 ## Conversation Mode
@@ -42,10 +46,10 @@ Liveを使わなくても通常の読み上げ停止は実装する。
 
 - LLMは操作案のみ。confidenceは未校正であり実行の根拠にしない。
 - AndroidがdeviceId/alarmId、対応機能、範囲、現在状態、要求の有効期限を確認。
-- 候補ゼロ／複数なら確認。確認への「はい」は有効な確認IDと対象revisionに紐付ける。
+- 候補ゼロ／複数なら対象を確認。確認可能な具体ActionPlanは30秒だけ保持し、「はい」後には取得可能な機器状態を再取得して前回状態から変化していないことを確認する。対象不明・操作不明のプランは確認肯定だけで実行しない。
 - 発話の途中結果で操作しない。「26度、いや24度」の確定を待つ。
 - 最初は一発話一変更。複合指示を黙って一部実行しない。
-- operationIdを永続化。再送で重複実行しない。外部APIの厳密なexactly-onceは保証しない。
+- 現実装は端末メモリ内で30秒間、同一内容の操作再送を抑止し、確認用ActionPlan IDも一度だけ受け付ける。再起動をまたぐ冪等記録・外部APIの厳密なexactly-onceは未実装。
 - HTTPタイムアウトは失敗確定ではない。SwitchBot受付／状態確認済み／成否不明を分ける。
 - 停止後や会話切替後に届く古い結果はgenerationIdで破棄。
 
