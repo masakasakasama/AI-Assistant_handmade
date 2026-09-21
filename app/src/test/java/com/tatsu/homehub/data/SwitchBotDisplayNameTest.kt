@@ -13,15 +13,15 @@ class SwitchBotDisplayNameTest {
     }
 
     @Test
-    fun temporaryBedroomLightAliasIsApplied() {
+    fun apiDeviceNameIsKeptForLocalRoomAssignment() {
         assertEquals(
-            "寝室の電気",
+            "Light",
             switchBotDisplayName("Light", "Color Bulb")
         )
     }
 
     @Test
-    fun lightAliasIsNotAppliedToNonLightDevice() {
+    fun apiNameIsPreservedUntilTemporaryAssignmentIsSelected() {
         assertEquals(
             "Light",
             switchBotDisplayName("Light", "Bot")

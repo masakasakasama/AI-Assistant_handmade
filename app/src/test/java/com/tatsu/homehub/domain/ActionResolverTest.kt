@@ -1,6 +1,6 @@
 package com.tatsu.homehub.domain
 
-import com.tatsu.homehub.data.DemoHomeDevices
+import com.tatsu.homehub.data.TemporaryRoomAssignments
 import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.model.SwitchBotDeviceState
 import org.junit.Assert.assertEquals
@@ -70,31 +70,48 @@ class ActionResolverTest {
         assertNull(plan.action)
     }
 
-    @Test fun comparisonFixturesResolveBedroomAirConditionerWithoutRealDevices() {
+    @Test fun actualSwitchBotDevicesGetTemporaryRoomAliasesForComparison() {
+        val bedroomAc = SwitchBotDevice("ac-a", "Air Conditioner", "Air Conditioner", infrared = true)
+        val livingAc = SwitchBotDevice("ac-b", "Air Conditioner 2", "Air Conditioner", infrared = true)
+        val bedroomLight = SwitchBotDevice("light-a", "寝室の電気", "Color Bulb", infrared = false)
+        val livingLight = SwitchBotDevice("light-b", "Light 2", "Color Bulb", infrared = false)
+        val actualDevices = listOf(bedroomAc, livingAc, bedroomLight, livingLight)
+        val rooms = TemporaryRoomAssignments.inferDefaults(actualDevices)
+        val comparisonDevices = actualDevices.map { device ->
+            TemporaryRoomAssignments.applyToComparison(device, rooms[device.deviceId])
+        }
+
+        assertEquals("寝室", rooms[bedroomAc.deviceId])
+        assertEquals("リビング", rooms[livingAc.deviceId])
+        assertEquals("寝室", rooms[bedroomLight.deviceId])
+        assertEquals("リビング", rooms[livingLight.deviceId])
+
         val bedroomIntent = DeviceIntent(
             route = "device_action", target = "寝室のエアコン", targetType = "air_conditioner",
             action = "set_ac", goal = "set", temperatureC = 26.0, confidence = .95, language = "ja"
         )
-        val bedroom = DemoHomeDevices.devices.single { it.deviceId == "demo-bedroom-ac" }
-        val plan = resolver.resolve(
-            bedroomIntent,
-            DemoHomeDevices.devices,
-            DemoHomeDevices.stateFor(bedroom.deviceId)
-        )
-
-        assertEquals(true, bedroom.demoOnly)
-        assertEquals("demo-bedroom-ac", plan.device?.deviceId)
+        val plan = resolver.resolve(bedroomIntent, comparisonDevices, null)
+        assertEquals("ac-a", plan.device?.deviceId)
         assertEquals(ActionDecision.EXECUTE, plan.decision)
         assertEquals(26, plan.action?.temperatureC)
     }
 
-    @Test fun genericAirConditionerStillRequiresRoomWhenUsingComparisonFixtures() {
+    @Test fun explicitCurrentRoomNamesArePreservedAndGenericDeviceTargetsStayAmbiguous() {
+        val bedroomAc = SwitchBotDevice("ac-a", "寝室のエアコン", "Air Conditioner", infrared = true)
+        val livingAc = SwitchBotDevice("ac-b", "リビングのエアコン", "Air Conditioner", infrared = true)
+        val actualDevices = listOf(bedroomAc, livingAc)
+        val rooms = TemporaryRoomAssignments.inferDefaults(actualDevices)
+        val comparisonDevices = actualDevices.map { device ->
+            TemporaryRoomAssignments.applyToComparison(device, rooms[device.deviceId])
+        }
         val genericIntent = DeviceIntent(
             route = "device_action", target = null, targetType = "air_conditioner",
             action = null, goal = "cooler", temperatureC = null, confidence = .95, language = "ja"
         )
-        val plan = resolver.resolve(genericIntent, DemoHomeDevices.devices, null)
+        val plan = resolver.resolve(genericIntent, comparisonDevices, null)
 
+        assertEquals("寝室", rooms[bedroomAc.deviceId])
+        assertEquals("リビング", rooms[livingAc.deviceId])
         assertEquals(ActionDecision.CONFIRM, plan.decision)
         assertNull(plan.action)
     }

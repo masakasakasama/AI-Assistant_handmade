@@ -166,7 +166,7 @@ class SwitchBotClient(
     }
 }
 
-internal fun switchBotDisplayName(raw: String, type: String): String {
+internal fun switchBotDisplayName(raw: String, _type: String): String {
     val clean = raw.trim()
     val match = ROOM_SUFFIX.matchEntire(clean)
     if (match != null) {
@@ -175,14 +175,6 @@ internal fun switchBotDisplayName(raw: String, type: String): String {
         if (baseName.isNotBlank() && room.isNotBlank()) {
             return "${room}の${baseName}"
         }
-    }
-
-    // Temporary local room alias until SwitchBot room membership can be synced.
-    // The user's current SwitchBot light is named exactly "Light" and belongs to the bedroom.
-    val isLight = type.contains("light", ignoreCase = true) ||
-        type.contains("bulb", ignoreCase = true)
-    if (isLight && clean.equals("Light", ignoreCase = true)) {
-        return "寝室の電気"
     }
 
     return clean

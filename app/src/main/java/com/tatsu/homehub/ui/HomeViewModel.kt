@@ -7,7 +7,7 @@ import com.tatsu.homehub.alarm.AlarmScheduler
 import com.tatsu.homehub.data.AiBackendClient
 import com.tatsu.homehub.data.AiDispatchResult
 import com.tatsu.homehub.data.AiPipelineTimings
-import com.tatsu.homehub.data.DemoHomeDevices
+import com.tatsu.homehub.data.TemporaryRoomAssignments
 import com.tatsu.homehub.data.RouterCompareResult
 import com.tatsu.homehub.data.AlarmRepository
 import com.tatsu.homehub.data.AppPrefs
@@ -70,6 +70,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _devices = MutableStateFlow<List<SwitchBotDevice>>(emptyList())
     val devices: StateFlow<List<SwitchBotDevice>> = _devices.asStateFlow()
+
+    private val _temporaryRoomAssignments = MutableStateFlow(appPrefs.loadTemporaryRoomAssignments())
+    val temporaryRoomAssignments: StateFlow<Map<String, String>> = _temporaryRoomAssignments.asStateFlow()
 
     private val _alarms = MutableStateFlow<List<LocalAlarm>>(emptyList())
     val alarms: StateFlow<List<LocalAlarm>> = _alarms.asStateFlow()
@@ -325,6 +328,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _loading.value = true
             client.getDevices()
                 .onSuccess { list ->
+                    updateTemporaryRoomAssignments(list)
                     _devices.value = list
                     if (showMessage) {
                         _message.value = list.size.toString() + "台を同期しました"
@@ -337,6 +341,29 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
             _loading.value = false
         }
+    }
+
+    fun setTemporaryRoom(device: SwitchBotDevice, room: String) {
+        val next = _temporaryRoomAssignments.value.toMutableMap()
+        next[device.deviceId] = if (room == TemporaryRoomAssignments.UNASSIGNED) "" else room
+        appPrefs.saveTemporaryRoomAssignments(next)
+        _temporaryRoomAssignments.value = next
+    }
+
+    private fun updateTemporaryRoomAssignments(devices: List<SwitchBotDevice>) {
+        val defaults = TemporaryRoomAssignments.inferDefaults(devices)
+        val currentIds = devices.mapTo(mutableSetOf()) { it.deviceId }
+        val saved = _temporaryRoomAssignments.value.filterKeys(currentIds::contains)
+        val next = defaults + saved
+        if (next != _temporaryRoomAssignments.value) {
+            appPrefs.saveTemporaryRoomAssignments(next)
+            _temporaryRoomAssignments.value = next
+        }
+    }
+
+    private fun comparisonDevicesWithTemporaryRooms(): List<SwitchBotDevice> = _devices.value.map { device ->
+        val room = _temporaryRoomAssignments.value[device.deviceId]?.takeIf(String::isNotBlank)
+        TemporaryRoomAssignments.applyToComparison(device, room)
     }
 
     fun power(device: SwitchBotDevice, on: Boolean) {
@@ -551,7 +578,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _routerCompareResult.value = null
         _answerComparison.value = null
         val job = viewModelScope.launch {
-            startAnswerComparison(query, buildVoiceContext(includeDemoDevices = true), url, runId, voiceSessionGeneration = null)
+            startAnswerComparison(query, buildVoiceContext(includeComparisonRooms = true), url, runId, voiceSessionGeneration = null)
         }
         routerComparisonJob = job
     }
@@ -670,7 +697,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) return
         val mode = _voiceState.value.mode
-        val context = buildVoiceContext(includeDemoDevices = mode == VoiceMode.ANSWER_COMPARE || mode == VoiceMode.ROUTER_COMPARE)
+        val context = buildVoiceContext(includeComparisonRooms = mode == VoiceMode.ANSWER_COMPARE || mode == VoiceMode.ROUTER_COMPARE)
         val comparisonRunId = ++comparisonGeneration
         routerComparisonJob?.cancel()
         routerComparisonJob = null
@@ -962,13 +989,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun resolveComparisonAction(result: AiDispatchResult): Pair<String, ActionPlan>? {
-        // Answer comparison is always a dry run against fixtures, never the user's real SwitchBot devices.
-        val comparisonDevices = DemoHomeDevices.devices
+        // Compare intent resolution with the real synchronized devices and real readable status.
+        // This path only builds a proposal; the SwitchBot command adapter is never called here.
+        val comparisonDevices = comparisonDevicesWithTemporaryRooms()
         val candidates = resolveDeviceCandidates(result, comparisonDevices)
         val device = candidates.singleOrNull()
-        val fixtureStateStarted = android.os.SystemClock.elapsedRealtime()
-        val state = device?.let { DemoHomeDevices.stateFor(it.deviceId) }
-        val stateFetchMs = if (device != null) android.os.SystemClock.elapsedRealtime() - fixtureStateStarted else null
+        var state: com.tatsu.homehub.model.SwitchBotDeviceState? = null
+        var stateFetchMs: Long? = null
+        val client = clientOrNull()
+        if (device != null && !device.infrared && client != null) {
+            val stateStarted = android.os.SystemClock.elapsedRealtime()
+            state = client.getDeviceState(device).getOrNull()
+            stateFetchMs = android.os.SystemClock.elapsedRealtime() - stateStarted
+        }
         val intent = DeviceIntent(result.route, result.target, result.targetType, result.action, result.goal,
             result.temperatureC ?: result.parameters["temperature"], result.confidence, result.language)
         val plan = actionPolicyEngine.evaluate(actionResolver.resolve(intent, comparisonDevices, state, stateFetchMs))
@@ -1156,12 +1189,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         .put("jevRaw", result?.rawIntentJson ?: org.json.JSONObject.NULL)
         .put("target", plan.device?.name ?: org.json.JSONObject.NULL)
         .put("deviceId", plan.device?.deviceId ?: org.json.JSONObject.NULL)
-        .put("demoOnly", plan.device?.demoOnly ?: false)
-        .put("deviceSource", when {
-            plan.device == null -> "unresolved"
-            plan.device.demoOnly -> "demo_fixture"
-            else -> "switchbot"
-        })
+        .put("temporaryRoom", plan.device?.let { _temporaryRoomAssignments.value[it.deviceId] } ?: org.json.JSONObject.NULL)
         .put("deviceState", plan.currentState?.rawJson?.let { org.json.JSONObject(it) } ?: org.json.JSONObject.NULL)
         .put("goal", plan.intent.goal ?: org.json.JSONObject.NULL)
         .put("actionPlan", org.json.JSONObject()
@@ -1362,18 +1390,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return true
     }
 
-    private fun buildVoiceContext(includeDemoDevices: Boolean = false): String {
+    private fun buildVoiceContext(includeComparisonRooms: Boolean = false): String {
         val referenceTime = java.time.ZonedDateTime.now().toOffsetDateTime().toString()
         val timeZone = java.time.ZoneId.systemDefault().id
-        val knownDevices = if (includeDemoDevices) DemoHomeDevices.devices else _devices.value.filterNot { it.demoOnly }
-        val devices = knownDevices.distinctBy { normalizeName(it.name) }.joinToString("\n") {
-            val fixtureState = if (it.demoOnly) DemoHomeDevices.stateFor(it.deviceId) else null
-            val stateText = fixtureState?.let { state ->
-                " | state=${if (state.power == true) "ON" else "OFF"}" +
-                    (state.temperature?.let { temp -> ", temperature=${temp}C" } ?: "")
-            }.orEmpty()
-            "- ${it.name} | type=${it.type} | id=${it.deviceId}" +
-                if (it.demoOnly) "$stateText | source=demo_fixture (comparison only; never execute)" else stateText
+        val contextDevices = if (includeComparisonRooms) comparisonDevicesWithTemporaryRooms() else _devices.value
+        val devices = contextDevices.distinctBy { it.deviceId }.joinToString("\n") { device ->
+            val actualName = _devices.value.firstOrNull { it.deviceId == device.deviceId }?.name
+            "- ${device.name} | type=${device.type} | id=${device.deviceId}" +
+                (actualName?.let { " | actualName=$it" } ?: "") +
+                if (includeComparisonRooms) " | roomAssignment=temporary" else ""
         }.ifBlank { "- none" }
         val alarms = _alarms.value.joinToString("\n") {
             "- ${it.label} | ${String.format("%02d:%02d", it.hour, it.minute)} | id=${it.id} | enabled=${it.enabled}"
