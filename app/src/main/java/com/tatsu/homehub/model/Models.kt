@@ -5,7 +5,8 @@ data class SwitchBotDevice(
     val name: String,
     val type: String,
     val infrared: Boolean,
-    val hubDeviceId: String? = null
+    val hubDeviceId: String? = null,
+    val demoOnly: Boolean = false
 ) {
     val isAirConditioner: Boolean
         get() = type.equals("Air Conditioner", ignoreCase = true)

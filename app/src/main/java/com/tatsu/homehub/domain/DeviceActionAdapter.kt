@@ -26,6 +26,15 @@ class SwitchBotActionAdapter(
         val action = requireNotNull(plan.action)
         require(plan.decision == ActionDecision.EXECUTE) { "Only executable plans can reach a Device Adapter" }
         val started = android.os.SystemClock.elapsedRealtime()
+        if (device.demoOnly) {
+            return DeviceExecutionResult(
+                adapter = "switchbot",
+                command = action.type,
+                accepted = false,
+                elapsedMs = android.os.SystemClock.elapsedRealtime() - started,
+                error = "demo fixture devices are comparison-only"
+            )
+        }
         val operation = when (action.type) {
             "power_on", "power_off" -> if (device.isAirConditioner) {
                 val previous = getKnownAcState(device.deviceId)

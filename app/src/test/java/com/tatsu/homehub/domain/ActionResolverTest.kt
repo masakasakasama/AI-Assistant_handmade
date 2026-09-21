@@ -1,5 +1,6 @@
 package com.tatsu.homehub.domain
 
+import com.tatsu.homehub.data.DemoHomeDevices
 import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.model.SwitchBotDeviceState
 import org.junit.Assert.assertEquals
@@ -65,6 +66,35 @@ class ActionResolverTest {
     @Test fun ambiguousTargetRequiresClarification() {
         val second = ac.copy(deviceId = "ac-living", name = "リビングエアコン")
         val plan = resolver.resolve(intent("cooler", target = null), listOf(ac, second), state(true, 27))
+        assertEquals(ActionDecision.CONFIRM, plan.decision)
+        assertNull(plan.action)
+    }
+
+    @Test fun comparisonFixturesResolveBedroomAirConditionerWithoutRealDevices() {
+        val bedroomIntent = DeviceIntent(
+            route = "device_action", target = "寝室のエアコン", targetType = "air_conditioner",
+            action = "set_ac", goal = "set", temperatureC = 26.0, confidence = .95, language = "ja"
+        )
+        val bedroom = DemoHomeDevices.devices.single { it.deviceId == "demo-bedroom-ac" }
+        val plan = resolver.resolve(
+            bedroomIntent,
+            DemoHomeDevices.devices,
+            DemoHomeDevices.stateFor(bedroom.deviceId)
+        )
+
+        assertEquals(true, bedroom.demoOnly)
+        assertEquals("demo-bedroom-ac", plan.device?.deviceId)
+        assertEquals(ActionDecision.EXECUTE, plan.decision)
+        assertEquals(26, plan.action?.temperatureC)
+    }
+
+    @Test fun genericAirConditionerStillRequiresRoomWhenUsingComparisonFixtures() {
+        val genericIntent = DeviceIntent(
+            route = "device_action", target = null, targetType = "air_conditioner",
+            action = null, goal = "cooler", temperatureC = null, confidence = .95, language = "ja"
+        )
+        val plan = resolver.resolve(genericIntent, DemoHomeDevices.devices, null)
+
         assertEquals(ActionDecision.CONFIRM, plan.decision)
         assertNull(plan.action)
     }
