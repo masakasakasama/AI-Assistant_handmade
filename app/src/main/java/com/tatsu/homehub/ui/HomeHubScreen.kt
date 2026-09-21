@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import com.tatsu.homehub.BuildConfig
 import com.tatsu.homehub.R
 import com.tatsu.homehub.data.AiDispatchResult
+import com.tatsu.homehub.data.DemoHomeDevices
 import com.tatsu.homehub.data.RouterCompareResult
 import com.tatsu.homehub.data.RouterDecisionResult
 import com.tatsu.homehub.data.AppPrefs
@@ -226,6 +227,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                         item {
                             DeviceList(
                                 devices = devices,
+                                demoFixtures = DemoHomeDevices.fixtures,
                                 acStates = acStates,
                                 onPower = viewModel::power,
                                 onAcChange = viewModel::setAirConditioner
@@ -550,12 +552,13 @@ private fun AirConditionerCard(
 @Composable
 private fun DeviceList(
     devices: List<SwitchBotDevice>,
+    demoFixtures: List<DemoHomeDevices.Fixture>,
     acStates: Map<String, AcControlState>,
     onPower: (SwitchBotDevice, Boolean) -> Unit,
     onAcChange: (SwitchBotDevice, AcControlState) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("家電", "部屋の心地よさを整える")
+        SectionTitle("SwitchBot家電", "接続された実機")
         if (devices.isEmpty()) {
             EmptyCard("SwitchBotが未接続", "設定からOpen Token / Secret Keyを登録")
         } else {
@@ -569,6 +572,45 @@ private fun DeviceList(
                 } else {
                     FavoriteDeviceTile(device = device, onPower = { onPower(device, it) })
                 }
+            }
+        }
+        SectionTitle("AI比較用の仮家電", "部屋指定の判定を試すための固定データ")
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.tertiaryContainer
+        ) {
+            Text(
+                "仮家電はAI比較専用です。SwitchBotへコマンドは送信されません。",
+                modifier = Modifier.padding(14.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+        }
+        demoFixtures.forEach { fixture -> DemoDevicePreview(fixture) }
+    }
+}
+
+@Composable
+private fun DemoDevicePreview(fixture: DemoHomeDevices.Fixture) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(deviceIcon(fixture.device), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(fixture.device.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(fixture.device.type, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("仮", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+                Text(fixture.summary, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -1179,6 +1221,11 @@ private fun comparisonBody(result: AiDispatchResult, weather: WeatherSnapshot?, 
     "device_action" -> listOfNotNull(
         runCatching { org.json.JSONObject(actionPlanJson.orEmpty()) }.getOrNull()?.optString("response")
             ?.takeIf { it.isNotBlank() && it != "null" }?.let { "回答案: $it" },
+        runCatching { org.json.JSONObject(actionPlanJson.orEmpty()) }.getOrNull()?.let { plan ->
+            plan.optString("target").takeIf { it.isNotBlank() && it != "null" }?.let { target ->
+                "対象: $target" + if (plan.optBoolean("demoOnly")) "（仮家電）" else ""
+            }
+        },
         runCatching { org.json.JSONObject(actionPlanJson.orEmpty()) }.getOrNull()?.let { plan ->
             val action = plan.optJSONObject("actionPlan")
             val type = action?.optString("type")?.takeIf { it.isNotBlank() && it != "null" }
