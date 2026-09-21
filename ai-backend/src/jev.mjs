@@ -104,6 +104,11 @@ function parseChoice(payload, key) {
   return answer;
 }
 
+function parseOptionalChoice(payload, key, fallback = "none") {
+  const answer = payload?.answers?.[key];
+  return answer && typeof answer.choice === "string" ? answer : { choice: fallback, confidence: 0 };
+}
+
 function choiceNumber(answer, min, max) {
   const raw = answer?.choice;
   if (typeof raw !== "string" || raw === "none" || !raw.startsWith("v")) return null;
@@ -125,7 +130,7 @@ export function parseJevRouteResponse(payload, metadata = {}) {
   const language = languageAnswer.choice in LANGUAGE_CRITERIA ? languageAnswer.choice : "other";
 
   const deviceActionAnswer = parseChoice(payload, "device_action");
-  const deviceGoalAnswer = parseChoice(payload, "device_goal");
+  const deviceGoalAnswer = parseOptionalChoice(payload, "device_goal");
   const alarmActionAnswer = parseChoice(payload, "alarm_action");
   const deviceTargetAnswer = parseChoice(payload, "device_target");
   const alarmTargetAnswer = parseChoice(payload, "alarm_target");
