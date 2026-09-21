@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
 import com.tatsu.homehub.data.AiBackendClient
 import com.tatsu.homehub.data.AiDispatchResult
+import com.tatsu.homehub.data.DeviceActionResolver
+import com.tatsu.homehub.data.ActionDecision
 import com.tatsu.homehub.data.RouterCompareResult
 import com.tatsu.homehub.data.AlarmRepository
 import com.tatsu.homehub.data.AppPrefs
@@ -51,6 +53,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val alarmRepo = AlarmRepository(application)
     private val weatherClient = WeatherClient()
     private val aiBackendClient = AiBackendClient()
+    private val deviceActionResolver = DeviceActionResolver()
     private val updateManager = UpdateManager(application)
     private val networkMonitor = NetworkMonitor(application) {
         if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
@@ -822,59 +825,36 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             return localized(result.language, "同じ操作は重複実行しませんでした", "I blocked a duplicate action.", "Die doppelte Aktion wurde blockiert.")
         }
 
-        val target = result.target?.trim().orEmpty()
-        if (target.isBlank()) {
-            return localized(result.language, "どの家電を操作しますか？", "Which device should I control?", "Welches Gerät soll ich steuern?")
+        // Jev/Luna only describe intent. The deterministic resolver combines it with current state.
+        val plan = deviceActionResolver.resolve(result, _devices.value, _acStates.value)
+        val device = plan.target
+        if (plan.decision != ActionDecision.EXECUTE) {
+            return plan.response
         }
-
-        val normalizedTarget = normalizeName(target)
-        val exact = _devices.value.filter { normalizeName(it.name) == normalizedTarget }
-        val candidates = if (exact.isNotEmpty()) exact else _devices.value.filter {
-            val name = normalizeName(it.name)
-            name.contains(normalizedTarget) || normalizedTarget.contains(name)
-        }
-
-        if (candidates.size != 1) {
-            return if (candidates.isEmpty()) {
-                localized(result.language, "対象の家電が見つかりませんでした", "I couldn't find that device.", "Ich konnte dieses Gerät nicht finden.")
-            } else {
-                val names = candidates.take(3).joinToString("、") { it.name }
-                localized(result.language, "対象が複数あります: $names", "I found multiple matching devices: $names", "Ich habe mehrere passende Geräte gefunden: $names")
-            }
-        }
+        if (device == null) return plan.response
 
         val client = clientOrNull()
             ?: return localized(result.language, "SwitchBotの設定が必要です", "SwitchBot is not configured.", "SwitchBot ist nicht eingerichtet.")
-        val device = candidates.single()
 
-        val operation = when (result.action) {
-            "turn_on" -> client.turnOn(device.deviceId)
-            "turn_off" -> client.turnOff(device.deviceId)
-            "set_ac" -> {
-                if (!device.isAirConditioner) {
-                    return localized(result.language, "その機器は温度設定に対応していません", "That device does not support temperature control.", "Dieses Gerät unterstützt keine Temperatureinstellung.")
+        var operation: Result<Unit>? = null
+        for (action in plan.actions) {
+            operation = when (action.type) {
+                "turn_on" -> client.turnOn(device.deviceId)
+                "turn_off" -> client.turnOff(device.deviceId)
+                "set_temperature" -> {
+                    if (!device.isAirConditioner) return localized(result.language, "その機器は温度設定に対応していません", "That device does not support temperature control.", "Dieses Gerät unterstützt keine Temperatureinstellung.")
+                    val current = _acStates.value[device.deviceId] ?: AcControlState()
+                    val next = current.copy(temperature = action.value ?: current.temperature, power = true)
+                    client.setAirConditioner(device.deviceId, next.temperature, next.mode, next.fanSpeed, next.power)
+                        .onSuccess { _acStates.value = _acStates.value + (device.deviceId to next) }
                 }
-                val temperature = result.temperatureC?.roundToInt()
-                    ?: return localized(result.language, "温度を確認してください", "Please specify the temperature.", "Bitte nenne die Temperatur.")
-                if (temperature !in 16..30) {
-                    return localized(result.language, "温度は16〜30度で指定してください", "Please choose a temperature from 16 to 30 degrees.", "Bitte wähle eine Temperatur zwischen 16 und 30 Grad.")
-                }
-                val current = _acStates.value[device.deviceId] ?: AcControlState()
-                val next = current.copy(temperature = temperature, power = true)
-                client.setAirConditioner(device.deviceId, next.temperature, next.mode, next.fanSpeed, next.power)
-                    .onSuccess { _acStates.value = _acStates.value + (device.deviceId to next) }
+                else -> Result.failure(IllegalArgumentException("Unsupported resolved action: " + action.type))
             }
-            else -> return localized(result.language, "その家電操作にはまだ対応していません", "That device action is not supported yet.", "Diese Geräteaktion wird noch nicht unterstützt.")
+            if (operation.isFailure) break
         }
 
-        return operation.fold(
-            onSuccess = {
-                when (result.action) {
-                    "set_ac" -> localized(result.language, "${device.name}へ${result.temperatureC?.roundToInt()}度の設定を送信しました", "I sent ${result.temperatureC?.roundToInt()} degrees to ${device.name}.", "Ich habe ${result.temperatureC?.roundToInt()} Grad an ${device.name} gesendet.")
-                    "turn_on" -> localized(result.language, "${device.name}へONを送信しました", "I sent ON to ${device.name}.", "Ich habe EIN an ${device.name} gesendet.")
-                    else -> localized(result.language, "${device.name}へOFFを送信しました", "I sent OFF to ${device.name}.", "Ich habe AUS an ${device.name} gesendet.")
-                }
-            },
+        return (operation ?: Result.success(Unit)).fold(
+            onSuccess = { plan.response },
             onFailure = { error ->
                 localized(result.language, "家電操作に失敗しました: ${error.message ?: "unknown"}", "Device control failed: ${error.message ?: "unknown"}", "Gerätesteuerung fehlgeschlagen: ${error.message ?: "unknown"}")
             }
