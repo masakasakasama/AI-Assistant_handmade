@@ -45,7 +45,10 @@ class SwitchBotClient(
                     val d = list.getJSONObject(i)
                     devices += SwitchBotDevice(
                         deviceId = d.getString("deviceId"),
-                        name = roomAwareName(d.optString("deviceName", d.getString("deviceId"))),
+                        name = switchBotDisplayName(
+                            d.optString("deviceName", d.getString("deviceId")),
+                            d.optString("deviceType", "Unknown")
+                        ),
                         type = d.optString("deviceType", "Unknown"),
                         infrared = false,
                         hubDeviceId = d.optString("hubDeviceId").takeIf { it.isNotBlank() }
@@ -58,7 +61,10 @@ class SwitchBotClient(
                     val d = list.getJSONObject(i)
                     devices += SwitchBotDevice(
                         deviceId = d.getString("deviceId"),
-                        name = roomAwareName(d.optString("deviceName", d.getString("deviceId"))),
+                        name = switchBotDisplayName(
+                            d.optString("deviceName", d.getString("deviceId")),
+                            d.optString("remoteType", "Infrared")
+                        ),
                         type = d.optString("remoteType", "Infrared"),
                         infrared = true,
                         hubDeviceId = d.optString("hubDeviceId").takeIf { it.isNotBlank() }
@@ -155,17 +161,31 @@ class SwitchBotClient(
         )
     }
 
-    private fun roomAwareName(raw: String): String {
-        val clean = raw.trim()
-        val match = ROOM_SUFFIX.matchEntire(clean) ?: return clean
-        val baseName = match.groupValues[1].trim()
-        val room = match.groupValues[2].trim()
-        if (baseName.isBlank() || room.isBlank()) return clean
-        return "${room}の${baseName}"
-    }
-
     companion object {
         private const val BASE_URL = "https://api.switch-bot.com/v1.1"
-        private val ROOM_SUFFIX = Regex("""^(.+?)\s*[（(]([^()（）]+)[）)]\s*$""")
     }
 }
+
+internal fun switchBotDisplayName(raw: String, type: String): String {
+    val clean = raw.trim()
+    val match = ROOM_SUFFIX.matchEntire(clean)
+    if (match != null) {
+        val baseName = match.groupValues[1].trim()
+        val room = match.groupValues[2].trim()
+        if (baseName.isNotBlank() && room.isNotBlank()) {
+            return "${room}の${baseName}"
+        }
+    }
+
+    // Temporary local room alias until SwitchBot room membership can be synced.
+    // The user's current SwitchBot light is named exactly "Light" and belongs to the bedroom.
+    val isLight = type.contains("light", ignoreCase = true) ||
+        type.contains("bulb", ignoreCase = true)
+    if (isLight && clean.equals("Light", ignoreCase = true)) {
+        return "寝室の電気"
+    }
+
+    return clean
+}
+
+private val ROOM_SUFFIX = Regex("""^(.+?)\s*[（(]([^()（）]+)[）)]\s*$""")
