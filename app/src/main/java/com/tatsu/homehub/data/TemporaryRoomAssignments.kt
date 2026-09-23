@@ -37,6 +37,15 @@ object TemporaryRoomAssignments {
         return device.copy(name = "${room}の${label}", room = room, originalName = device.originalName ?: device.name)
     }
 
+    fun displayNameWithinRoom(device: SwitchBotDevice): String {
+        val baseName = stripRoom(device.name)
+        return when {
+            device.isAirConditioner -> "エアコン"
+            isLight(device) -> "照明"
+            else -> baseName
+        }
+    }
+
     fun explicitRoom(name: String): String? {
         val normalized = name.lowercase()
         return when {
