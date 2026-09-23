@@ -24,6 +24,7 @@ import com.tatsu.homehub.domain.DeviceIntent
 import com.tatsu.homehub.domain.ResolvedAction
 import com.tatsu.homehub.domain.SwitchBotActionAdapter
 import com.tatsu.homehub.model.AcControlState
+import com.tatsu.homehub.model.HubEnvironmentState
 import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.UpdateInfo
@@ -79,6 +80,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _acStates = MutableStateFlow(appPrefs.loadAcControlStates())
     val acStates: StateFlow<Map<String, AcControlState>> = _acStates.asStateFlow()
+
+    private val _hubEnvironmentStates = MutableStateFlow<Map<String, HubEnvironmentState>>(emptyMap())
+    val hubEnvironmentStates: StateFlow<Map<String, HubEnvironmentState>> = _hubEnvironmentStates.asStateFlow()
 
     private val _weather = MutableStateFlow<WeatherSnapshot?>(appPrefs.loadWeatherCache())
     val weather: StateFlow<WeatherSnapshot?> = _weather.asStateFlow()
@@ -268,6 +272,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        viewModelScope.launch {
+            while (isActive) {
+                delay(5 * 60 * 1000L)
+                refreshHubEnvironmentOnly()
+            }
+        }
+
         networkMonitor.start()
 
         if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
@@ -331,6 +342,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     updateTemporaryRoomAssignments(list)
                     _devices.value = list
                     syncReadableAirConditionerStates(client, list)
+                    syncHubEnvironmentStates(client, list)
                     if (showMessage) {
                         _message.value = list.size.toString() + "台を同期しました"
                     }
@@ -380,6 +392,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 .onFailure { error ->
                     _message.value = device.name + ": " + (error.message ?: "operation failed")
                 }
+        }
+    }
+
+    private suspend fun syncHubEnvironmentStates(
+        client: SwitchBotClient,
+        devices: List<SwitchBotDevice>
+    ) {
+        val next = _hubEnvironmentStates.value.toMutableMap()
+        devices.filter { !it.infrared && it.type.equals("Hub 2", ignoreCase = true) }.forEach { device ->
+            client.getHubEnvironment(device).onSuccess { state ->
+                next[device.deviceId] = state
+            }
+        }
+        _hubEnvironmentStates.value = next
+    }
+
+    private fun refreshHubEnvironmentOnly() {
+        val client = clientOrNull() ?: return
+        val hubs = _devices.value.filter {
+            !it.infrared && it.type.equals("Hub 2", ignoreCase = true)
+        }
+        if (hubs.isEmpty()) return
+        viewModelScope.launch {
+            syncHubEnvironmentStates(client, hubs)
         }
     }
 
@@ -1458,9 +1494,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val contextDevices = devicesWithRooms()
         val devices = contextDevices.distinctBy { it.deviceId }.joinToString("\n") { device ->
             val actualName = _devices.value.firstOrNull { it.deviceId == device.deviceId }?.name
+            val environment = _hubEnvironmentStates.value[device.deviceId]
             "- ${device.name} | type=${device.type} | id=${device.deviceId}" +
                 (actualName?.let { " | actualName=$it" } ?: "") +
-                " | room=${device.room.orEmpty()}"
+                " | room=${device.room.orEmpty()}" +
+                (environment?.let {
+                    " | temperatureC=" + String.format("%.1f", it.temperatureC) +
+                        " | humidity=" + it.humidityPercent +
+                        (it.lightLevel?.let { level -> " | lightLevel=" + level } ?: "")
+                } ?: "")
         }.ifBlank { "- none" }
         val alarms = _alarms.value.joinToString("\n") {
             "- ${it.label} | ${String.format("%02d:%02d", it.hour, it.minute)} | id=${it.id} | enabled=${it.enabled}"

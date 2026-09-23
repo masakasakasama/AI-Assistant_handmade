@@ -82,6 +82,7 @@ import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.WeatherClient
 import com.tatsu.homehub.data.WeatherSnapshot
 import com.tatsu.homehub.model.AcControlState
+import com.tatsu.homehub.model.HubEnvironmentState
 import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.UpdateInfo
@@ -108,6 +109,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val roomDevices = devices.map { TemporaryRoomAssignments.applyRoom(it, temporaryRoomAssignments[it.deviceId]) }
     val alarms by viewModel.alarms.collectAsState()
     val acStates by viewModel.acStates.collectAsState()
+    val hubEnvironmentStates by viewModel.hubEnvironmentStates.collectAsState()
     val weather by viewModel.weather.collectAsState()
     val updateInfo by viewModel.updateInfo.collectAsState()
     val loading by viewModel.loading.collectAsState()
@@ -185,6 +187,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 switchBotConfigured = switchBotConfigured,
                                 aiOnline = aiBackendOnline,
                                 tablet = tablet,
+                                hubEnvironmentStates = hubEnvironmentStates,
                                 onPower = viewModel::power
                             )
                         }
@@ -232,6 +235,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 devices = devices,
                                 roomAssignments = temporaryRoomAssignments,
                                 acStates = acStates,
+                                hubEnvironmentStates = hubEnvironmentStates,
                                 onPower = viewModel::power,
                                 onAcChange = viewModel::setAirConditioner,
                                 onAcPower = viewModel::setAirConditionerPower,
@@ -388,6 +392,7 @@ private fun DashboardHeader(weather: WeatherSnapshot?, tablet: Boolean, loading:
 @Composable
 private fun SummaryGrid(devices: List<SwitchBotDevice>, alarms: List<LocalAlarm>,
     weather: WeatherSnapshot?, switchBotConfigured: Boolean, aiOnline: Boolean?, tablet: Boolean,
+    hubEnvironmentStates: Map<String, HubEnvironmentState>,
     onPower: (SwitchBotDevice, Boolean) -> Unit) {
     val nextAlarm = alarms.filter { it.enabled }.minByOrNull { AlarmScheduler.nextTrigger(it) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -409,7 +414,11 @@ private fun SummaryGrid(devices: List<SwitchBotDevice>, alarms: List<LocalAlarm>
         devices.filterNot { it.isAirConditioner }.take(if (tablet) 4 else 2).chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { device -> Box(Modifier.weight(1f)) {
-                    FavoriteDeviceTile(device, onPower = { onPower(device, it) })
+                    FavoriteDeviceTile(
+                        device = device,
+                        environment = hubEnvironmentStates[device.deviceId],
+                        onPower = { onPower(device, it) }
+                    )
                 } }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
@@ -435,7 +444,11 @@ private fun AssistantEntry(online: Boolean?, onOpen: () -> Unit) {
 }
 
 @Composable
-private fun FavoriteDeviceTile(device: SwitchBotDevice, onPower: (Boolean) -> Unit) {
+private fun FavoriteDeviceTile(
+    device: SwitchBotDevice,
+    environment: HubEnvironmentState? = null,
+    onPower: (Boolean) -> Unit
+) {
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.padding(16.dp)) {
             Icon(deviceIcon(device), null, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.primary)
@@ -447,13 +460,28 @@ private fun FavoriteDeviceTile(device: SwitchBotDevice, onPower: (Boolean) -> Un
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                device.type,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (environment != null) {
+                Text(
+                    String.format("%.1f℃ · 湿度%d%%", environment.temperatureC, environment.humidityPercent),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                environment.lightLevel?.let { level ->
+                    Text(
+                        "明るさレベル $level / 20",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Text(
+                    device.type,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(onClick = { onPower(true) }, modifier = Modifier.weight(1f)) { Text("ON") }
@@ -590,6 +618,7 @@ private fun DeviceList(
     devices: List<SwitchBotDevice>,
     roomAssignments: Map<String, String>,
     acStates: Map<String, AcControlState>,
+    hubEnvironmentStates: Map<String, HubEnvironmentState>,
     onPower: (SwitchBotDevice, Boolean) -> Unit,
     onAcChange: (SwitchBotDevice, AcControlState) -> Unit,
     onAcPower: (SwitchBotDevice, Boolean) -> Unit,
@@ -626,7 +655,11 @@ private fun DeviceList(
                         onPowerChange = { onAcPower(device, it) }
                     )
                 } else {
-                    FavoriteDeviceTile(device = displayDevice, onPower = { onPower(device, it) })
+                    FavoriteDeviceTile(
+                        device = displayDevice,
+                        environment = hubEnvironmentStates[device.deviceId],
+                        onPower = { onPower(device, it) }
+                    )
                 }
                 Text("SwitchBot名: ${device.name}", style = MaterialTheme.typography.bodySmall)
                 TemporaryRoomSelector(
