@@ -382,6 +382,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun power(device: SwitchBotDevice, on: Boolean) {
+        if (!device.supportsDirectPowerControl) {
+            _message.value = device.name + ": 操作対象ではありません"
+            return
+        }
         val client = clientOrNull() ?: return
         viewModelScope.launch {
             val result = if (on) client.turnOn(device.deviceId) else client.turnOff(device.deviceId)
