@@ -2,7 +2,7 @@ package com.tatsu.homehub.data
 
 import com.tatsu.homehub.model.SwitchBotDevice
 
-/** Local, temporary aliases for the devices the user actually synchronized from SwitchBot. */
+/** Persistent local room assignments and aliases for the devices the user actually synchronized from SwitchBot. */
 object TemporaryRoomAssignments {
     const val BEDROOM = "寝室"
     const val LIVING_ROOM = "リビング"
@@ -26,7 +26,7 @@ object TemporaryRoomAssignments {
         return assigned
     }
 
-    fun applyToComparison(device: SwitchBotDevice, room: String?): SwitchBotDevice {
+    fun applyRoom(device: SwitchBotDevice, room: String?): SwitchBotDevice {
         if (room.isNullOrBlank() || room == UNASSIGNED) return device
         val baseName = stripRoom(device.name)
         val label = when {
@@ -34,14 +34,14 @@ object TemporaryRoomAssignments {
             isLight(device) -> "照明"
             else -> baseName
         }
-        return device.copy(name = "${room}の${label}")
+        return device.copy(name = "${room}の${label}", room = room, originalName = device.originalName ?: device.name)
     }
 
     fun explicitRoom(name: String): String? {
         val normalized = name.lowercase()
         return when {
-            "寝室" in name || "bedroom" in normalized -> BEDROOM
-            "リビング" in name || "living room" in normalized || "livingroom" in normalized -> LIVING_ROOM
+            "寝室" in name || "bedroom" in normalized || "schlafzimmer" in normalized -> BEDROOM
+            "リビング" in name || "living room" in normalized || "livingroom" in normalized || "wohnzimmer" in normalized -> LIVING_ROOM
             "その他" in name -> OTHER
             else -> null
         }

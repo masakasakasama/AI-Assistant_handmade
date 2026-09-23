@@ -162,20 +162,8 @@ class ActionResolver(
             "goal does not match a supported device capability", stateFetchMs, resolverStarted, policyStarted)
     }
 
-    private fun resolveTargets(intent: DeviceIntent, devices: List<SwitchBotDevice>): List<SwitchBotDevice> {
-        val target = intent.target?.trim().orEmpty()
-        val normalized = normalize(target)
-        val named = if (normalized.isBlank() || normalized == "air_conditioner") emptyList() else devices.filter {
-            val name = normalize(it.name)
-            name == normalized || name.contains(normalized) || normalized.contains(name)
-        }
-        if (named.isNotEmpty()) return named.distinctBy { it.deviceId }
-        return when (intent.targetType ?: target) {
-            "air_conditioner" -> devices.filter { it.isAirConditioner }
-            "light" -> devices.filter { it.type.contains("light", true) || it.type.contains("bulb", true) }
-            else -> emptyList()
-        }.distinctBy { it.deviceId }
-    }
+    private fun resolveTargets(intent: DeviceIntent, devices: List<SwitchBotDevice>): List<SwitchBotDevice> =
+        DeviceTargetResolver.resolve(intent.target, intent.targetType, devices)
 
     private fun plan(
         intent: DeviceIntent, device: SwitchBotDevice?, state: SwitchBotDeviceState?, action: ResolvedAction?,
