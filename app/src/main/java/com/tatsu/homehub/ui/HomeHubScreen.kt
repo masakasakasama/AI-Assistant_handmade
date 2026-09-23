@@ -411,7 +411,12 @@ private fun SummaryGrid(devices: List<SwitchBotDevice>, alarms: List<LocalAlarm>
                     MaterialTheme.colorScheme.secondary)
             }
         }
-        devices.filterNot { it.isAirConditioner }.take(if (tablet) 4 else 2).chunked(2).forEach { row ->
+        devices
+            .filterNot { it.isAirConditioner }
+            .filter { it.supportsDirectPowerControl || hubEnvironmentStates[it.deviceId] != null }
+            .take(if (tablet) 4 else 2)
+            .chunked(2)
+            .forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { device -> Box(Modifier.weight(1f)) {
                     FavoriteDeviceTile(
@@ -482,10 +487,12 @@ private fun FavoriteDeviceTile(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Button(onClick = { onPower(true) }, modifier = Modifier.weight(1f)) { Text("ON") }
-                OutlinedButton(onClick = { onPower(false) }, modifier = Modifier.weight(1f)) { Text("OFF") }
+            if (device.supportsDirectPowerControl) {
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Button(onClick = { onPower(true) }, modifier = Modifier.weight(1f)) { Text("ON") }
+                    OutlinedButton(onClick = { onPower(false) }, modifier = Modifier.weight(1f)) { Text("OFF") }
+                }
             }
         }
     }
