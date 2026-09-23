@@ -30,6 +30,13 @@ data class SwitchBotDeviceState(
     val rawJson: String
 )
 
+data class HubEnvironmentState(
+    val temperatureC: Double,
+    val humidityPercent: Int,
+    val lightLevel: Int?,
+    val retrievedAtElapsedMs: Long
+)
+
 data class LocalAlarm(
     val id: String,
     val hour: Int,
