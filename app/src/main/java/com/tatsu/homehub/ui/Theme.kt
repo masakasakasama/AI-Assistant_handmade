@@ -1,55 +1,52 @@
 package com.tatsu.homehub.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFFE8BD94),
-    onPrimary = Color(0xFF241B12),
-    primaryContainer = Color(0xFF343027),
-    onPrimaryContainer = Color(0xFFF4DFC9),
-    secondary = Color(0xFFA5C5AE),
-    secondaryContainer = Color(0xFF35473B),
-    onSecondaryContainer = Color(0xFFE1EDDF),
-    onSecondary = Color(0xFF052C1A),
-    tertiary = Color(0xFFE6BA82),
-    background = Color(0xFF121513),
-    onBackground = Color(0xFFF2F1EA),
-    surface = Color(0xFF1E2420),
-    onSurface = Color(0xFFF2F1EA),
-    surfaceVariant = Color(0xFF2B332D),
-    onSurfaceVariant = Color(0xFFB3BDB4),
-    outline = Color(0xFF465148)
-)
+/**
+ * Visual system aligned with the Daily Check reference:
+ * near-black/navy canvas, cool outlined cards, white hierarchy and electric-cyan accent.
+ * The home hub is a permanently displayed appliance UI, so this theme is intentionally
+ * dark-first instead of following the system theme.
+ */
+private val DailyCheckDarkColors = darkColorScheme(
+    primary = Color(0xFF19A7FF),
+    onPrimary = Color(0xFF001725),
+    primaryContainer = Color(0xFF08253A),
+    onPrimaryContainer = Color(0xFFD9F1FF),
 
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF795839),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFEEE2D3),
-    onPrimaryContainer = Color(0xFF443420),
-    secondary = Color(0xFF426B52),
-    secondaryContainer = Color(0xFFDCE8D9),
-    onSecondaryContainer = Color(0xFF27452F),
-    onSecondary = Color.White,
-    tertiary = Color(0xFF906538),
-    background = Color(0xFFF5F4EE),
-    onBackground = Color(0xFF232A24),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF232A24),
-    surfaceVariant = Color(0xFFEAEDE5),
-    onSurfaceVariant = Color(0xFF646E65),
-    outline = Color(0xFFCCD3C9)
+    secondary = Color(0xFF20D6A3),
+    onSecondary = Color(0xFF001D15),
+    secondaryContainer = Color(0xFF07362D),
+    onSecondaryContainer = Color(0xFFC7F8E9),
+
+    tertiary = Color(0xFFFF536B),
+    onTertiary = Color(0xFF2B0008),
+    tertiaryContainer = Color(0xFF3A1019),
+    onTertiaryContainer = Color(0xFFFFD9DE),
+
+    background = Color(0xFF02080D),
+    onBackground = Color(0xFFF4F8FC),
+
+    surface = Color(0xFF07131D),
+    onSurface = Color(0xFFF4F8FC),
+    surfaceVariant = Color(0xFF0A1925),
+    onSurfaceVariant = Color(0xFFA8B7C5),
+
+    outline = Color(0xFF18364B),
+    outlineVariant = Color(0xFF102A3B),
+
+    error = Color(0xFFFF536B),
+    onError = Color(0xFF2B0008)
 )
 
 @Composable
 fun HomeHubTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
+        colorScheme = DailyCheckDarkColors,
         typography = Typography(),
         content = content
     )
