@@ -11,6 +11,12 @@ data class SwitchBotDevice(
 ) {
     val isAirConditioner: Boolean
         get() = type.equals("Air Conditioner", ignoreCase = true)
+
+    val isHub: Boolean
+        get() = type.contains("hub", ignoreCase = true)
+
+    val supportsDirectPowerControl: Boolean
+        get() = !isHub
 }
 
 data class AcControlState(
