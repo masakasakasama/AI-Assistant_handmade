@@ -193,8 +193,9 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                             item {
                                 AirConditionerCard(
                                     device = ac,
-                                    state = acStates[ac.deviceId] ?: AcControlState(),
-                                    onApply = { viewModel.setAirConditioner(ac, it) }
+                                    state = acStates[ac.deviceId],
+                                    onApply = { viewModel.setAirConditioner(ac, it) },
+                                    onPowerChange = { viewModel.setAirConditionerPower(ac, it) }
                                 )
                             }
                         }
@@ -233,6 +234,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 acStates = acStates,
                                 onPower = viewModel::power,
                                 onAcChange = viewModel::setAirConditioner,
+                                onAcPower = viewModel::setAirConditionerPower,
                                 onSetRoom = viewModel::setTemporaryRoom
                             )
                         }
@@ -483,10 +485,18 @@ private fun InfoTile(icon: ImageVector, title: String, value: String, subtitle: 
 @Composable
 private fun AirConditionerCard(
     device: SwitchBotDevice,
-    state: AcControlState,
-    onApply: (AcControlState) -> Unit
+    state: AcControlState?,
+    onApply: (AcControlState) -> Unit,
+    onPowerChange: (Boolean) -> Unit
 ) {
-    var draft by remember(device.deviceId, state) { mutableStateOf(state) }
+    var draft by remember(device.deviceId, state) { mutableStateOf(state ?: AcControlState()) }
+    val stateKnown = state != null
+
+    fun applySettings(next: AcControlState) {
+        val effective = next.copy(power = true)
+        draft = effective
+        onApply(effective)
+    }
 
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -494,12 +504,25 @@ private fun AirConditionerCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("エアコン", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text(device.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        if (stateKnown) "Tatsu Home 最終送信値" else "未同期 · 操作後の値を保存します",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Switch(checked = draft.power, onCheckedChange = { draft = draft.copy(power = it) })
+                Switch(
+                    checked = draft.power,
+                    onCheckedChange = { on ->
+                        draft = draft.copy(power = on)
+                        onPowerChange(on)
+                    }
+                )
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { draft = draft.copy(temperature = (draft.temperature - 1).coerceAtLeast(16)) }) {
+                TextButton(onClick = {
+                    applySettings(draft.copy(temperature = (draft.temperature - 1).coerceAtLeast(16)))
+                }) {
                     Text("−", fontSize = 28.sp)
                 }
                 Text(
@@ -508,7 +531,9 @@ private fun AirConditionerCard(
                     fontSize = 44.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-                TextButton(onClick = { draft = draft.copy(temperature = (draft.temperature + 1).coerceAtMost(30)) }) {
+                TextButton(onClick = {
+                    applySettings(draft.copy(temperature = (draft.temperature + 1).coerceAtMost(30)))
+                }) {
                     Text("+", fontSize = 26.sp)
                 }
             }
@@ -521,7 +546,7 @@ private fun AirConditionerCard(
                 listOf(1 to "Auto", 2 to "冷房", 3 to "除湿", 4 to "送風", 5 to "暖房").forEach { pair ->
                     FilterChip(
                         selected = draft.mode == pair.first,
-                        onClick = { draft = draft.copy(mode = pair.first) },
+                        onClick = { applySettings(draft.copy(mode = pair.first)) },
                         label = { Text(pair.second) }
                     )
                 }
@@ -536,18 +561,26 @@ private fun AirConditionerCard(
                 listOf(1 to "Auto", 2 to "Low", 3 to "Mid", 4 to "High").forEach { pair ->
                     FilterChip(
                         selected = draft.fanSpeed == pair.first,
-                        onClick = { draft = draft.copy(fanSpeed = pair.first) },
+                        onClick = { applySettings(draft.copy(fanSpeed = pair.first)) },
                         label = { Text(pair.second) }
                     )
                 }
             }
 
             Spacer(Modifier.height(14.dp))
-            Button(
-                onClick = { onApply(draft) },
+            OutlinedButton(
+                onClick = { applySettings(draft) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp)
-            ) { Text("適用") }
+            ) { Text("現在の設定を再送") }
+
+            if (device.infrared) {
+                Text(
+                    "SwitchBotの赤外線エアコンはOpenAPIから現在の設定値を読み戻せません。Tatsu Homeで送信に成功した値を保存して表示します。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -559,6 +592,7 @@ private fun DeviceList(
     acStates: Map<String, AcControlState>,
     onPower: (SwitchBotDevice, Boolean) -> Unit,
     onAcChange: (SwitchBotDevice, AcControlState) -> Unit,
+    onAcPower: (SwitchBotDevice, Boolean) -> Unit,
     onSetRoom: (SwitchBotDevice, String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -587,8 +621,9 @@ private fun DeviceList(
                 if (device.isAirConditioner) {
                     AirConditionerCard(
                         device = displayDevice,
-                        state = acStates[device.deviceId] ?: AcControlState(),
-                        onApply = { onAcChange(device, it) }
+                        state = acStates[device.deviceId],
+                        onApply = { onAcChange(device, it) },
+                        onPowerChange = { onAcPower(device, it) }
                     )
                 } else {
                     FavoriteDeviceTile(device = displayDevice, onPower = { onPower(device, it) })
