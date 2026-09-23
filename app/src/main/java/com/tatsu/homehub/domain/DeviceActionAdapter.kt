@@ -30,8 +30,12 @@ class SwitchBotActionAdapter(
             "power_on", "power_off" -> if (device.isAirConditioner) {
                 val previous = getKnownAcState(device.deviceId)
                 val next = previous.copy(power = action.type == "power_on")
-                client.setAirConditioner(device.deviceId, next.temperature, next.mode, next.fanSpeed, next.power)
-                    .onSuccess { saveKnownAcState(device.deviceId, next) }
+                val result = if (next.power) {
+                    client.turnOn(device.deviceId)
+                } else {
+                    client.turnOff(device.deviceId)
+                }
+                result.onSuccess { saveKnownAcState(device.deviceId, next) }
             } else if (action.type == "power_on") {
                 client.turnOn(device.deviceId)
             } else {

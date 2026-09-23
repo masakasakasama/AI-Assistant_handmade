@@ -2,6 +2,7 @@ package com.tatsu.homehub.data
 
 import android.content.Context
 import com.tatsu.homehub.BuildConfig
+import com.tatsu.homehub.model.AcControlState
 import org.json.JSONObject
 
 class AppPrefs(context: Context) {
@@ -67,6 +68,42 @@ class AppPrefs(context: Context) {
         prefs.edit().putString(KEY_TEMPORARY_ROOM_ASSIGNMENTS, json.toString()).apply()
     }
 
+    fun loadAcControlStates(): Map<String, AcControlState> {
+        val raw = prefs.getString(KEY_AC_CONTROL_STATES, null) ?: return emptyMap()
+        return runCatching {
+            val json = JSONObject(raw)
+            buildMap {
+                json.keys().forEach { deviceId ->
+                    val state = json.optJSONObject(deviceId) ?: return@forEach
+                    put(
+                        deviceId,
+                        AcControlState(
+                            temperature = state.optInt("temperature", 26).coerceIn(16, 30),
+                            mode = state.optInt("mode", 2).coerceIn(1, 5),
+                            fanSpeed = state.optInt("fanSpeed", 1).coerceIn(1, 4),
+                            power = state.optBoolean("power", false)
+                        )
+                    )
+                }
+            }
+        }.getOrDefault(emptyMap())
+    }
+
+    fun saveAcControlStates(states: Map<String, AcControlState>) {
+        val json = JSONObject()
+        states.forEach { (deviceId, state) ->
+            json.put(
+                deviceId,
+                JSONObject()
+                    .put("temperature", state.temperature)
+                    .put("mode", state.mode)
+                    .put("fanSpeed", state.fanSpeed)
+                    .put("power", state.power)
+            )
+        }
+        prefs.edit().putString(KEY_AC_CONTROL_STATES, json.toString()).apply()
+    }
+
     fun saveWeatherCache(snapshot: WeatherSnapshot) {
         val json = JSONObject()
             .put("label", snapshot.label)
@@ -101,6 +138,7 @@ class AppPrefs(context: Context) {
         private const val KEY_VOICE_LANGUAGE = "voice_language_tag"
         private const val KEY_VOICE_AUTO_MIGRATED = "voice_language_auto_migrated_v044"
         private const val KEY_TEMPORARY_ROOM_ASSIGNMENTS = "temporary_switchbot_room_assignments_v1"
+        private const val KEY_AC_CONTROL_STATES = "switchbot_ac_control_states_v1"
 
         const val VOICE_LANGUAGE_AUTO = "auto"
 

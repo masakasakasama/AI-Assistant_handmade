@@ -77,7 +77,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _alarms = MutableStateFlow<List<LocalAlarm>>(emptyList())
     val alarms: StateFlow<List<LocalAlarm>> = _alarms.asStateFlow()
 
-    private val _acStates = MutableStateFlow<Map<String, AcControlState>>(emptyMap())
+    private val _acStates = MutableStateFlow(appPrefs.loadAcControlStates())
     val acStates: StateFlow<Map<String, AcControlState>> = _acStates.asStateFlow()
 
     private val _weather = MutableStateFlow<WeatherSnapshot?>(appPrefs.loadWeatherCache())
@@ -330,6 +330,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 .onSuccess { list ->
                     updateTemporaryRoomAssignments(list)
                     _devices.value = list
+                    syncReadableAirConditionerStates(client, list)
                     if (showMessage) {
                         _message.value = list.size.toString() + "台を同期しました"
                     }
@@ -382,26 +383,95 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setAirConditioner(device: SwitchBotDevice, state: AcControlState) {
+    fun setAirConditionerPower(device: SwitchBotDevice, on: Boolean) {
         val client = clientOrNull() ?: return
-        _acStates.value = _acStates.value + (device.deviceId to state)
-
+        val previous = _acStates.value[device.deviceId]
+        val next = (previous ?: AcControlState()).copy(power = on)
+        setOptimisticAcState(device.deviceId, next)
         viewModelScope.launch {
-            client.setAirConditioner(
-                deviceId = device.deviceId,
-                temperature = state.temperature,
-                mode = state.mode,
-                fanSpeed = state.fanSpeed,
-                power = state.power
-            )
+            val result = if (on) client.turnOn(device.deviceId) else client.turnOff(device.deviceId)
+            result
                 .onSuccess {
-                    _message.value = device.name + ": " +
-                        state.temperature.toString() + "℃ " + modeName(state.mode)
+                    saveKnownAcState(device.deviceId, next)
+                    _message.value = device.name + ": " + if (on) "ON" else "OFF"
                 }
                 .onFailure { error ->
+                    restoreAcState(device.deviceId, previous)
                     _message.value = device.name + ": " + (error.message ?: "operation failed")
                 }
         }
+    }
+
+    fun setAirConditioner(device: SwitchBotDevice, state: AcControlState) {
+        val client = clientOrNull() ?: return
+        // Temperature / mode / fan changes are sent as setAll and explicitly power the AC on.
+        // This avoids the old bug where an unknown local default (power=false) sent "...off".
+        val effectiveState = state.copy(
+            temperature = state.temperature.coerceIn(16, 30),
+            mode = state.mode.coerceIn(1, 5),
+            fanSpeed = state.fanSpeed.coerceIn(1, 4),
+            power = true
+        )
+
+        val previous = _acStates.value[device.deviceId]
+        setOptimisticAcState(device.deviceId, effectiveState)
+        viewModelScope.launch {
+            client.setAirConditioner(
+                deviceId = device.deviceId,
+                temperature = effectiveState.temperature,
+                mode = effectiveState.mode,
+                fanSpeed = effectiveState.fanSpeed,
+                power = true
+            )
+                .onSuccess {
+                    saveKnownAcState(device.deviceId, effectiveState)
+                    _message.value = device.name + ": " +
+                        effectiveState.temperature.toString() + "℃ " + modeName(effectiveState.mode)
+                }
+                .onFailure { error ->
+                    restoreAcState(device.deviceId, previous)
+                    _message.value = device.name + ": " + (error.message ?: "operation failed")
+                }
+        }
+    }
+
+    private suspend fun syncReadableAirConditionerStates(
+        client: SwitchBotClient,
+        devices: List<SwitchBotDevice>
+    ) {
+        devices.filter { it.isAirConditioner && !it.infrared }.forEach { device ->
+            client.getDeviceState(device).onSuccess { remote ->
+                val previous = _acStates.value[device.deviceId] ?: AcControlState()
+                val temperature = remote.temperature ?: return@onSuccess
+                saveKnownAcState(
+                    device.deviceId,
+                    AcControlState(
+                        temperature = temperature.coerceIn(16, 30),
+                        mode = remote.mode ?: previous.mode,
+                        fanSpeed = remote.fanSpeed ?: previous.fanSpeed,
+                        power = remote.power ?: previous.power
+                    )
+                )
+            }
+        }
+    }
+
+    private fun setOptimisticAcState(deviceId: String, state: AcControlState) {
+        _acStates.value = _acStates.value + (deviceId to state)
+    }
+
+    private fun restoreAcState(deviceId: String, previous: AcControlState?) {
+        _acStates.value = if (previous == null) {
+            _acStates.value - deviceId
+        } else {
+            _acStates.value + (deviceId to previous)
+        }
+    }
+
+    private fun saveKnownAcState(deviceId: String, state: AcControlState) {
+        val next = _acStates.value + (deviceId to state)
+        _acStates.value = next
+        appPrefs.saveAcControlStates(next)
     }
 
     fun saveAlarm(
@@ -1137,7 +1207,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val adapter = SwitchBotActionAdapter(
             client,
             getKnownAcState = { id -> _acStates.value[id] ?: AcControlState() },
-            saveKnownAcState = { id, state -> _acStates.value = _acStates.value + (id to state) }
+            saveKnownAcState = { id, state -> saveKnownAcState(id, state) }
         )
         val adapterStarted = android.os.SystemClock.elapsedRealtime()
         _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(
@@ -1279,7 +1349,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val adapter = SwitchBotActionAdapter(
             client,
             getKnownAcState = { id -> _acStates.value[id] ?: AcControlState() },
-            saveKnownAcState = { id, state -> _acStates.value = _acStates.value + (id to state) }
+            saveKnownAcState = { id, state -> saveKnownAcState(id, state) }
         )
         val execution = adapter.execute(plan)
         _voiceState.value = _voiceState.value.copy(actionPlanJson = actionPlanDiagnostic(null, plan, execution))
