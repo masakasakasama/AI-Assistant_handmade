@@ -78,7 +78,7 @@ class ActionResolverTest {
         val actualDevices = listOf(bedroomAc, livingAc, bedroomLight, livingLight)
         val rooms = TemporaryRoomAssignments.inferDefaults(actualDevices)
         val comparisonDevices = actualDevices.map { device ->
-            TemporaryRoomAssignments.applyToComparison(device, rooms[device.deviceId])
+            TemporaryRoomAssignments.applyRoom(device, rooms[device.deviceId])
         }
 
         assertEquals("寝室", rooms[bedroomAc.deviceId])
@@ -102,7 +102,7 @@ class ActionResolverTest {
         val actualDevices = listOf(bedroomAc, livingAc)
         val rooms = TemporaryRoomAssignments.inferDefaults(actualDevices)
         val comparisonDevices = actualDevices.map { device ->
-            TemporaryRoomAssignments.applyToComparison(device, rooms[device.deviceId])
+            TemporaryRoomAssignments.applyRoom(device, rooms[device.deviceId])
         }
         val genericIntent = DeviceIntent(
             route = "device_action", target = null, targetType = "air_conditioner",
@@ -124,4 +124,38 @@ class ActionResolverTest {
         assertEquals(ActionDecision.FALLBACK, checked.decision)
         assertEquals(ActionPolicy.BLOCKED, checked.policy)
     }
+    @Test fun bedroomLightSynonymsSelectSameRealDevice() {
+        val devices = listOf(
+            TemporaryRoomAssignments.applyRoom(SwitchBotDevice("bed", "Light", "Light", true), "寝室"),
+            TemporaryRoomAssignments.applyRoom(SwitchBotDevice("living", "Light 2", "Light", true), "リビング")
+        )
+        for (target in listOf("寝室の電気", "寝室照明", "bedroom light", "Schlafzimmer Licht")) {
+            assertEquals("bed", DeviceTargetResolver.resolve(target, "light", devices).single().deviceId)
+        }
+        assertEquals(2, DeviceTargetResolver.resolve("電気", "light", devices).size)
+    }
+
+    @Test fun explicitMissingRoomNeverFallsBackToAnotherRoom() {
+        val living = TemporaryRoomAssignments.applyRoom(ac, "リビング")
+        assertEquals(emptyList<SwitchBotDevice>(), DeviceTargetResolver.resolve("寝室のエアコン", "air_conditioner", listOf(living)))
+        assertEquals(emptyList<SwitchBotDevice>(), DeviceTargetResolver.resolve("書斎のエアコン", "air_conditioner", listOf(living)))
+    }
+
+    @Test fun changingRoomPreservesDeviceIdAndOriginalName() {
+        val raw = SwitchBotDevice("actual-id", "寝室の電気", "Light", true)
+        val assigned = TemporaryRoomAssignments.applyRoom(raw, "リビング")
+        assertEquals("actual-id", assigned.deviceId)
+        assertEquals(raw.name, assigned.originalName)
+        assertEquals("actual-id", DeviceTargetResolver.resolve("リビングの電気", "light", listOf(assigned)).single().deviceId)
+        assertEquals(emptyList<SwitchBotDevice>(), DeviceTargetResolver.resolve("寝室の電気", "light", listOf(assigned)))
+    }
+
+    @Test fun sameRoomDuplicatesRemainAmbiguous() {
+        val devices = listOf(ac.copy(deviceId = "a"), ac.copy(deviceId = "b")).map {
+            TemporaryRoomAssignments.applyRoom(it, "寝室")
+        }
+        assertEquals(2, DeviceTargetResolver.resolve("寝室のエアコン", "air_conditioner", devices).size)
+        assertEquals("b", DeviceTargetResolver.resolve("b", "air_conditioner", devices).single().deviceId)
+    }
+
 }

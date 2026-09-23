@@ -105,6 +105,7 @@ private enum class DashboardTab(val label: String, val icon: ImageVector) {
 fun HomeHubScreen(viewModel: HomeViewModel) {
     val devices by viewModel.devices.collectAsState()
     val temporaryRoomAssignments by viewModel.temporaryRoomAssignments.collectAsState()
+    val roomDevices = devices.map { TemporaryRoomAssignments.applyRoom(it, temporaryRoomAssignments[it.deviceId]) }
     val alarms by viewModel.alarms.collectAsState()
     val acStates by viewModel.acStates.collectAsState()
     val weather by viewModel.weather.collectAsState()
@@ -178,7 +179,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                     DashboardTab.HOME -> {
                         item {
                             SummaryGrid(
-                                devices = devices,
+                                devices = roomDevices,
                                 alarms = alarms,
                                 weather = weather,
                                 switchBotConfigured = switchBotConfigured,
@@ -187,7 +188,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 onPower = viewModel::power
                             )
                         }
-                        val ac = devices.firstOrNull { it.isAirConditioner }
+                        val ac = roomDevices.firstOrNull { it.isAirConditioner }
                         if (ac != null) {
                             item {
                                 AirConditionerCard(
@@ -561,14 +562,14 @@ private fun DeviceList(
     onSetRoom: (SwitchBotDevice, String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("SwitchBot家電", "接続された実機を一時的に部屋分け")
+        SectionTitle("SwitchBot家電", "部屋ごとに操作・音声で呼びかけ")
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.tertiaryContainer
         ) {
             Text(
-                "下の選択はこの端末だけの仮割当です。初期値は各家電種別の1台目を寝室、2台目をリビングに割り当てます（既存の部屋名があれば優先）。AI比較はこの実機を使い、比較中は操作を送信しません。",
+                "部屋を選ぶと「寝室のエアコン」「リビングの電気」と呼べます。以前の割当を引き継いでいます。実際の設置場所に合わせて選び直してください。設定はTatsu Homeに保存されます。",
                 modifier = Modifier.padding(14.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -577,9 +578,12 @@ private fun DeviceList(
         if (devices.isEmpty()) {
             EmptyCard("SwitchBotが未接続", "設定からOpen Token / Secret Keyを登録")
         } else {
-            devices.forEach { device ->
+            devices.groupBy { roomAssignments[it.deviceId]?.takeIf(String::isNotBlank) ?: TemporaryRoomAssignments.UNASSIGNED }
+                .toSortedMap(compareBy { TemporaryRoomAssignments.choices.indexOf(it) }).forEach { (room, roomDevices) ->
+                SectionTitle(room, "${roomDevices.size}台")
+                roomDevices.forEach { device ->
                 val assignedRoom = roomAssignments[device.deviceId]?.takeIf(String::isNotBlank)
-                val displayDevice = TemporaryRoomAssignments.applyToComparison(device, assignedRoom)
+                val displayDevice = TemporaryRoomAssignments.applyRoom(device, assignedRoom)
                 if (device.isAirConditioner) {
                     AirConditionerCard(
                         device = displayDevice,
@@ -589,11 +593,13 @@ private fun DeviceList(
                 } else {
                     FavoriteDeviceTile(device = displayDevice, onPower = { onPower(device, it) })
                 }
+                Text("SwitchBot名: ${device.name}", style = MaterialTheme.typography.bodySmall)
                 TemporaryRoomSelector(
                     selectedRoom = roomAssignments[device.deviceId]?.takeIf(String::isNotBlank)
                         ?: TemporaryRoomAssignments.UNASSIGNED,
                     onSelect = { onSetRoom(device, it) }
                 )
+                }
             }
         }
     }
@@ -602,7 +608,7 @@ private fun DeviceList(
 @Composable
 private fun TemporaryRoomSelector(selectedRoom: String, onSelect: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("AI比較用の一時割当", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("部屋の設定", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1226,7 +1232,7 @@ private fun comparisonBody(result: AiDispatchResult, weather: WeatherSnapshot?, 
         runCatching { org.json.JSONObject(actionPlanJson.orEmpty()) }.getOrNull()?.let { plan ->
             plan.optString("target").takeIf { it.isNotBlank() && it != "null" }?.let { target ->
                 "対象: $target" + plan.optString("temporaryRoom").takeIf { it.isNotBlank() && it != "null" }
-                    ?.let { " · ${it}へ一時割当" }.orEmpty()
+                    ?.let { " · ${it}" }.orEmpty()
             }
         },
         runCatching { org.json.JSONObject(actionPlanJson.orEmpty()) }.getOrNull()?.let { plan ->

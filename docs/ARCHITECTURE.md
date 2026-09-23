@@ -92,3 +92,14 @@ API停止→手動操作、ネット断→ローカルアラーム、音声端�
 - https://developer.android.com/privacy-and-security/direct-boot
 - https://vercel.com/docs/functions/websockets
 - https://wiki.seeedstudio.com/respeaker_xvf3800_introduction/
+
+
+## v0.4.13: 共通の部屋設定
+
+- 実際のSwitchBot deviceIdに紐づく端末内の部屋設定を、ホーム画面・家電画面・Luna/Jev通常音声・比較PoCで共用する。
+- v0.4.12の保存済み割当と保存キーを継承する。再同期で一時的に消えた機器の割当も保持する。
+- SwitchBot APIから部屋所属を取得したと見なさない。初期割当は既存名称または暫定値であり、家電画面で設置場所に合わせて編集できる。
+- 状態取得前とResolver内で同じDeviceTargetResolverを使う。部屋指定は必須条件として扱い、別室へのフォールバックを禁止する。
+- 「電気」「照明」「ライト」、日英独の寝室・リビング呼称を正規化する。同室同種が複数ある場合は一意に決めず確認する。
+- 部屋設定変更時に保留中の確認操作を破棄する。比較PoCは操作送信を行わない。
+- 赤外線の状態取得不可、共通Executor、操作結果不明の扱いは別課題。本変更で実状態の保証やSwitchBotアプリへの部屋設定の書き戻しは行わない。
