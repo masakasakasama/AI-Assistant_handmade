@@ -631,51 +631,143 @@ private fun DeviceList(
     onAcPower: (SwitchBotDevice, Boolean) -> Unit,
     onSetRoom: (SwitchBotDevice, String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("SwitchBot家電", "部屋ごとに操作・音声で呼びかけ")
-        Surface(
+    var editingRooms by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.tertiaryContainer
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "部屋を選ぶと「寝室のエアコン」「リビングの電気」と呼べます。以前の割当を引き継いでいます。実際の設置場所に合わせて選び直してください。設定はTatsu Homeに保存されます。",
-                modifier = Modifier.padding(14.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
-            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "SwitchBot家電",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "部屋ごとに表示",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = { editingRooms = !editingRooms }) {
+                Icon(
+                    if (editingRooms) Icons.Outlined.Done else Icons.Outlined.Edit,
+                    contentDescription = null
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(if (editingRooms) "完了" else "部屋を編集")
+            }
         }
+
+        if (editingRooms) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer
+            ) {
+                Text(
+                    "各機器の設置場所を変更できます。通常時はこの設定欄を表示しません。",
+                    modifier = Modifier.padding(14.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+        }
+
         if (devices.isEmpty()) {
             EmptyCard("SwitchBotが未接続", "設定からOpen Token / Secret Keyを登録")
         } else {
-            devices.groupBy { roomAssignments[it.deviceId]?.takeIf(String::isNotBlank) ?: TemporaryRoomAssignments.UNASSIGNED }
-                .toSortedMap(compareBy { TemporaryRoomAssignments.choices.indexOf(it) }).forEach { (room, roomDevices) ->
-                SectionTitle(room, "${roomDevices.size}台")
-                roomDevices.forEach { device ->
-                val assignedRoom = roomAssignments[device.deviceId]?.takeIf(String::isNotBlank)
-                val displayDevice = TemporaryRoomAssignments.applyRoom(device, assignedRoom)
-                if (device.isAirConditioner) {
-                    AirConditionerCard(
-                        device = displayDevice,
-                        state = acStates[device.deviceId],
-                        onApply = { onAcChange(device, it) },
-                        onPowerChange = { onAcPower(device, it) }
-                    )
-                } else {
-                    FavoriteDeviceTile(
-                        device = displayDevice,
-                        environment = hubEnvironmentStates[device.deviceId],
-                        onPower = { onPower(device, it) }
-                    )
+            devices
+                .groupBy {
+                    roomAssignments[it.deviceId]?.takeIf(String::isNotBlank)
+                        ?: TemporaryRoomAssignments.UNASSIGNED
                 }
-                Text("SwitchBot名: ${device.name}", style = MaterialTheme.typography.bodySmall)
-                TemporaryRoomSelector(
-                    selectedRoom = roomAssignments[device.deviceId]?.takeIf(String::isNotBlank)
-                        ?: TemporaryRoomAssignments.UNASSIGNED,
-                    onSelect = { onSetRoom(device, it) }
-                )
+                .toSortedMap(compareBy { TemporaryRoomAssignments.choices.indexOf(it) })
+                .forEach { (room, roomDevices) ->
+                    RoomGroupHeader(room = room, count = roomDevices.size)
+
+                    roomDevices.forEach { device ->
+                        val assignedRoom = roomAssignments[device.deviceId]?.takeIf(String::isNotBlank)
+                        val displayDevice = device.copy(
+                            name = TemporaryRoomAssignments.displayNameWithinRoom(device),
+                            room = assignedRoom,
+                            originalName = device.originalName ?: device.name
+                        )
+
+                        if (device.isAirConditioner) {
+                            AirConditionerCard(
+                                device = displayDevice,
+                                state = acStates[device.deviceId],
+                                onApply = { onAcChange(device, it) },
+                                onPowerChange = { onAcPower(device, it) }
+                            )
+                        } else {
+                            FavoriteDeviceTile(
+                                device = displayDevice,
+                                environment = hubEnvironmentStates[device.deviceId],
+                                onPower = { onPower(device, it) }
+                            )
+                        }
+
+                        if (editingRooms) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(18.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        "SwitchBot名: " + device.name,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    TemporaryRoomSelector(
+                                        selectedRoom = roomAssignments[device.deviceId]
+                                            ?.takeIf(String::isNotBlank)
+                                            ?: TemporaryRoomAssignments.UNASSIGNED,
+                                        onSelect = { onSetRoom(device, it) }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
-            }
+        }
+    }
+}
+
+@Composable
+private fun RoomGroupHeader(room: String, count: Int) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Outlined.Home,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                room,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                count.toString() + "台",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         }
     }
 }
