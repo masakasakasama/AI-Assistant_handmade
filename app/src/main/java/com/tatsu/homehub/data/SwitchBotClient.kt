@@ -1,6 +1,7 @@
 package com.tatsu.homehub.data
 
 import android.util.Base64
+import com.tatsu.homehub.model.HubEnvironmentState
 import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.model.SwitchBotDeviceState
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,26 @@ class SwitchBotClient(
     private val token: String,
     private val secret: String
 ) {
+    suspend fun getHubEnvironment(device: SwitchBotDevice): Result<HubEnvironmentState> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(!device.infrared && device.type.equals("Hub 2", ignoreCase = true)) {
+                "Environment status is only available for physical Hub 2 devices"
+            }
+            val json = request("GET", "/devices/" + device.deviceId + "/status", null).getJSONObject("body")
+            val temperature = json.optDouble("temperature", Double.NaN)
+            val humidity = json.optInt("humidity", -1)
+            require(temperature.isFinite() && humidity in 0..100) {
+                "Hub 2 environment values were not returned by SwitchBot"
+            }
+            HubEnvironmentState(
+                temperatureC = temperature,
+                humidityPercent = humidity,
+                lightLevel = json.optInt("lightLevel", -1).takeIf { it in 1..20 },
+                retrievedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
+            )
+        }
+    }
+
     suspend fun getDeviceState(device: SwitchBotDevice): Result<SwitchBotDeviceState> = withContext(Dispatchers.IO) {
         runCatching {
             require(!device.infrared) { "SwitchBot OpenAPI does not expose status for infrared remotes" }
