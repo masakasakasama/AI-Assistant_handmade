@@ -385,15 +385,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAirConditionerPower(device: SwitchBotDevice, on: Boolean) {
         val client = clientOrNull() ?: return
-        val previous = _acStates.value[device.deviceId] ?: AcControlState()
+        val previous = _acStates.value[device.deviceId]
+        val next = (previous ?: AcControlState()).copy(power = on)
+        setOptimisticAcState(device.deviceId, next)
         viewModelScope.launch {
             val result = if (on) client.turnOn(device.deviceId) else client.turnOff(device.deviceId)
             result
                 .onSuccess {
-                    saveKnownAcState(device.deviceId, previous.copy(power = on))
+                    saveKnownAcState(device.deviceId, next)
                     _message.value = device.name + ": " + if (on) "ON" else "OFF"
                 }
                 .onFailure { error ->
+                    restoreAcState(device.deviceId, previous)
                     _message.value = device.name + ": " + (error.message ?: "operation failed")
                 }
         }
@@ -410,6 +413,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             power = true
         )
 
+        val previous = _acStates.value[device.deviceId]
+        setOptimisticAcState(device.deviceId, effectiveState)
         viewModelScope.launch {
             client.setAirConditioner(
                 deviceId = device.deviceId,
@@ -424,6 +429,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         effectiveState.temperature.toString() + "℃ " + modeName(effectiveState.mode)
                 }
                 .onFailure { error ->
+                    restoreAcState(device.deviceId, previous)
                     _message.value = device.name + ": " + (error.message ?: "operation failed")
                 }
         }
@@ -447,6 +453,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 )
             }
+        }
+    }
+
+    private fun setOptimisticAcState(deviceId: String, state: AcControlState) {
+        _acStates.value = _acStates.value + (deviceId to state)
+    }
+
+    private fun restoreAcState(deviceId: String, previous: AcControlState?) {
+        _acStates.value = if (previous == null) {
+            _acStates.value - deviceId
+        } else {
+            _acStates.value + (deviceId to previous)
         }
     }
 
