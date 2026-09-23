@@ -1494,9 +1494,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val contextDevices = devicesWithRooms()
         val devices = contextDevices.distinctBy { it.deviceId }.joinToString("\n") { device ->
             val actualName = _devices.value.firstOrNull { it.deviceId == device.deviceId }?.name
+            val environment = _hubEnvironmentStates.value[device.deviceId]
             "- ${device.name} | type=${device.type} | id=${device.deviceId}" +
                 (actualName?.let { " | actualName=$it" } ?: "") +
-                " | room=${device.room.orEmpty()}"
+                " | room=${device.room.orEmpty()}" +
+                (environment?.let {
+                    " | temperatureC=" + String.format("%.1f", it.temperatureC) +
+                        " | humidity=" + it.humidityPercent +
+                        (it.lightLevel?.let { level -> " | lightLevel=" + level } ?: "")
+                } ?: "")
         }.ifBlank { "- none" }
         val alarms = _alarms.value.joinToString("\n") {
             "- ${it.label} | ${String.format("%02d:%02d", it.hour, it.minute)} | id=${it.id} | enabled=${it.enabled}"
