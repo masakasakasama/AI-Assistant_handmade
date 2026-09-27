@@ -2,7 +2,8 @@ import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import { routeIntentJev, JEV_MODEL } from "./jev.mjs";
 import { answerSimple } from "./simple.mjs";
-import { reason, REASONING_MODEL } from "./reasoner.mjs";
+import { reason } from "./reasoner.mjs";
+import { resolveModelProfile } from "./model-profiles.mjs";
 
 function clarification(language) {
   if (language === "de") return "Bitte sag genauer, was ich tun soll.";
@@ -14,6 +15,8 @@ function clarification(language) {
 // simple_chat -> Luna, deep_reasoning -> Sol high.
 // weather/device/alarm stay structured for Android to handle.
 export async function dispatchJev(input, dependencies = {}) {
+  const modelProfile = resolveModelProfile(input.modelProfile);
+  if (!modelProfile) throw new Error("Unsupported modelProfile");
   const started = performance.now();
   const routed = await (dependencies.routeIntentJev || routeIntentJev)(input);
   const routingCompletedAt = performance.now();
@@ -36,7 +39,8 @@ export async function dispatchJev(input, dependencies = {}) {
     answerStartWaitMs = Math.round(answerStarted - routingCompletedAt);
     const response = await (dependencies.answerSimple || answerSimple)({
       ...input,
-      language: route.language
+      language: route.language,
+      model: modelProfile.routerModel
     });
     answerMs = Math.round(performance.now() - answerStarted);
     answerTtftMs = response.timings?.ttftMs ?? null;
@@ -52,7 +56,8 @@ export async function dispatchJev(input, dependencies = {}) {
     const response = await (dependencies.reason || reason)({
       ...input,
       language: route.language,
-      effort: "high"
+      effort: "high",
+      model: modelProfile.reasoningModel
     });
     answerMs = Math.round(performance.now() - answerStarted);
     answerTtftMs = response.timings?.ttftMs ?? null;
@@ -79,7 +84,7 @@ export async function dispatchJev(input, dependencies = {}) {
   const result = {
     requestId: randomUUID(),
     routerModel: jevModel || JEV_MODEL,
-    reasoningModel: REASONING_MODEL,
+    reasoningModel: modelProfile.reasoningModel,
     route,
     rawIntent: {
       goal: route.goal ?? null,

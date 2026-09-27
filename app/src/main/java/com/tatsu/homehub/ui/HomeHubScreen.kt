@@ -1164,7 +1164,7 @@ private fun AiCard(
                         Text(if (routerComparing && answerComparison != null) "回答比較中" else "回答比較")
                     }
                     OutlinedButton(onClick = { onCompareModels(prompt) }, enabled = !routerComparing) {
-                        Text(if (routerComparing && modelComparison?.query == prompt.trim()) "5.6 / 6比較中" else "5.6 / 6比較")
+                        Text(if (routerComparing && modelComparison?.query == prompt.trim()) "4経路比較中" else "4経路比較")
                     }
                 }
             }
@@ -1215,46 +1215,40 @@ private fun AiCard(
 
 @Composable
 private fun ModelVersionComparisonView(comparison: ModelComparisonState) {
-    val completedPairs = comparison.samples.filter { sample ->
-        !sample.gpt56.pending && !sample.gpt6.pending &&
-            sample.gpt56.result?.latencyMs?.let { it > 0 } == true &&
-            sample.gpt6.result?.latencyMs?.let { it > 0 } == true
-    }
-    val deltas = completedPairs.map { sample ->
-        sample.gpt6.result!!.latencyMs - sample.gpt56.result!!.latencyMs
-    }.sorted()
     fun median(values: List<Long>): Long? = values.takeIf { it.isNotEmpty() }?.let {
         val sorted = it.sorted()
         if (sorted.size % 2 == 1) sorted[sorted.size / 2]
         else (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2
     }
-    val medianDelta = median(deltas)
-    val medianGpt56 = median(completedPairs.map { it.gpt56.result!!.latencyMs })
-    val medianGpt6 = median(completedPairs.map { it.gpt6.result!!.latencyMs })
+    fun measured(side: ModelComparisonSide): Long? = side.result?.latencyMs?.takeIf { it > 0 }
+    val routes = listOf(
+        "Luna → 5.6" to { sample: ModelComparisonSample -> sample.luna56 },
+        "Luna → 6" to { sample: ModelComparisonSample -> sample.luna6 },
+        "Jev → 5.6" to { sample: ModelComparisonSample -> sample.jev56 },
+        "Jev → 6" to { sample: ModelComparisonSample -> sample.jev6 }
+    )
+    fun pairDelta(first: (ModelComparisonSample) -> ModelComparisonSide, second: (ModelComparisonSample) -> ModelComparisonSide): Long? =
+        median(comparison.samples.mapNotNull { sample ->
+            val firstMs = measured(first(sample))
+            val secondMs = measured(second(sample))
+            if (firstMs != null && secondMs != null) secondMs - firstMs else null
+        })
+    fun deltaLabel(value: Long?): String = value?.let { "${if (it > 0) "+" else ""}${it}ms" } ?: "—"
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("GPT-5.6 と GPT-6 の比較", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text("同じ入力を並列実行。家電・アラーム操作は実行しません。1回につきAPIを2回呼び出します。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Luna / Jev × GPT-5.6 / 6", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text("同じ入力を4経路へ並列送信。1試行でAPIを4回呼びます。家電・アラーム操作は実行しません。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("入力: ${comparison.query}", style = MaterialTheme.typography.bodyMedium)
-        medianDelta?.let { delta ->
-            Text(
-                "${completedPairs.size}組 · p50: GPT-5.6 ${medianGpt56}ms / GPT-6 ${medianGpt6}ms · 差 ${if (delta > 0) "+" else ""}${delta}ms",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(if (delta < 0) "今回の入力ではGPT-6が速い" else if (delta > 0) "今回の入力ではGPT-6が遅い" else "今回の入力では同程度", style = MaterialTheme.typography.bodySmall)
+        routes.forEach { (label, sideOf) ->
+            val values = comparison.samples.mapNotNull { measured(sideOf(it)) }
+            Text("$label  p50 ${median(values)?.let { "${it}ms" } ?: "—"}（${values.size}回）", style = MaterialTheme.typography.bodySmall)
         }
+        Text("6 − 5.6: Luna ${deltaLabel(pairDelta({ it.luna56 }, { it.luna6 }))} / Jev ${deltaLabel(pairDelta({ it.jev56 }, { it.jev6 }))}", style = MaterialTheme.typography.labelMedium)
+        Text("Jev − Luna: 5.6 ${deltaLabel(pairDelta({ it.luna56 }, { it.jev56 }))} / 6 ${deltaLabel(pairDelta({ it.luna6 }, { it.jev6 }))}", style = MaterialTheme.typography.labelMedium)
         comparison.samples.asReversed().forEach { sample ->
             Text("試行 ${sample.number}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            ModelComparisonSideCard("GPT-5.6", sample.gpt56)
-            ModelComparisonSideCard("GPT-6", sample.gpt6)
-            val oldMs = sample.gpt56.result?.latencyMs
-            val newMs = sample.gpt6.result?.latencyMs
-            if (!sample.gpt56.pending && !sample.gpt6.pending && oldMs != null && newMs != null) {
-                val delta = newMs - oldMs
-                Text("差（GPT-6 − GPT-5.6）: ${if (delta > 0) "+" else ""}${delta}ms${if (delta < 0) " · GPT-6が速い" else if (delta > 0) " · GPT-6が遅い" else ""}", style = MaterialTheme.typography.labelMedium)
-            }
+            routes.forEach { (label, sideOf) -> ModelComparisonSideCard(label, sideOf(sample)) }
         }
-        Text("サーバー総時間はSTT・TTSを含みません。中央値は完了した比較ペアから算出します。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("差は後者 − 前者。負数なら後者が速い。p50と差は成功した試行のみで計算します。サーバー時間にSTT・TTSは含みません。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
