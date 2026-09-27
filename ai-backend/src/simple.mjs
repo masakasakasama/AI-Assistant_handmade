@@ -1,8 +1,9 @@
 import { createResponse, outputText } from "./openai.mjs";
+import { ROUTER_MODEL } from "./router.mjs";
 
 export async function answerSimple({ text, context = "", language = "ja" }) {
   const response = await createResponse({
-    model: process.env.ROUTER_MODEL || "gpt-5.6-luna",
+    model: ROUTER_MODEL,
     reasoning: { effort: "none" },
     instructions: [
       "You are the low-cost everyday response model for Tatsu Home.",
@@ -25,7 +26,7 @@ export async function answerSimple({ text, context = "", language = "ja" }) {
   });
 
   return {
-    model: process.env.ROUTER_MODEL || "gpt-5.6-luna",
+    model: ROUTER_MODEL,
     text: outputText(response),
     usage: response.usage ?? null,
     timings: response._timings ?? null

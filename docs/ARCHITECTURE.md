@@ -1,22 +1,22 @@
 # Tatsu Home アーキテクチャ
 
-更新: 2026-09-21。実装済み・予定・実測を混同しない。
+更新: 2026-09-28。実装済み・予定・実測を混同しない。
 
 ## 比較する通常経路
 
 ```text
 A: Luna-first
-音声 → STT → Luna
+音声 → STT → GPT-6 Luna
   ├ 家電 / アラーム / 天気 → Android
-  ├ simple_chat → Lunaの同一応答
-  ├ deep_reasoning → Sol high
-  └ clarify → Lunaの同一応答
+  ├ simple_chat → GPT-6 Lunaの同一応答
+  ├ deep_reasoning → GPT-6 Sol high
+  └ clarify → GPT-6 Lunaの同一応答
 
 B: Jev-first
 音声 → STT → Jev
   ├ 家電 / アラーム / 天気 → Android
-  ├ simple_chat → Luna
-  ├ deep_reasoning → Sol high
+  ├ simple_chat → GPT-6 Luna
+  ├ deep_reasoning → GPT-6 Sol high
   └ clarify → ローカル定型確認
 ```
 
@@ -27,6 +27,8 @@ SwitchBotの赤外線エアコンはOpenAPIから現在状態を読めない。�
 simple_chatはLuna-firstが1回、Jev-firstがJev＋Lunaの2回になるため、Jev-firstが必ず速いわけではない。deep_reasoningと物理系は初段ルーター差がそのまま短縮候補になる。
 
 ## 回答比較
+
+既定モデルはGPT-6 Luna / GPT-6 Sol。環境変数による上書き後の実モデルは`/api/health`と比較結果のmodel欄で確認する。
 
 Luna-firstとJev-firstへ同じ確定済みSTT文脈を並列送信し、回答本文・route・モデル・端末往復時間・requestIdを個別に表示する。両結果は別々に保持し、一方の失敗や遅延で他方の回答を消さない。比較要求はキャンセル可能で、各経路は60秒で終了する。
 比較モードではLuna/Jevの各経路についてAndroid側Action ResolverとPolicyまでdry-runし、同じ機器への重複コマンドを防ぐためSwitchBot／AlarmManager実行層へ入らない。家電・アラームrouteはActionPlanを含む実行前提案として表示する。weatherもAndroidにある同一キャッシュを参照し、比較だけのために追加取得しない。速度差だけから回答品質の優劣を決めない。

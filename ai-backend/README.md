@@ -4,12 +4,15 @@ AndroidへOpenAI長期キーを埋め込まず、文字入力から回答また�
 
 ## 現在の処理
 
-- Luna 1回で分類・抽出・簡単な回答／確認文を生成。
-- 深い質問だけSol。既定highを維持し、REASONING_EFFORTでmedium/highを比較。
+- GPT-6 Luna 1回で分類・抽出・簡単な回答／確認文を生成。
+- 深い質問だけGPT-6 Sol。既定highを維持し、REASONING_EFFORTでmedium/highを比較。
+- `ROUTER_MODEL` / `REASONING_MODEL` で既定を上書きできる。PoCの`/api/health`が現在有効なモデルIDを返す。
 - 物理操作は実行しない。Androidの検証・実行層は別途必要。
 - 応答にtimings.routerMs、timings.answerMs、latencyMsとcalls[].usageを含める。
 - simple.mjsは旧2段構成のベンチマーク用。通常dispatchからは呼ばない。
 - STT/TTS/Liveの音声経路は未実装。
+
+既定モデルはGPT-6 Luna / GPT-6 Sol。デプロイ環境の`ROUTER_MODEL` / `REASONING_MODEL`が設定されていればそちらが優先される。実際に有効なモデルIDはGET /api/healthで確認する。
 
 ## 起動・比較
 

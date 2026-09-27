@@ -1,6 +1,6 @@
 import { createResponse, outputText } from "./openai.mjs";
 
-export const REASONING_MODEL = process.env.REASONING_MODEL || "gpt-5.6-sol";
+export const REASONING_MODEL = process.env.REASONING_MODEL || "gpt-6-sol";
 export const DEFAULT_REASONING_EFFORT = "high";
 export const REASONING_EFFORT = process.env.REASONING_EFFORT || DEFAULT_REASONING_EFFORT;
 
