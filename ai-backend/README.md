@@ -14,6 +14,8 @@ AndroidへOpenAI長期キーを埋め込まず、文字入力から回答また�
 
 既定モデルはGPT-6 Luna / GPT-6 Sol。デプロイ環境の`ROUTER_MODEL` / `REASONING_MODEL`が設定されていればそちらが優先される。実際に有効なモデルIDはGET /api/healthで確認する。
 
+AIラボの「5.6 / 6比較」は、同じ入力に`modelProfile: "gpt-5.6"`と`modelProfile: "gpt-6"`を付けた通常dispatchを並列実行する。選べる値は固定モデルペアのみで、実機アクションは実行しない。比較1回でAPIを2回呼び出す。
+
 ## 起動・比較
 
 Node 20以上。OPENAI_API_KEYを環境変数へ設定し `npm start`。

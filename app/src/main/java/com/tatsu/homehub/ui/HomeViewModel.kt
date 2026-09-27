@@ -7,6 +7,9 @@ import com.tatsu.homehub.alarm.AlarmScheduler
 import com.tatsu.homehub.data.AiBackendClient
 import com.tatsu.homehub.data.AiDispatchResult
 import com.tatsu.homehub.data.AiPipelineTimings
+import com.tatsu.homehub.data.ModelComparisonSample
+import com.tatsu.homehub.data.ModelComparisonSide
+import com.tatsu.homehub.data.ModelComparisonState
 import com.tatsu.homehub.data.TemporaryRoomAssignments
 import com.tatsu.homehub.data.RouterCompareResult
 import com.tatsu.homehub.data.AlarmRepository
@@ -110,6 +113,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _answerComparison = MutableStateFlow<AnswerComparisonState?>(null)
     val answerComparison: StateFlow<AnswerComparisonState?> = _answerComparison.asStateFlow()
+
+    private val _modelComparison = MutableStateFlow<ModelComparisonState?>(null)
+    val modelComparison: StateFlow<ModelComparisonState?> = _modelComparison.asStateFlow()
 
     private val _aiBackendOnline = MutableStateFlow<Boolean?>(null)
     val aiBackendOnline: StateFlow<Boolean?> = _aiBackendOnline.asStateFlow()
@@ -693,6 +699,84 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             startAnswerComparison(query, buildVoiceContext(), url, runId, voiceSessionGeneration = null)
         }
         routerComparisonJob = job
+    }
+
+    fun compareModelVersions(text: String) {
+        val query = text.trim()
+        if (query.isBlank()) {
+            _message.value = "比較する文を入力してください"
+            return
+        }
+        val url = appPrefs.aiBackendUrl
+        if (url.isBlank()) {
+            _message.value = "設定からAI Backend URLを登録してください"
+            return
+        }
+        val runId = ++comparisonGeneration
+        routerComparisonJob?.cancel()
+        _routerCompareResult.value = null
+        _answerComparison.value = null
+        val existing = _modelComparison.value?.takeIf { it.query == query }
+        val sample = ModelComparisonSample(
+            number = (existing?.samples?.lastOrNull()?.number ?: 0) + 1,
+            startedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
+        )
+        val initial = (existing ?: ModelComparisonState(query)).copy(
+            samples = ((existing?.samples ?: emptyList()) + sample).takeLast(10)
+        )
+        _modelComparison.value = initial
+        _routerComparing.value = true
+        val context = buildVoiceContext()
+        val job = viewModelScope.launch {
+            try {
+                coroutineScope {
+                    val gpt56 = async {
+                        runModelProfile(url, query, context, "gpt-5.6").also { side ->
+                            if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(gpt56 = side) }
+                        }
+                    }
+                    val gpt6 = async {
+                        runModelProfile(url, query, context, "gpt-6").also { side ->
+                            if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(gpt6 = side) }
+                        }
+                    }
+                    awaitAll(gpt56, gpt6)
+                }
+            } finally {
+                if (runId == comparisonGeneration) _routerComparing.value = false
+            }
+        }
+        routerComparisonJob = job
+    }
+
+    private fun updateModelComparison(number: Int, update: (ModelComparisonSample) -> ModelComparisonSample) {
+        val current = _modelComparison.value ?: return
+        _modelComparison.value = current.copy(
+            samples = current.samples.map { sample -> if (sample.number == number) update(sample) else sample }
+        )
+    }
+
+    private suspend fun runModelProfile(
+        url: String,
+        text: String,
+        context: String,
+        profile: String
+    ): ModelComparisonSide {
+        val started = android.os.SystemClock.elapsedRealtime()
+        return try {
+            val result = withTimeout(60_000) {
+                aiBackendClient.dispatchWithProfile(url, text, context, profile).getOrThrow()
+            }
+            ModelComparisonSide(result = result, clientLatencyMs = result.clientLatencyMs, pending = false)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            ModelComparisonSide(
+                error = error.message ?: "応答の取得に失敗しました",
+                clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                pending = false
+            )
+        }
     }
 
     fun startVoiceSession() {
