@@ -1,7 +1,7 @@
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { dispatch } from "../src/dispatch.mjs";
-import { routeIntent } from "../src/router.mjs";
+import { routeIntent, ROUTER_MODEL } from "../src/router.mjs";
 import { reason } from "../src/reasoner.mjs";
 import { answerSimple } from "../src/simple.mjs";
 import { cases } from "../test/benchmark-cases.mjs";
@@ -46,7 +46,7 @@ for (const { round, profile, entry } of plan) {
       const route = await routeIntent({ ...input, benchmarkClassificationOnly: true });
       const answer = route.route === "deep_reasoning" ? await reason(input) : await answerSimple(input);
       result = { route, answer, calls: [
-        { model: process.env.ROUTER_MODEL || "gpt-5.6-luna", usage: route._usage },
+        { model: ROUTER_MODEL, usage: route._usage },
         { model: answer.model, usage: answer.usage }
       ] };
     } else {

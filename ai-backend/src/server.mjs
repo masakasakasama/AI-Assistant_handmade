@@ -2,6 +2,8 @@ import http from "node:http";
 import { dispatch } from "./dispatch.mjs";
 import { compareRouters } from "./router-compare.mjs";
 import { dispatchJev } from "./dispatch-jev.mjs";
+import { ROUTER_MODEL } from "./router.mjs";
+import { REASONING_MODEL } from "./reasoner.mjs";
 
 const port = Number(process.env.PORT || 8787);
 
@@ -29,8 +31,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && ["/health", "/api/health"].includes(req.url)) {
       return json(res, 200, {
         ok: true,
-        routerModel: process.env.ROUTER_MODEL || "gpt-5.6-luna",
-        reasoningModel: process.env.REASONING_MODEL || "gpt-5.6-sol",
+        routerModel: ROUTER_MODEL,
+        reasoningModel: REASONING_MODEL,
         openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
         jevConfigured: Boolean(process.env.JEV_OPENROUTER_API_KEY)
       });

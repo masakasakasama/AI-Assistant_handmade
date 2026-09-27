@@ -23,10 +23,10 @@ test("Jev simple_chat routes to Luna after Jev", async () => {
     routeIntentJev: async () => routed("simple_chat"),
     answerSimple: async input => {
       assert.equal(input.language, "ja");
-      return { model: "gpt-5.6-luna", text: "ベルリンです", usage: { output_tokens: 3 } };
+      return { model: "gpt-6-luna", text: "ベルリンです", usage: { output_tokens: 3 } };
     }
   });
-  assert.equal(result.answer.model, "gpt-5.6-luna");
+  assert.equal(result.answer.model, "gpt-6-luna");
   assert.equal(result.calls.length, 2);
   assert.ok(result.timings.totalMs >= result.timings.routerMs);
   assert.ok(result.timings.unaccountedMs >= 0);
@@ -39,10 +39,10 @@ test("Jev deep_reasoning routes to Sol high", async () => {
     routeIntentJev: async () => routed("deep_reasoning"),
     reason: async input => {
       assert.equal(input.effort, "high");
-      return { model: "gpt-5.6-sol", text: "比較結果", usage: { output_tokens: 8 } };
+      return { model: "gpt-6-sol", text: "比較結果", usage: { output_tokens: 8 } };
     }
   });
-  assert.equal(result.answer.model, "gpt-5.6-sol");
+  assert.equal(result.answer.model, "gpt-6-sol");
   assert.equal(result.calls.length, 2);
 });
 

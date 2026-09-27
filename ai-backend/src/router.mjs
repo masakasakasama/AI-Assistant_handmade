@@ -1,6 +1,6 @@
 import { createResponse, outputText } from "./openai.mjs";
 
-export const ROUTER_MODEL = process.env.ROUTER_MODEL || "gpt-5.6-luna";
+export const ROUTER_MODEL = process.env.ROUTER_MODEL || "gpt-6-luna";
 
 const ROUTE_SCHEMA = {
   type: "object",

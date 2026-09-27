@@ -2,12 +2,14 @@
 
 **応答性能はクリティカル。平均だけで合格にしない。現在、実API比較結果は未測定。**
 
+現行PoCの既定モデルはGPT-6 Luna（route/simple_chat）とGPT-6 Sol（deep_reasoning、high）。`ROUTER_MODEL` / `REASONING_MODEL`がデプロイ環境で上書きされていないことを`/api/health`で確認してから比較する。AndroidのLuna / Jev回答比較はGPT-6 Luna経路とJev経路の同一音声認識文を比較し、各カードに実際に返ったモデルIDと総時間を表示する。旧GPT-5.6とのモデル単体比較はこの画面では行わない。
+
 ## 比較する経路
 
 | 経路 | 意図 |
 |---|---|
-| luna-first | Luna 1回で初段判定。simple_chatは同一呼び出し、deep_reasoningだけSol high |
-| jev-first | Jev 1回でrouteと閉じたパラメータを判定。simple_chatはLuna、deep_reasoningはSol high、物理系はAndroid |
+| luna-first | GPT-6 Luna 1回で初段判定。simple_chatは同一呼び出し、deep_reasoningだけGPT-6 Sol high |
+| jev-first | Jev 1回でrouteと閉じたパラメータを判定。simple_chatはGPT-6 Luna、deep_reasoningはGPT-6 Sol high、物理系はAndroid |
 | sol-medium | チャットケースをSolへ直結し、ルーターの待ち時間と品質差を評価 |
 | sol-high | 同じチャットケースをhighで比較 |
 
