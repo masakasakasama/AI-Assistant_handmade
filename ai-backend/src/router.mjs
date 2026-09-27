@@ -92,9 +92,9 @@ Preserve the user's language as ja/en/de when possible.
 Do not invent a target, temperature, or time.
 `.trim();
 
-export async function routeIntent({ text, context = "", benchmarkClassificationOnly = false }) {
+export async function routeIntent({ text, context = "", benchmarkClassificationOnly = false, model = ROUTER_MODEL }) {
   const response = await createResponse({
-    model: ROUTER_MODEL,
+    model,
     reasoning: { effort: "none" },
     instructions: benchmarkClassificationOnly
       ? ROUTER_INSTRUCTIONS + "\nBenchmark override: classify only; replyText must be null."

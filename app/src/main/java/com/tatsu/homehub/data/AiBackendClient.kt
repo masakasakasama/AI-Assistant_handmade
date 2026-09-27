@@ -29,6 +29,25 @@ data class RouterCompareResult(
     val clientLatencyMs: Long
 )
 
+data class ModelComparisonSide(
+    val result: AiDispatchResult? = null,
+    val error: String? = null,
+    val clientLatencyMs: Long? = null,
+    val pending: Boolean = true
+)
+
+data class ModelComparisonSample(
+    val number: Int,
+    val gpt56: ModelComparisonSide = ModelComparisonSide(),
+    val gpt6: ModelComparisonSide = ModelComparisonSide(),
+    val startedAtElapsedMs: Long
+)
+
+data class ModelComparisonState(
+    val query: String,
+    val samples: List<ModelComparisonSample> = emptyList()
+)
+
 data class AiDispatchResult(
     val requestId: String,
     val routerModel: String,
@@ -84,6 +103,13 @@ class AiBackendClient {
         context: String = ""
     ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch")
 
+    suspend fun dispatchWithProfile(
+        baseUrl: String,
+        text: String,
+        context: String = "",
+        modelProfile: String
+    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch", modelProfile)
+
     suspend fun dispatchJev(
         baseUrl: String,
         text: String,
@@ -94,9 +120,10 @@ class AiBackendClient {
         baseUrl: String,
         text: String,
         context: String,
-        path: String
+        path: String,
+        modelProfile: String? = null
     ): Result<AiDispatchResult> = try {
-        val (json, started) = postJson(baseUrl, path, text, context)
+        val (json, started) = postJson(baseUrl, path, text, context, modelProfile)
         val route = json.getJSONObject("route")
         val answer = json.optJSONObject("answer")
 
@@ -168,7 +195,8 @@ class AiBackendClient {
         baseUrl: String,
         path: String,
         text: String,
-        context: String
+        context: String,
+        modelProfile: String? = null
     ): Pair<JSONObject, Long> = withContext(Dispatchers.IO) {
             val started = android.os.SystemClock.elapsedRealtime()
             val endpoint = baseUrl.trim().trimEnd('/') + path
@@ -185,7 +213,9 @@ class AiBackendClient {
                 invokeImmediately = true
             ) { cause -> if (cause != null) connection.disconnect() }
             try {
-                val payload = JSONObject().put("text", text).put("context", context)
+                val payload = JSONObject().put("text", text).put("context", context).apply {
+                    if (modelProfile != null) put("modelProfile", modelProfile)
+                }
                 connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
                 val code = connection.responseCode
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream

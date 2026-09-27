@@ -2,7 +2,9 @@
 
 **応答性能はクリティカル。平均だけで合格にしない。現在、実API比較結果は未測定。**
 
-現行PoCの既定モデルはGPT-6 Luna（route/simple_chat）とGPT-6 Sol（deep_reasoning、high）。`ROUTER_MODEL` / `REASONING_MODEL`がデプロイ環境で上書きされていないことを`/api/health`で確認してから比較する。AndroidのLuna / Jev回答比較はGPT-6 Luna経路とJev経路の同一音声認識文を比較し、各カードに実際に返ったモデルIDと総時間を表示する。旧GPT-5.6とのモデル単体比較はこの画面では行わない。
+現行PoCの既定モデルはGPT-6 Luna（route/simple_chat）とGPT-6 Sol（deep_reasoning、high）。`ROUTER_MODEL` / `REASONING_MODEL`がデプロイ環境で上書きされていないことを`/api/health`で確認してから比較する。AndroidのLuna / Jev回答比較はGPT-6 Luna経路とJev経路の同一音声認識文を比較し、各カードに実際に返ったモデルIDと総時間を表示する。
+
+AIラボの「5.6 / 6比較」はGPT-5.6 Luna/SolとGPT-6 Luna/Solを同じ入力で並列実行し、同じ推論設定で通常dispatch全体を比較する。サーバー総時間、Android端末往復、route、回答モデル、回答本文を各試行で表示し、同じ入力での完了試行からサーバー総時間差の中央値を出す。差は`GPT-6 − GPT-5.6`で、負値はGPT-6が速い。ボタン1回につきAPIを2回呼ぶ。比較中、家電やアラームは実行しない。STT / TTSを含む音声全体の速度は別途測る。
 
 ## 比較する経路
 

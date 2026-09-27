@@ -78,6 +78,9 @@ import com.tatsu.homehub.data.AiDispatchResult
 import com.tatsu.homehub.data.TemporaryRoomAssignments
 import com.tatsu.homehub.data.RouterCompareResult
 import com.tatsu.homehub.data.RouterDecisionResult
+import com.tatsu.homehub.data.ModelComparisonState
+import com.tatsu.homehub.data.ModelComparisonSample
+import com.tatsu.homehub.data.ModelComparisonSide
 import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.WeatherClient
 import com.tatsu.homehub.data.WeatherSnapshot
@@ -121,6 +124,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val routerComparing by viewModel.routerComparing.collectAsState()
     val routerCompareResult by viewModel.routerCompareResult.collectAsState()
     val answerComparison by viewModel.answerComparison.collectAsState()
+    val modelComparison by viewModel.modelComparison.collectAsState()
     val aiBackendOnline by viewModel.aiBackendOnline.collectAsState()
     val voiceState by viewModel.voiceState.collectAsState()
 
@@ -290,11 +294,13 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                                 routerComparison = routerCompareResult,
                                 routerComparing = routerComparing,
                                 answerComparison = answerComparison,
+                                modelComparison = modelComparison,
                                 weather = weather,
                                 backendUrl = viewModel.aiBackendUrl(),
                                 onTest = viewModel::testAi,
                                 onCompare = viewModel::compareRouters,
                                 onCompareAnswers = viewModel::compareAnswers,
+                                onCompareModels = viewModel::compareModelVersions,
                                 onSpeakComparison = viewModel::speakComparisonAnswer,
                                 onCheck = { viewModel.checkAiBackend() },
                                 onSettings = { showSettings = true }
@@ -1076,11 +1082,13 @@ private fun AiCard(
     routerComparison: RouterCompareResult?,
     routerComparing: Boolean,
     answerComparison: AnswerComparisonState?,
+    modelComparison: ModelComparisonState?,
     weather: WeatherSnapshot?,
     backendUrl: String,
     onTest: (String) -> Unit,
     onCompare: (String) -> Unit,
     onCompareAnswers: (String) -> Unit,
+    onCompareModels: (String) -> Unit,
     onSpeakComparison: (AiDispatchResult) -> Unit,
     onCheck: () -> Unit,
     onSettings: () -> Unit
@@ -1128,6 +1136,14 @@ private fun AiCard(
                     supportingText = { Text("検証用です。家電・アラームは実行しません。") },
                     minLines = 2
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(selected = false, onClick = { prompt = "こんにちは。今日はどんなことができる？" }, label = { Text("短い会話") })
+                    FilterChip(selected = false, onClick = { prompt = "自然な会話を保ちながら、家電操作を正確にするAIスピーカーの構成を比較して" }, label = { Text("複雑な質問") })
+                    FilterChip(selected = false, onClick = { prompt = "寝室のライトをつけて" }, label = { Text("家電操作") })
+                }
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -1147,6 +1163,9 @@ private fun AiCard(
                     OutlinedButton(onClick = { onCompareAnswers(prompt) }, enabled = !routerComparing) {
                         Text(if (routerComparing && answerComparison != null) "回答比較中" else "回答比較")
                     }
+                    OutlinedButton(onClick = { onCompareModels(prompt) }, enabled = !routerComparing) {
+                        Text(if (routerComparing && modelComparison?.query == prompt.trim()) "5.6 / 6比較中" else "5.6 / 6比較")
+                    }
                 }
             }
 
@@ -1158,6 +1177,11 @@ private fun AiCard(
             answerComparison?.let {
                 Spacer(Modifier.height(14.dp))
                 AnswerComparisonView(it, weather, onSpeakComparison) { text -> clipboard.setText(AnnotatedString(text)) }
+            }
+
+            modelComparison?.let {
+                Spacer(Modifier.height(14.dp))
+                ModelVersionComparisonView(it)
             }
 
             result?.let {
@@ -1182,6 +1206,85 @@ private fun AiCard(
                             Spacer(Modifier.height(6.dp))
                             Text(text)
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelVersionComparisonView(comparison: ModelComparisonState) {
+    val completedPairs = comparison.samples.filter { sample ->
+        !sample.gpt56.pending && !sample.gpt6.pending &&
+            sample.gpt56.result?.latencyMs?.let { it > 0 } == true &&
+            sample.gpt6.result?.latencyMs?.let { it > 0 } == true
+    }
+    val deltas = completedPairs.map { sample ->
+        sample.gpt6.result!!.latencyMs - sample.gpt56.result!!.latencyMs
+    }.sorted()
+    fun median(values: List<Long>): Long? = values.takeIf { it.isNotEmpty() }?.let {
+        val sorted = it.sorted()
+        if (sorted.size % 2 == 1) sorted[sorted.size / 2]
+        else (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2
+    }
+    val medianDelta = median(deltas)
+    val medianGpt56 = median(completedPairs.map { it.gpt56.result!!.latencyMs })
+    val medianGpt6 = median(completedPairs.map { it.gpt6.result!!.latencyMs })
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("GPT-5.6 と GPT-6 の比較", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text("同じ入力を並列実行。家電・アラーム操作は実行しません。1回につきAPIを2回呼び出します。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("入力: ${comparison.query}", style = MaterialTheme.typography.bodyMedium)
+        medianDelta?.let { delta ->
+            Text(
+                "${completedPairs.size}組 · p50: GPT-5.6 ${medianGpt56}ms / GPT-6 ${medianGpt6}ms · 差 ${if (delta > 0) "+" else ""}${delta}ms",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(if (delta < 0) "今回の入力ではGPT-6が速い" else if (delta > 0) "今回の入力ではGPT-6が遅い" else "今回の入力では同程度", style = MaterialTheme.typography.bodySmall)
+        }
+        comparison.samples.asReversed().forEach { sample ->
+            Text("試行 ${sample.number}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            ModelComparisonSideCard("GPT-5.6", sample.gpt56)
+            ModelComparisonSideCard("GPT-6", sample.gpt6)
+            val oldMs = sample.gpt56.result?.latencyMs
+            val newMs = sample.gpt6.result?.latencyMs
+            if (!sample.gpt56.pending && !sample.gpt6.pending && oldMs != null && newMs != null) {
+                val delta = newMs - oldMs
+                Text("差（GPT-6 − GPT-5.6）: ${if (delta > 0) "+" else ""}${delta}ms${if (delta < 0) " · GPT-6が速い" else if (delta > 0) " · GPT-6が遅い" else ""}", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+        Text("サーバー総時間はSTT・TTSを含みません。中央値は完了した比較ペアから算出します。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ModelComparisonSideCard(title: String, side: ModelComparisonSide) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(title, fontWeight = FontWeight.SemiBold)
+            when {
+                side.pending -> Text("応答待ち…", style = MaterialTheme.typography.bodySmall)
+                side.error != null -> Text(side.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                side.result != null -> {
+                    val result = side.result
+                    Text("${result.routerModel} → ${result.route}", style = MaterialTheme.typography.labelSmall)
+                    Text("回答モデル: ${result.answerModel ?: "—"}", style = MaterialTheme.typography.labelSmall)
+                    val ttft = result.timings.answerTtftMs?.let { " · TTFT ${it}ms" }.orEmpty()
+                    Text("サーバー ${result.latencyMs}ms · 端末往復 ${side.clientLatencyMs ?: result.clientLatencyMs}ms · 判定 ${result.routerMs}ms · 回答 ${result.answerMs}ms$ttft", style = MaterialTheme.typography.labelSmall)
+                    val response = result.answerText ?: buildString {
+                        append("操作案: ")
+                        append(result.action ?: result.route)
+                        result.target?.let { append(" / "); append(it) }
+                        result.temperatureC?.let { append(" / "); append(it); append("°C") }
+                    }
+                    Text(response, style = MaterialTheme.typography.bodyMedium)
+                    if (result.route == "device_action" || result.route == "alarm_action") {
+                        Text("操作案のみ。実機は動かしていません。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

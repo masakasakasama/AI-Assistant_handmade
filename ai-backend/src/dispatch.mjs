@@ -2,11 +2,14 @@ import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import { routeIntent, ROUTER_MODEL } from "./router.mjs";
 import { reason, REASONING_MODEL } from "./reasoner.mjs";
+import { resolveModelProfile } from "./model-profiles.mjs";
 
 // Tests inject dependencies; this endpoint never executes physical actions.
 export async function dispatch(input, dependencies = {}) {
+  const modelProfile = resolveModelProfile(input.modelProfile);
+  if (!modelProfile) throw new Error("Unsupported modelProfile");
   const started = performance.now();
-  const routed = await (dependencies.routeIntent || routeIntent)(input);
+  const routed = await (dependencies.routeIntent || routeIntent)({ ...input, model: modelProfile.routerModel });
   const routingCompletedAt = performance.now();
   const routerMs = Math.round(routingCompletedAt - started);
   const { _usage, _timings, ...route } = routed;
@@ -18,15 +21,15 @@ export async function dispatch(input, dependencies = {}) {
   let answerStartedAt = null;
   let answerFirstTokenAt = null;
   let answerCompletedAt = null;
-  const calls = [{ model: ROUTER_MODEL, usage: _usage ?? null }];
+  const calls = [{ model: modelProfile.routerModel, usage: _usage ?? null }];
   if (["simple_chat", "clarify"].includes(route.route)) {
     if (!route.replyText?.trim()) throw new Error("Missing router reply");
-    answer = { model: ROUTER_MODEL, text: route.replyText };
+    answer = { model: modelProfile.routerModel, text: route.replyText };
   } else if (route.route === "deep_reasoning") {
     const answerStarted = performance.now();
     answerStartedAt = answerStarted;
     answerStartWaitMs = Math.round(answerStarted - routingCompletedAt);
-    const response = await (dependencies.reason || reason)({ ...input, language: route.language });
+    const response = await (dependencies.reason || reason)({ ...input, language: route.language, model: modelProfile.reasoningModel });
     answerMs = Math.round(performance.now() - answerStarted);
     answerTtftMs = response.timings?.ttftMs ?? null;
     answerGenerationMs = response.timings?.generationMs ?? answerMs;
@@ -43,7 +46,7 @@ export async function dispatch(input, dependencies = {}) {
   const responseAssemblyStarted = performance.now();
   const answerGenerationExclusiveMs = answerGenerationMs == null || answerTtftMs == null
     ? null : answerGenerationMs - answerTtftMs;
-  const result = { requestId: randomUUID(), routerModel: ROUTER_MODEL, reasoningModel: REASONING_MODEL,
+  const result = { requestId: randomUUID(), routerModel: modelProfile.routerModel, reasoningModel: modelProfile.reasoningModel,
     route, answer, calls, timings: {}, latencyMs: null };
   const finishedAt = performance.now();
   const responseAssemblyMs = Math.round(finishedAt - responseAssemblyStarted);
