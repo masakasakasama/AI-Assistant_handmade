@@ -730,17 +730,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val job = viewModelScope.launch {
             try {
                 coroutineScope {
-                    val gpt56 = async {
-                        runModelProfile(url, query, context, "gpt-5.6").also { side ->
-                            if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(gpt56 = side) }
+                    val luna56 = async {
+                        runModelProfile(url, query, context, "gpt-5.6", useJev = false).also { side ->
+                            if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(luna56 = side) }
                         }
                     }
-                    val gpt6 = async {
-                        runModelProfile(url, query, context, "gpt-6").also { side ->
-                            if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(gpt6 = side) }
+                    val luna6 = async {
+                        runModelProfile(url, query, context, "gpt-6", useJev = false).also { side ->
+                            if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(luna6 = side) }
                         }
                     }
-                    awaitAll(gpt56, gpt6)
+                    val jev56 = async {
+                        runModelProfile(url, query, context, "gpt-5.6", useJev = true).also { side ->
+                            if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(jev56 = side) }
+                        }
+                    }
+                    val jev6 = async {
+                        runModelProfile(url, query, context, "gpt-6", useJev = true).also { side ->
+                            if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(jev6 = side) }
+                        }
+                    }
+                    awaitAll(luna56, luna6, jev56, jev6)
                 }
             } finally {
                 if (runId == comparisonGeneration) _routerComparing.value = false
@@ -760,12 +770,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         url: String,
         text: String,
         context: String,
-        profile: String
+        profile: String,
+        useJev: Boolean
     ): ModelComparisonSide {
         val started = android.os.SystemClock.elapsedRealtime()
         return try {
             val result = withTimeout(60_000) {
-                aiBackendClient.dispatchWithProfile(url, text, context, profile).getOrThrow()
+                if (useJev) aiBackendClient.dispatchJev(url, text, context, profile).getOrThrow()
+                else aiBackendClient.dispatchWithProfile(url, text, context, profile).getOrThrow()
             }
             ModelComparisonSide(result = result, clientLatencyMs = result.clientLatencyMs, pending = false)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {

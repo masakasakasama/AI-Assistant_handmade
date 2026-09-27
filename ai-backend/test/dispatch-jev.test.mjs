@@ -46,6 +46,33 @@ test("Jev deep_reasoning routes to Sol high", async () => {
   assert.equal(result.calls.length, 2);
 });
 
+test("Jev uses the selected 5.6 models after classification", async () => {
+  const simple = await dispatchJev({ text: "こんにちは", modelProfile: "gpt-5.6" }, {
+    routeIntentJev: async () => routed("simple_chat"),
+    answerSimple: async input => {
+      assert.equal(input.model, "gpt-5.6-luna");
+      return { model: input.model, text: "こんにちは" };
+    }
+  });
+  assert.equal(simple.routerModel, "jev-test");
+  assert.equal(simple.answer.model, "gpt-5.6-luna");
+  assert.equal(simple.reasoningModel, "gpt-5.6-sol");
+
+  const deep = await dispatchJev({ text: "比較して", modelProfile: "gpt-5.6" }, {
+    routeIntentJev: async () => routed("deep_reasoning"),
+    reason: async input => {
+      assert.equal(input.model, "gpt-5.6-sol");
+      assert.equal(input.effort, "high");
+      return { model: input.model, text: "比較結果" };
+    }
+  });
+  assert.equal(deep.answer.model, "gpt-5.6-sol");
+});
+
+test("Jev rejects unsupported model profiles", async () => {
+  await assert.rejects(dispatchJev({ modelProfile: "arbitrary" }), /Unsupported modelProfile/);
+});
+
 test("Jev physical routes stay structured for Android and do not call an LLM", async () => {
   const result = await dispatchJev({ text: "エアコンを26度にして" }, {
     routeIntentJev: async () => routed("device_action", {

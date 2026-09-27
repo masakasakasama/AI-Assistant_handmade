@@ -45,7 +45,8 @@ const server = http.createServer(async (req, res) => {
       }
       const result = await dispatchJev({
         text: body.text.trim(),
-        context: typeof body.context === "string" ? body.context : ""
+        context: typeof body.context === "string" ? body.context : "",
+        modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : "current"
       });
       return json(res, 200, result);
     }

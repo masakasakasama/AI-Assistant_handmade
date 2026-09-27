@@ -38,8 +38,10 @@ data class ModelComparisonSide(
 
 data class ModelComparisonSample(
     val number: Int,
-    val gpt56: ModelComparisonSide = ModelComparisonSide(),
-    val gpt6: ModelComparisonSide = ModelComparisonSide(),
+    val luna56: ModelComparisonSide = ModelComparisonSide(),
+    val luna6: ModelComparisonSide = ModelComparisonSide(),
+    val jev56: ModelComparisonSide = ModelComparisonSide(),
+    val jev6: ModelComparisonSide = ModelComparisonSide(),
     val startedAtElapsedMs: Long
 )
 
@@ -113,8 +115,9 @@ class AiBackendClient {
     suspend fun dispatchJev(
         baseUrl: String,
         text: String,
-        context: String = ""
-    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch-jev")
+        context: String = "",
+        modelProfile: String? = null
+    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch-jev", modelProfile)
 
     private suspend fun dispatchAt(
         baseUrl: String,

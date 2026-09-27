@@ -14,7 +14,7 @@ AndroidへOpenAI長期キーを埋め込まず、文字入力から回答また�
 
 既定モデルはGPT-6 Luna / GPT-6 Sol。デプロイ環境の`ROUTER_MODEL` / `REASONING_MODEL`が設定されていればそちらが優先される。実際に有効なモデルIDはGET /api/healthで確認する。
 
-AIラボの「5.6 / 6比較」は、同じ入力に`modelProfile: "gpt-5.6"`と`modelProfile: "gpt-6"`を付けた通常dispatchを並列実行する。選べる値は固定モデルペアのみで、実機アクションは実行しない。比較1回でAPIを2回呼び出す。
+AIラボの「4経路比較」は、Luna-first/Jev-firstそれぞれに`modelProfile: "gpt-5.6"`と`modelProfile: "gpt-6"`を付け、同じ入力で並列実行する。Jev自体は同じ分類モデルを使い、分類後のsimple_chatは該当版Luna、deep_reasoningは該当版Sol highへ送る。選べる値は固定モデルペアのみで、実機アクションは実行しない。比較1回でAPIを4回呼び出す。
 
 ## 起動・比較
 
