@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="screenshot_accessibility_label">Screen → ChatGPT</string>
+    <string name="screenshot_accessibility_description">画面を一時保存して画像クリップボードへコピーし、ChatGPTを開きます。画像は5分後に削除されます。</string>
+</resources>
