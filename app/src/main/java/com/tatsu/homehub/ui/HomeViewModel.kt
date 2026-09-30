@@ -645,6 +645,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) {
             _message.value = "設定からAI Backend URLを登録してください"
+            resumeWakeWordIfRequested()
             return
         }
 
