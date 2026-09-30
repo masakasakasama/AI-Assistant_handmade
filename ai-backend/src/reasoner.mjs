@@ -28,7 +28,8 @@ Reply in the user's language. Requested language code: ${language}.
         ]
       }
     ],
-    max_output_tokens: 1800
+    // This budget includes hidden reasoning tokens as well as the visible answer.
+    max_output_tokens: 8192
   }, { timeoutMs: REASONING_TIMEOUT_MS, stage: "reasoning" });
 
   return {

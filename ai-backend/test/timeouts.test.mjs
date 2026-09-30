@@ -57,6 +57,7 @@ test("reasoning gets 90 seconds while preserving high effort and the selected mo
     const body = JSON.parse(options.body);
     assert.equal(body.model, "gpt-6.1-sol");
     assert.equal(body.reasoning.effort, "high");
+    assert.equal(body.max_output_tokens, 8192);
     throw new DOMException("test timeout", "TimeoutError");
   };
   try {

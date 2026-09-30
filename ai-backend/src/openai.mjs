@@ -78,7 +78,7 @@ async function readResponse(body, signal, started) {
       if (event.type === "response.output_text.delta" && ttftMs == null) {
         ttftMs = Math.max(0, performance.now() - started);
       }
-      if (event.type === "response.completed") completed = event.response;
+      if (event.type === "response.completed" || event.type === "response.incomplete") completed = event.response;
       if (event.type === "response.failed" || event.type === "error") {
         throw new Error(event.response?.error?.message || event.error?.message || "OpenAI stream failed");
       }
@@ -98,7 +98,7 @@ async function readResponse(body, signal, started) {
 }
 
 export function outputText(response) {
-  if (response.status === "incomplete") throw new Error("OpenAI response incomplete");
+  if (response.status === "incomplete") throw new Error(`OpenAI response incomplete: ${response.incomplete_details?.reason || "unknown reason"}`);
   for (const item of response.output ?? []) {
     if (item.type !== "message") continue;
     for (const content of item.content ?? []) {

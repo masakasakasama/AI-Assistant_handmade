@@ -37,3 +37,28 @@ test("Responses streaming records actual first output token and completion", asy
     delete process.env.OPENAI_API_KEY;
   }
 });
+
+test("token-limit termination is reported as incomplete instead of a broken stream", async () => {
+  const previousFetch = globalThis.fetch;
+  const previousKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-key";
+  const encoder = new TextEncoder();
+  globalThis.fetch = async () => new Response(new ReadableStream({
+    start(controller) {
+      const event = { type: "response.incomplete", response: {
+        status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: []
+      } };
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      controller.close();
+    }
+  }), { status: 200 });
+  try {
+    const response = await createResponse({ model: "test" });
+    assert.equal(response.status, "incomplete");
+    assert.throws(() => outputText(response), /incomplete: max_output_tokens/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousKey;
+  }
+});

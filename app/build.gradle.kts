@@ -13,8 +13,8 @@ android {
         applicationId = "com.tatsu.homehub"
         minSdk = 28
         targetSdk = 35
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 26
-        versionName = System.getenv("VERSION_NAME") ?: "0.4.20"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 27
+        versionName = System.getenv("VERSION_NAME") ?: "0.4.21"
         buildConfigField(
             "String",
             "DEFAULT_AI_BACKEND_URL",
