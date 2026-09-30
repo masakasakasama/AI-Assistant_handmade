@@ -55,3 +55,18 @@ npm run benchmark
 
 Android：JDK 17、Android SDK 35、Gradle 8.11.1で `gradle :app:assembleDebug`。
 PRのGitHub ActionsでもAndroidをビルドします。mainの自動デプロイ前に、Backend認証・利用予算制限を完成させてください。
+
+## Local Wake Word
+
+Tatsu Home can keep a wake-word detector running entirely on the Android device.
+
+- Initial phrase: `Hey Jarvis`
+- Runtime: openWakeWord-compatible ONNX models through `openwakeword-android`
+- Network/API use before wake detection: none
+- On detection: the wake detector releases the microphone, then the existing Android speech-recognition flow starts
+- After TTS completes or an error/cancel occurs: wake-word listening resumes automatically
+- Target: the dedicated low-cost Android tablet, not the Galaxy PoC device
+
+The dependency is pinned to upstream commit `b49f3ab14cf558ac0c2aef73a5e6c83da7a08558`.
+The bundled pre-trained wake-word models are CC BY-NC-SA 4.0, so this initial configuration is intended for the personal/non-commercial Tatsu Home deployment. A custom `Tatsu` model can replace the built-in classifier later without changing the app flow.
+
