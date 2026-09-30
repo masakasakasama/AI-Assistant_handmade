@@ -1,3 +1,4 @@
+import { apiError } from "./openai.mjs";
 import http from "node:http";
 import { dispatch } from "./dispatch.mjs";
 import { compareRouters } from "./router-compare.mjs";
@@ -80,10 +81,8 @@ const server = http.createServer(async (req, res) => {
     return json(res, 404, { error: "not_found" });
   } catch (error) {
     console.error(error);
-    return json(res, 500, {
-      error: "internal_error",
-      message: error instanceof Error ? error.message : String(error)
-    });
+    const failure = apiError(error);
+    return json(res, failure.status, failure.body);
   }
 });
 

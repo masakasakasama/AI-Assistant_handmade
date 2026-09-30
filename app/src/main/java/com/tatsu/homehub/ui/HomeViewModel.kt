@@ -775,11 +775,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     ): ModelComparisonSide {
         val started = android.os.SystemClock.elapsedRealtime()
         return try {
-            val result = withTimeout(60_000) {
+            val result = withTimeout(150_000) {
                 if (useJev) aiBackendClient.dispatchJev(url, text, context, profile).getOrThrow()
                 else aiBackendClient.dispatchWithProfile(url, text, context, profile).getOrThrow()
             }
             ModelComparisonSide(result = result, clientLatencyMs = result.clientLatencyMs, pending = false)
+        } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+            ModelComparisonSide(
+                error = "比較の応答が150秒以内に完了しませんでした",
+                clientLatencyMs = android.os.SystemClock.elapsedRealtime() - started,
+                pending = false
+            )
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (error: Throwable) {

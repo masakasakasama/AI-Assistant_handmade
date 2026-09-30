@@ -8,11 +8,44 @@ function apiKey() {
   return value;
 }
 
-export async function createResponse(body) {
+export const MODEL_TIMEOUT_MS = 45_000;
+export const REASONING_TIMEOUT_MS = 90_000;
+
+export class ModelTimeoutError extends Error {
+  constructor({ model, stage, timeoutMs, elapsedMs }, cause) {
+    const label = stage === "reasoning" ? "回答生成" : stage === "routing" ? "分類" : "回答";
+    super(`${label}（${model}）が${timeoutMs / 1000}秒の待機上限に達しました。`, { cause });
+    this.name = "ModelTimeoutError";
+    Object.assign(this, { model, stage, timeoutMs, elapsedMs });
+  }
+}
+
+export function apiError(error) {
+  if (error instanceof ModelTimeoutError) {
+    return { status: 504, body: { error: "model_timeout", message: error.message,
+      model: error.model, stage: error.stage, timeoutMs: error.timeoutMs, elapsedMs: error.elapsedMs } };
+  }
+  return { status: 500, body: { error: "internal_error", message: error instanceof Error ? error.message : String(error) } };
+}
+
+export async function createResponse(body, { timeoutMs = MODEL_TIMEOUT_MS, stage = "answer" } = {}) {
   const started = performance.now();
+  const signal = AbortSignal.timeout(timeoutMs);
+  try {
+    return await readResponse(body, signal, started);
+  } catch (error) {
+    if (signal.aborted || error?.name === "TimeoutError") {
+      throw new ModelTimeoutError({ model: body.model, stage, timeoutMs,
+        elapsedMs: Math.round(performance.now() - started) }, error);
+    }
+    throw error;
+  }
+}
+
+async function readResponse(body, signal, started) {
   const response = await fetch(OPENAI_RESPONSES_URL, {
     method: "POST",
-    signal: AbortSignal.timeout(45_000),
+    signal,
     headers: {
       "Authorization": `Bearer ${apiKey()}`,
       "Content-Type": "application/json"

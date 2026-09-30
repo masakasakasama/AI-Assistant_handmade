@@ -119,7 +119,7 @@ export async function routeIntent({ text, context = "", benchmarkClassificationO
       }
     },
     max_output_tokens: 600
-  });
+  }, { stage: "routing" });
 
   return { ...JSON.parse(outputText(response)), _usage: response.usage ?? null, _timings: response._timings ?? null };
 }

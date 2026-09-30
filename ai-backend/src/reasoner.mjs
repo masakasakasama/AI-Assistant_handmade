@@ -1,4 +1,4 @@
-import { createResponse, outputText } from "./openai.mjs";
+import { createResponse, outputText, REASONING_TIMEOUT_MS } from "./openai.mjs";
 
 export const REASONING_MODEL = process.env.REASONING_MODEL || "gpt-6.1-sol";
 export const DEFAULT_REASONING_EFFORT = "high";
@@ -29,7 +29,7 @@ Reply in the user's language. Requested language code: ${language}.
       }
     ],
     max_output_tokens: 1800
-  });
+  }, { timeoutMs: REASONING_TIMEOUT_MS, stage: "reasoning" });
 
   return {
     model,

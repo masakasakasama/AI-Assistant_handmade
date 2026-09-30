@@ -1236,7 +1236,7 @@ private fun ModelVersionComparisonView(comparison: ModelComparisonState) {
     fun deltaLabel(value: Long?): String = value?.let { "${if (it > 0) "+" else ""}${it}ms" } ?: "—"
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Luna / Jev × GPT-5.6 / 現行モデル", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text("同じ入力を4経路へ並列送信。1試行でAPIを4回呼びます。家電・アラーム操作は実行しません。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("同じ入力を4経路へ並列送信。1試行でAPIを4回呼びます。各経路の待機上限は150秒。家電・アラーム操作は実行しません。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("現行モデル: GPT-6 Luna（会話・分類）＋ GPT-6.1 Sol（難しい質問）", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("入力: ${comparison.query}", style = MaterialTheme.typography.bodyMedium)
         routes.forEach { (label, sideOf) ->

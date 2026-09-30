@@ -1,3 +1,4 @@
+import { apiError } from "../ai-backend/src/openai.mjs";
 import { dispatchJev } from "../ai-backend/src/dispatch-jev.mjs";
 
 export default async function handler(req, res) {
@@ -22,9 +23,7 @@ export default async function handler(req, res) {
     res.status(200).json(result);
   } catch (error) {
     console.error(error);
-    res.status(500).json({
-      error: "internal_error",
-      message: error instanceof Error ? error.message : String(error)
-    });
+    const failure = apiError(error);
+    res.status(failure.status).json(failure.body);
   }
 }

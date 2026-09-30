@@ -206,7 +206,7 @@ class AiBackendClient {
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 12_000
-                readTimeout = 60_000
+                readTimeout = if (modelProfile != null) 150_000 else 60_000
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Accept", "application/json")
                 doOutput = true
@@ -223,7 +223,13 @@ class AiBackendClient {
                 val code = connection.responseCode
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream
                 val raw = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                if (code !in 200..299) error("AI Backend HTTP $code: $raw")
+                if (code !in 200..299) {
+                    val failure = runCatching { JSONObject(raw) }.getOrNull()
+                    if (failure?.optString("error") == "model_timeout") {
+                        error(failure.optString("message").ifBlank { "AIの応答が待機上限に達しました" })
+                    }
+                    error("AI Backend HTTP $code: $raw")
+                }
                 JSONObject(raw) to started
             } finally {
                 cancellation.dispose()
