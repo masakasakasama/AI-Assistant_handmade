@@ -33,6 +33,7 @@ import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.update.UpdateManager
 import com.tatsu.homehub.voice.VoiceController
+import com.tatsu.homehub.voice.WakeWordController
 import com.tatsu.homehub.voice.AnswerComparisonSide
 import com.tatsu.homehub.voice.AnswerComparisonState
 import com.tatsu.homehub.voice.VoiceMode
@@ -130,6 +131,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val voiceState: StateFlow<VoiceSessionState> = _voiceState.asStateFlow()
     val voiceLanguageTag: String get() = appPrefs.voiceLanguageTag
 
+    private val _wakeWordStatus = MutableStateFlow("停止中")
+    val wakeWordStatus: StateFlow<String> = _wakeWordStatus.asStateFlow()
+    val wakeWordPhrase: String get() = WakeWordController.PHRASE
+
+    private var wakeWordRequested = false
     private var voiceGeneration = 0L
     private var currentVoiceJob: Job? = null
     private var routerComparisonJob: Job? = null
@@ -141,6 +147,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var voiceSpeechEndedElapsedMs: Long? = null
     private val conversationHistory = mutableListOf<String>()
     private val executedVoiceOperations = LinkedHashMap<String, Long>()
+
+    private val wakeWordController = WakeWordController(application, object : WakeWordController.Listener {
+        override fun onListeningChanged(listening: Boolean) {
+            _wakeWordStatus.value = if (listening) {
+                "待受中: ${WakeWordController.PHRASE}"
+            } else {
+                "停止中"
+            }
+        }
+
+        override fun onDetected(score: Float) {
+            handleWakeWordDetected(score)
+        }
+
+        override fun onError(message: String) {
+            _wakeWordStatus.value = "エラー: $message"
+            _message.value = message
+        }
+    })
 
     private val voiceController = VoiceController(application, object : VoiceController.Listener {
         override fun onListeningChanged(sessionId: Long, listening: Boolean) {
@@ -199,6 +224,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 current
             }
+            if (!speaking) resumeWakeWordIfRequested()
         }
 
         override fun onSpeechEnded(sessionId: Long, elapsedRealtimeMs: Long) {
@@ -251,6 +277,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             if (sessionId != 0L && sessionId != current.generationId) return
             if (sessionId == 0L && current.generationId != 0L && current.phase != VoicePhase.SPEAKING) return
             _voiceState.value = _voiceState.value.copy(phase = VoicePhase.ERROR, error = message)
+            resumeWakeWordIfRequested()
         }
     })
 
@@ -791,6 +818,38 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun startWakeWordListening() {
+        wakeWordRequested = true
+        resumeWakeWordIfRequested()
+    }
+
+    fun stopWakeWordListening() {
+        wakeWordRequested = false
+        wakeWordController.stop()
+    }
+
+    private fun handleWakeWordDetected(score: Float) {
+        if (!wakeWordRequested) return
+        _wakeWordStatus.value = "検出: ${WakeWordController.PHRASE} (${String.format("%.2f", score)})"
+        if (appPrefs.aiBackendUrl.isBlank()) {
+            _message.value = "Wake Wordを検出しましたがAI Backend URLが未設定です"
+            resumeWakeWordIfRequested()
+            return
+        }
+        startVoiceSessionInternal(VoiceMode.LUNA)
+    }
+
+    private fun resumeWakeWordIfRequested() {
+        if (!wakeWordRequested) return
+        val phase = _voiceState.value.phase
+        val voiceBusy = phase == VoicePhase.PREPARING ||
+            phase == VoicePhase.LISTENING ||
+            phase == VoicePhase.THINKING ||
+            phase == VoicePhase.SPEAKING ||
+            phase == VoicePhase.ANSWER_READY
+        if (!voiceBusy) wakeWordController.start()
+    }
+
     fun startVoiceSession() {
         startVoiceSessionInternal(VoiceMode.LUNA)
     }
@@ -842,6 +901,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun startVoiceSessionInternal(mode: VoiceMode) {
+        wakeWordController.stop()
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) {
             _message.value = "設定からAI Backend URLを登録してください"
@@ -895,6 +955,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             phase = VoicePhase.IDLE,
             generationId = voiceGeneration
         )
+        resumeWakeWordIfRequested()
     }
 
     private fun processVoiceText(text: String, generation: Long) {
@@ -1046,6 +1107,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         phase = VoicePhase.ERROR,
                         error = "AIから60秒以内に応答がありませんでした。もう一度お試しください"
                     )
+                    resumeWakeWordIfRequested()
                 }
                 return@launch
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -1057,6 +1119,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         phase = VoicePhase.ERROR,
                         error = "AI処理失敗: ${error.message ?: "unknown"}"
                     )
+                    resumeWakeWordIfRequested()
                 }
             }
         }
@@ -1727,6 +1790,8 @@ $history
     }
 
     override fun onCleared() {
+        wakeWordRequested = false
+        wakeWordController.release()
         currentVoiceJob?.cancel()
         voiceController.release()
         networkMonitor.stop()
