@@ -66,7 +66,7 @@ dependencies {
     implementation("androidx.compose.foundation:foundation:1.8.0")
     implementation("androidx.compose.material3:material3:1.3.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
-    implementation("com.github.msnilsen:openwakeword-android:b49f3ab14cf558ac0c2aef73a5e6c83da7a08558")
+    implementation("com.github.msnilsen:openwakeword-android:0.1.2")
 
     implementation("androidx.room:room-runtime:2.8.5")
     implementation("androidx.room:room-ktx:2.8.5")
