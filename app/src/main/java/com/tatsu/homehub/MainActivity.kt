@@ -41,6 +41,25 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         enterLockTaskIfPermitted()
+        startWakeWordIfPermitted()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001) startWakeWordIfPermitted()
+    }
+
+    private fun startWakeWordIfPermitted() {
+        if (
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            viewModel.startWakeWordListening()
+        }
     }
 
     private fun enterLockTaskIfPermitted() {
