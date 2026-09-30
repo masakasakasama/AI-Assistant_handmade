@@ -46,9 +46,10 @@ class WakeWordController(
         listener.onListeningChanged(true)
         runCatching {
             instance.start { score ->
-                if (!listening) return@start
-                stop()
-                listener.onDetected(score)
+                if (listening) {
+                    stop()
+                    listener.onDetected(score)
+                }
             }
         }.onFailure { error ->
             listening = false
