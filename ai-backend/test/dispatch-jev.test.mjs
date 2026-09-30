@@ -39,10 +39,11 @@ test("Jev deep_reasoning routes to Sol high", async () => {
     routeIntentJev: async () => routed("deep_reasoning"),
     reason: async input => {
       assert.equal(input.effort, "high");
-      return { model: "gpt-6-sol", text: "比較結果", usage: { output_tokens: 8 } };
+      assert.equal(input.model, "gpt-6.1-sol");
+      return { model: "gpt-6.1-sol", text: "比較結果", usage: { output_tokens: 8 } };
     }
   });
-  assert.equal(result.answer.model, "gpt-6-sol");
+  assert.equal(result.answer.model, "gpt-6.1-sol");
   assert.equal(result.calls.length, 2);
 });
 

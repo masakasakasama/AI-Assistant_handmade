@@ -1223,9 +1223,9 @@ private fun ModelVersionComparisonView(comparison: ModelComparisonState) {
     fun measured(side: ModelComparisonSide): Long? = side.result?.latencyMs?.takeIf { it > 0 }
     val routes = listOf(
         "Luna → 5.6" to { sample: ModelComparisonSample -> sample.luna56 },
-        "Luna → 6" to { sample: ModelComparisonSample -> sample.luna6 },
+        "Luna → 6 Luna / 6.1 Sol" to { sample: ModelComparisonSample -> sample.luna6 },
         "Jev → 5.6" to { sample: ModelComparisonSample -> sample.jev56 },
-        "Jev → 6" to { sample: ModelComparisonSample -> sample.jev6 }
+        "Jev → 6 Luna / 6.1 Sol" to { sample: ModelComparisonSample -> sample.jev6 }
     )
     fun pairDelta(first: (ModelComparisonSample) -> ModelComparisonSide, second: (ModelComparisonSample) -> ModelComparisonSide): Long? =
         median(comparison.samples.mapNotNull { sample ->
@@ -1235,15 +1235,16 @@ private fun ModelVersionComparisonView(comparison: ModelComparisonState) {
         })
     fun deltaLabel(value: Long?): String = value?.let { "${if (it > 0) "+" else ""}${it}ms" } ?: "—"
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Luna / Jev × GPT-5.6 / 6", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text("Luna / Jev × GPT-5.6 / 現行モデル", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Text("同じ入力を4経路へ並列送信。1試行でAPIを4回呼びます。家電・アラーム操作は実行しません。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("現行モデル: GPT-6 Luna（会話・分類）＋ GPT-6.1 Sol（難しい質問）", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("入力: ${comparison.query}", style = MaterialTheme.typography.bodyMedium)
         routes.forEach { (label, sideOf) ->
             val values = comparison.samples.mapNotNull { measured(sideOf(it)) }
             Text("$label  p50 ${median(values)?.let { "${it}ms" } ?: "—"}（${values.size}回）", style = MaterialTheme.typography.bodySmall)
         }
-        Text("6 − 5.6: Luna ${deltaLabel(pairDelta({ it.luna56 }, { it.luna6 }))} / Jev ${deltaLabel(pairDelta({ it.jev56 }, { it.jev6 }))}", style = MaterialTheme.typography.labelMedium)
-        Text("Jev − Luna: 5.6 ${deltaLabel(pairDelta({ it.luna56 }, { it.jev56 }))} / 6 ${deltaLabel(pairDelta({ it.luna6 }, { it.jev6 }))}", style = MaterialTheme.typography.labelMedium)
+        Text("現行 − 5.6: Luna ${deltaLabel(pairDelta({ it.luna56 }, { it.luna6 }))} / Jev ${deltaLabel(pairDelta({ it.jev56 }, { it.jev6 }))}", style = MaterialTheme.typography.labelMedium)
+        Text("Jev − Luna: 5.6 ${deltaLabel(pairDelta({ it.luna56 }, { it.jev56 }))} / 現行 ${deltaLabel(pairDelta({ it.luna6 }, { it.jev6 }))}", style = MaterialTheme.typography.labelMedium)
         comparison.samples.asReversed().forEach { sample ->
             Text("試行 ${sample.number}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             routes.forEach { (label, sideOf) -> ModelComparisonSideCard(label, sideOf(sample)) }

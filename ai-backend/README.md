@@ -5,14 +5,14 @@ AndroidへOpenAI長期キーを埋め込まず、文字入力から回答また�
 ## 現在の処理
 
 - GPT-6 Luna 1回で分類・抽出・簡単な回答／確認文を生成。
-- 深い質問だけGPT-6 Sol。既定highを維持し、REASONING_EFFORTでmedium/highを比較。
+- 深い質問だけGPT-6.1 Sol。既定highを維持し、REASONING_EFFORTでmedium/highを比較。
 - `ROUTER_MODEL` / `REASONING_MODEL` で既定を上書きできる。PoCの`/api/health`が現在有効なモデルIDを返す。
 - 物理操作は実行しない。Androidの検証・実行層は別途必要。
 - 応答にtimings.routerMs、timings.answerMs、latencyMsとcalls[].usageを含める。
 - simple.mjsは旧2段構成のベンチマーク用。通常dispatchからは呼ばない。
 - STT/TTS/Liveの音声経路は未実装。
 
-既定モデルはGPT-6 Luna / GPT-6 Sol。デプロイ環境の`ROUTER_MODEL` / `REASONING_MODEL`が設定されていればそちらが優先される。実際に有効なモデルIDはGET /api/healthで確認する。
+既定モデルはGPT-6 Luna / GPT-6.1 Sol。デプロイ環境の`ROUTER_MODEL` / `REASONING_MODEL`が設定されていればそちらが優先される。実際に有効なモデルIDはGET /api/healthで確認する。
 
 AIラボの「4経路比較」は、Luna-first/Jev-firstそれぞれに`modelProfile: "gpt-5.6"`と`modelProfile: "gpt-6"`を付け、同じ入力で並列実行する。Jev自体は同じ分類モデルを使い、分類後のsimple_chatは該当版Luna、deep_reasoningは該当版Sol highへ送る。選べる値は固定モデルペアのみで、実機アクションは実行しない。比較1回でAPIを4回呼び出す。
 

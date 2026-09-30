@@ -736,7 +736,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     val luna6 = async {
-                        runModelProfile(url, query, context, "gpt-6", useJev = false).also { side ->
+                        runModelProfile(url, query, context, "gpt-6.1", useJev = false).also { side ->
                             if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(luna6 = side) }
                         }
                     }
@@ -746,7 +746,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     val jev6 = async {
-                        runModelProfile(url, query, context, "gpt-6", useJev = true).also { side ->
+                        runModelProfile(url, query, context, "gpt-6.1", useJev = true).also { side ->
                             if (runId == comparisonGeneration) updateModelComparison(sample.number) { it.copy(jev6 = side) }
                         }
                     }
