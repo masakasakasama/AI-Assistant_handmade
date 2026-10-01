@@ -5,10 +5,16 @@ on:
     branches: [main]
     paths:
       - "ai-backend/**"
+      - "api/**"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/ai-backend.yml"
   pull_request:
     paths:
       - "ai-backend/**"
+      - "api/**"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/ai-backend.yml"
 
 jobs:
@@ -19,6 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - run: npm ci --ignore-scripts
       - name: Syntax check
         run: |
           node --check ai-backend/src/openai.mjs

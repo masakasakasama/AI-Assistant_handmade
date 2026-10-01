@@ -43,7 +43,7 @@ class MultilingualSpeechController(context: Context, private val listener: Voice
                 val tags = mapOf("ja" to "ja-JP", "en" to "en-US", "de" to "de-DE")
                 // Multiple languages are retained in diagnostics; do not invent a single detected language.
                 if (languages?.length() == 1) tags[languages.optString(0)]?.let { listener.onLanguageDetected(sessionId, it) }
-                listener.onDiagnostic(sessionId, "recognizer=multilingual-cloud; model=${result.optString("model")}; detected=$languages; stt-ms=${result.optLong("elapsedMs")}")
+                listener.onDiagnostic(sessionId, "recognizer=multilingual-cloud; model=${result.optString("model")}; detected=$languages; source=${result.optString("languageSource", "audio")}; audio-detected=${result.optJSONArray("audioLanguages")}; stt-ms=${result.optLong("elapsedMs")}")
                 val text = result.getString("text").trim()
                 require(text.isNotBlank()) { "音声を認識できませんでした" }
                 listener.onStatus(sessionId, "認識しました")

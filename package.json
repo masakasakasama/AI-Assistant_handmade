@@ -1,0 +1,6 @@
+{
+  "name": "tatsu-home-workspace",
+  "private": true,
+  "workspaces": ["ai-backend"],
+  "engines": { "node": ">=20" }
+}

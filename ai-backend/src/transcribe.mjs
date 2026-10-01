@@ -1,4 +1,5 @@
 import { performance } from "node:perf_hooks";
+import { validateTranscriptionLanguage } from "./transcription-language.mjs";
 
 export const TRANSCRIPTION_MODEL = process.env.TRANSCRIPTION_MODEL || "gpt-transcribe";
 export const MAX_AUDIO_BYTES = 960_044; // 30 seconds, 16 kHz mono PCM16 + WAV header
@@ -53,7 +54,7 @@ export async function transcribe({ audioBase64 }, dependencies = {}) {
     }
     const languages = (Array.isArray(result.languages) ? result.languages : [])
       .map(value => value?.code).filter(code => ["ja", "en", "de"].includes(code));
-    return { text: result.text.trim(), languages: [...new Set(languages)], model: TRANSCRIPTION_MODEL,
+    return { text: result.text.trim(), ...validateTranscriptionLanguage(result.text, languages), model: TRANSCRIPTION_MODEL,
       durationMs: Math.round((audio.length - 44) / 32), elapsedMs: Math.round(performance.now() - started) };
   } catch (error) {
     if (signal.aborted || error?.name === "TimeoutError") {

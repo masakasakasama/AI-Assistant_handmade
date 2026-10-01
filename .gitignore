@@ -9,3 +9,5 @@ build/
 !.env.example
 benchmark-results/
 **/benchmark-results/
+__pycache__/
+*.pyc

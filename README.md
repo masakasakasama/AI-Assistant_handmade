@@ -62,6 +62,7 @@ Solの回答生成の待機上限を45秒から90秒へ、AIラボの4経路比�
 ## 確認コマンド
 
 ```sh
+npm ci --ignore-scripts
 cd ai-backend
 npm test
 npm run benchmark:plan
@@ -107,3 +108,7 @@ Fixed an automatic-mode support-check bug that checked only Japanese availabilit
 Automatic voice input now records an utterance as 16 kHz mono PCM16 WAV and sends it to `/api/transcribe`. The backend uses `gpt-transcribe` with `languages[]=ja`, `en`, `de`, without a fixed language or Japanese prompt. This replaces the automatic-mode dependence on Android recognition providers accepting language-switch extras. The API returns the transcript in its original language plus detected language codes; the app passes these into the existing conversation/validated-action flow. If detection is uncertain, it is not mislabeled Japanese. Service errors remain errors and do not silently retry through Japanese recognition. Fixed-language modes still use the Android recognizer.
 
 Audio recording begins only after wake detection or explicit voice input, keeps initial samples, stops after 1.2 seconds of silence after speech, and is bounded at 30 seconds. A connected USB input is preferred when Android exposes it; diagnostics identify the routed input. Cancellation stops recording/upload and ignores stale results. Recordings are kept in memory, not saved by the app/backend. Audio is transmitted to OpenAI for this cloud recognition path, requires networking, and incurs audio API charges. Pre-wake detection remains local. Provider data handling follows the configured OpenAI API account policy.
+
+## v0.4.26: Transcription language consistency
+
+An audio benchmark found German transcripts sometimes carrying a Japanese language label. The backend now checks this inconsistency with a local statistical German/English text-language classifier (`franc-min`), without rewriting the transcript or making an extra model call. Correction requires at least three words/twelve letters, no Japanese script, and a clear separation in the classifier's distance scores. Mixed-language labels, short ambiguous fragments, and Japanese text containing Latin product names retain the audio result. Responses preserve `audioLanguages` and state `languageSource` so a text-based correction is distinguishable from an audio-only prediction. This fixes language labeling; it does not claim to improve the speech transcription itself.
