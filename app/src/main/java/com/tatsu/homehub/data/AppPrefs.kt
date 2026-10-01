@@ -75,6 +75,10 @@ class AppPrefs(context: Context) {
             .putBoolean(KEY_VOICE_AUTO_MIGRATED, true)
             .apply()
 
+    var preferOnDeviceRecognition: Boolean
+        get() = prefs.getBoolean("prefer_on_device_recognition", false)
+        set(value) = prefs.edit().putBoolean("prefer_on_device_recognition", value).apply()
+
     fun loadTemporaryRoomAssignments(): Map<String, String> {
         val raw = prefs.getString(KEY_TEMPORARY_ROOM_ASSIGNMENTS, null) ?: return emptyMap()
         return runCatching {

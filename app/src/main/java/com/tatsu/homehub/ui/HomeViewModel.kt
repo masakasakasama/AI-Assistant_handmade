@@ -138,6 +138,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _voiceState = MutableStateFlow(VoiceSessionState())
     val voiceState: StateFlow<VoiceSessionState> = _voiceState.asStateFlow()
     val voiceLanguageTag: String get() = appPrefs.voiceLanguageTag
+    val preferOnDeviceRecognition: Boolean get() = appPrefs.preferOnDeviceRecognition
     val answerMode: String get() = appPrefs.answerMode
 
     private val _wakeWordStatus = MutableStateFlow("停止中")
@@ -638,6 +639,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun saveRecognitionPreference(preferOnDevice: Boolean) {
+        appPrefs.preferOnDeviceRecognition = preferOnDevice
+    }
+
     fun checkAiBackend(showMessage: Boolean = true) {
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) {
@@ -1010,7 +1015,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             diagnostic = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})",
             detectedLanguageTag = null
         )
-        voiceController.startListening(voiceGeneration, appPrefs.voiceLanguageTag)
+        voiceController.startListening(voiceGeneration, appPrefs.voiceLanguageTag, appPrefs.preferOnDeviceRecognition)
     }
 
     fun stopVoiceListening() {

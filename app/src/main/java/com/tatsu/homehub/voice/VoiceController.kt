@@ -52,6 +52,7 @@ class VoiceController(
     private var nextAttemptId = 0L
     private var fallbackAttempted = false
     private var currentLanguageTag = AppPrefs.VOICE_LANGUAGE_AUTO
+    private var lastAutoLanguageTag = AUTO_BASE_LANGUAGE_TAG
     private var ttsReady = false
     private var activeUtteranceId: String? = null
     private val utteranceSessions = mutableMapOf<String, Long>()
@@ -93,7 +94,7 @@ class VoiceController(
         })
     }
 
-    fun startListening(sessionId: Long, languageTag: String) {
+    fun startListening(sessionId: Long, languageTag: String, preferOnDevice: Boolean = false) {
         mainHandler.post {
             if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 listener.onError(sessionId, "マイク権限が必要です。Androidのアプリ設定でマイクを許可してください")
@@ -105,7 +106,7 @@ class VoiceController(
             fallbackAttempted = false
             stopSpeakingNow()
             listener.onStatus(sessionId, "音声入力を準備しています")
-            val onDeviceAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && runCatching {
+            val onDeviceAvailable = preferOnDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && runCatching {
                 SpeechRecognizer.isOnDeviceRecognitionAvailable(appContext)
             }.getOrDefault(false)
             listener.onDiagnostic(sessionId, "lang=$languageTag; resolved=${recognitionLanguageTag()}; recognizer=${if (onDeviceAvailable) "on-device-first" else "system-only"}; version=${appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName}")
@@ -197,7 +198,7 @@ class VoiceController(
         putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
         if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_DETECTION, true)
-            putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_SWITCH, RecognizerIntent.LANGUAGE_SWITCH_BALANCED)
+            putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_SWITCH, RecognizerIntent.LANGUAGE_SWITCH_QUICK_RESPONSE)
             putStringArrayListExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_DETECTION_ALLOWED_LANGUAGES,
                 ArrayList(SUPPORTED_LANGUAGE_TAGS)
@@ -211,7 +212,7 @@ class VoiceController(
 
     private fun recognitionLanguageTag(): String =
         if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO) {
-            AUTO_BASE_LANGUAGE_TAG
+            lastAutoLanguageTag
         } else {
             currentLanguageTag
         }
@@ -263,14 +264,16 @@ class VoiceController(
                 val detected = normalizeSupportedLanguage(
                     results.getString(SpeechRecognizer.DETECTED_LANGUAGE)
                 ) ?: return
+                val confidence = results.getInt(
+                    SpeechRecognizer.LANGUAGE_DETECTION_CONFIDENCE_LEVEL,
+                    SpeechRecognizer.LANGUAGE_DETECTION_CONFIDENCE_LEVEL_UNKNOWN
+                )
+                listener.onDiagnostic(sessionId, "attempt=$attemptId; detected-language=$detected; confidence=$confidence; switch-result=${results.getInt(SpeechRecognizer.LANGUAGE_SWITCH_RESULT, 0)}")
+                if (confidence < SpeechRecognizer.LANGUAGE_DETECTION_CONFIDENCE_LEVEL_CONFIDENT) return
                 if (attempt.detectedLanguageTag != detected) {
                     attempt.detectedLanguageTag = detected
+                    lastAutoLanguageTag = detected
                     listener.onLanguageDetected(sessionId, detected)
-                    val confidence = results.getInt(
-                        SpeechRecognizer.LANGUAGE_DETECTION_CONFIDENCE_LEVEL,
-                        SpeechRecognizer.LANGUAGE_DETECTION_CONFIDENCE_LEVEL_UNKNOWN
-                    )
-                    listener.onDiagnostic(sessionId, "attempt=$attemptId; detected-language=$detected; confidence=$confidence")
                 }
             }
             override fun onPartialResults(partialResults: Bundle?) {
@@ -284,6 +287,7 @@ class VoiceController(
                 if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO && attempt.detectedLanguageTag == null) {
                     inferJapanese(text)?.let {
                         attempt.detectedLanguageTag = it
+                        lastAutoLanguageTag = it
                         listener.onLanguageDetected(sessionId, it)
                     }
                 }
@@ -325,8 +329,9 @@ class VoiceController(
         val supportTimeout = Runnable {
             if (isCurrent(attempt) && !resolved) {
                 resolved = true
-                listener.onDiagnostic(attempt.sessionId, "attempt=${attempt.id}; support-check=timeout; continuing=on-device")
-                beginRecognition(attempt)
+                listener.onDiagnostic(attempt.sessionId, "attempt=${attempt.id}; support-check=timeout")
+                if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO) fallbackToSystem(attempt)
+                else beginRecognition(attempt)
             }
         }
         mainHandler.postDelayed(supportTimeout, SUPPORT_CHECK_TIMEOUT_MS)
@@ -336,13 +341,9 @@ class VoiceController(
                     if (!isCurrent(attempt) || resolved) return
                     resolved = true
                     mainHandler.removeCallbacks(supportTimeout)
-                    val requestedLanguages = setOf(
-                        Locale.forLanguageTag(recognitionLanguageTag()).language
-                    )
                     val installedLanguages = support.installedOnDeviceLanguages
-                        .map { Locale.forLanguageTag(it).language.lowercase() }
-                        .toSet()
-                    val ready = requestedLanguages.all { it.lowercase() in installedLanguages }
+                    val ready = RecognitionLanguagePolicy.hasRequiredModels(currentLanguageTag, installedLanguages)
+                    listener.onDiagnostic(attempt.sessionId, "attempt=${attempt.id}; required=${RecognitionLanguagePolicy.requiredLanguages(currentLanguageTag)}; installed=$installedLanguages")
                     if (ready) {
                         beginRecognition(attempt)
                     } else {
@@ -355,16 +356,18 @@ class VoiceController(
                     if (!isCurrent(attempt) || resolved) return
                     resolved = true
                     mainHandler.removeCallbacks(supportTimeout)
-                    listener.onDiagnostic(attempt.sessionId, "attempt=${attempt.id}; support-check-error=$error; continuing=on-device")
-                    beginRecognition(attempt)
+                    listener.onDiagnostic(attempt.sessionId, "attempt=${attempt.id}; support-check-error=$error")
+                    if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO) fallbackToSystem(attempt)
+                    else beginRecognition(attempt)
                 }
             })
         } catch (error: Exception) {
             if (isCurrent(attempt) && !resolved) {
                 resolved = true
                 mainHandler.removeCallbacks(supportTimeout)
-                listener.onDiagnostic(attempt.sessionId, "attempt=${attempt.id}; support-check-unavailable=${error.javaClass.simpleName}; continuing=on-device")
-                beginRecognition(attempt)
+                listener.onDiagnostic(attempt.sessionId, "attempt=${attempt.id}; support-check-unavailable=${error.javaClass.simpleName}")
+                if (currentLanguageTag == AppPrefs.VOICE_LANGUAGE_AUTO) fallbackToSystem(attempt)
+                else beginRecognition(attempt)
             }
         }
     }
@@ -463,6 +466,6 @@ class VoiceController(
         const val SUPPORT_CHECK_TIMEOUT_MS = 1_800L
         const val READY_TIMEOUT_MS = 10_000L
         const val AUTO_BASE_LANGUAGE_TAG = "ja-JP"
-        val SUPPORTED_LANGUAGE_TAGS = listOf("ja-JP", "en-US", "de-DE")
+        val SUPPORTED_LANGUAGE_TAGS = RecognitionLanguagePolicy.supportedTags
     }
 }

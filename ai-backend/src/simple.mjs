@@ -1,5 +1,6 @@
 import { createResponse, outputText } from "./openai.mjs";
 import { ROUTER_MODEL } from "./router.mjs";
+import { CONVERSATION_STYLE } from "./conversation-style.mjs";
 
 export async function answerSimple({ text, context = "", language = "ja", model = ROUTER_MODEL }) {
   const response = await createResponse({
@@ -8,6 +9,7 @@ export async function answerSimple({ text, context = "", language = "ja", model 
     instructions: [
       "You are the low-cost everyday response model for Tatsu Home.",
       "Answer briefly and directly.",
+      CONVERSATION_STYLE,
       "Do not claim a physical action happened.",
       "Reply in the user's language. Language code: " + language + "."
     ].join("\n"),

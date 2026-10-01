@@ -24,4 +24,13 @@ class LocalConversationTest {
             assertNull(it, LocalConversation.reply(it))
         }
     }
+
+    @Test fun playfulStandaloneGreetingsWorkWithoutSwallowingCommands() {
+        assertEquals("ja", LocalConversation.reply("おはよ〜！")?.language)
+        assertNotEquals(LocalConversation.reply("おはよう")?.text, LocalConversation.reply("おはよ〜")?.text)
+        assertNotNull(LocalConversation.reply("ありがとー"))
+        listOf("おはよ〜、電気消して", "おやすみ〜、7時に起こして", "ありがと〜、でも消さないで").forEach {
+            assertNull(it, LocalConversation.reply(it))
+        }
+    }
 }

@@ -1,4 +1,5 @@
 import { createResponse, outputText } from "./openai.mjs";
+import { CONVERSATION_STYLE } from "./conversation-style.mjs";
 
 export const ROUTER_MODEL = process.env.ROUTER_MODEL || "gpt-6-luna";
 
@@ -90,6 +91,7 @@ For alarm_update, put the new time in timeLocal and the alarm's existing referen
 For alarm_delete, put the referenced existing alarm time in referenceTimeLocal when the user supplied one and leave timeLocal null.
 Preserve the user's language as ja/en/de when possible.
 Do not invent a target, temperature, or time.
+${CONVERSATION_STYLE}
 `.trim();
 
 export async function routeIntent({ text, context = "", benchmarkClassificationOnly = false, model = ROUTER_MODEL }) {

@@ -324,14 +324,16 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
             initialLongitude = weatherSettings.longitude,
             initialAiBackendUrl = viewModel.aiBackendUrl(),
             initialVoiceLanguageTag = viewModel.voiceLanguageTag,
+            initialPreferOnDeviceRecognition = viewModel.preferOnDeviceRecognition,
             initialAnswerMode = viewModel.answerMode,
             wakeWordControls = { WakeWordSettingsPanel(viewModel) },
             onDismiss = { showSettings = false },
-            onSave = { token, secret, label, latitude, longitude, backendUrl, voiceLanguageTag, answerMode ->
+            onSave = { token, secret, label, latitude, longitude, backendUrl, voiceLanguageTag, answerMode, preferOnDevice ->
                 if (viewModel.saveSwitchBotCredentials(token, secret)) {
                     viewModel.saveWeatherSettings(label, latitude, longitude)
                     viewModel.saveAiBackendUrl(backendUrl)
                     viewModel.saveVoiceLanguage(voiceLanguageTag)
+                    viewModel.saveRecognitionPreference(preferOnDevice)
                     viewModel.saveAnswerMode(answerMode)
                     showSettings = false
                 }
@@ -1669,10 +1671,11 @@ private fun SettingsDialog(
     initialLongitude: Double,
     initialAiBackendUrl: String,
     initialVoiceLanguageTag: String,
+    initialPreferOnDeviceRecognition: Boolean,
     initialAnswerMode: String,
     wakeWordControls: @Composable () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (String, String, String, Double, Double, String, String, String) -> Unit
+    onSave: (String, String, String, Double, Double, String, String, String, Boolean) -> Unit
 ) {
     var token by remember { mutableStateOf("") }
     var secret by remember { mutableStateOf("") }
@@ -1681,6 +1684,7 @@ private fun SettingsDialog(
     var longitude by remember { mutableStateOf(initialLongitude.toString()) }
     var backendUrl by remember { mutableStateOf(initialAiBackendUrl) }
     var voiceLanguageTag by remember { mutableStateOf(initialVoiceLanguageTag) }
+    var preferOnDevice by remember { mutableStateOf(initialPreferOnDeviceRecognition) }
     var answerMode by remember { mutableStateOf(initialAnswerMode) }
 
     AlertDialog(
@@ -1742,7 +1746,7 @@ private fun SettingsDialog(
                 Text("標準は短く答えます。複雑な検討を優先したいときは、じっくり考えるを選べます。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(20.dp))
                 Text("音声入力", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("自動では日本語・英語・ドイツ語を発話ごとに判定します", style = MaterialTheme.typography.bodySmall,
+                Text("自動判定は音声認識サービスの対応状況に依存します。ドイツ語がうまく認識されない場合はDeutschに固定してください。", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -1758,6 +1762,13 @@ private fun SettingsDialog(
                     }
                 }
 
+                Text("音声認識サービス", style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !preferOnDevice, onClick = { preferOnDevice = false }, label = { Text("標準サービス") })
+                    FilterChip(selected = preferOnDevice, onClick = { preferOnDevice = true }, label = { Text("端末内優先") })
+                }
+                Text("標準サービスは通信を使う場合があります。端末内優先の自動判定には日本語・英語・ドイツ語のデータが必要です。", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(20.dp))
                 wakeWordControls()
 
@@ -1799,7 +1810,8 @@ private fun SettingsDialog(
                     longitude.toDoubleOrNull() ?: initialLongitude,
                     backendUrl,
                     voiceLanguageTag,
-                    answerMode
+                    answerMode,
+                    preferOnDevice
                 )
             }) { Text("保存") }
         },

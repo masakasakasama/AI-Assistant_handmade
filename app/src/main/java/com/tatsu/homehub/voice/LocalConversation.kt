@@ -7,6 +7,13 @@ object LocalConversation {
     data class Reply(val language: String, val text: String)
 
     private val replies = mapOf(
+        "おはよ〜" to Reply("ja", "おはよ〜！今日もよろしくね。"),
+        "おはよう〜" to Reply("ja", "おはよ〜！会えてうれしいよ。"),
+        "おはよー" to Reply("ja", "おはよー！今日もよろしくね。"),
+        "こんにちは〜" to Reply("ja", "こんにちは〜！何かお手伝いする？"),
+        "ありがと〜" to Reply("ja", "どういたしまして！役に立ててうれしいよ。"),
+        "ありがとー" to Reply("ja", "どういたしまして！また呼んでね。"),
+        "おやすみ〜" to Reply("ja", "おやすみ〜。あったかくして、いい夢を見てね。"),
         "おはよう" to Reply("ja", "おはよう。今日もよろしくね。"),
         "おはようございます" to Reply("ja", "おはようございます。今日もよろしくお願いします。"),
         "こんにちは" to Reply("ja", "こんにちは。何か手伝えることはある？"),
