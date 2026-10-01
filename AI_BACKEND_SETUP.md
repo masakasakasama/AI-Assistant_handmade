@@ -7,7 +7,8 @@
 | OPENAI_API_KEY | Backendのみに保存。APK・Git・チャットへ貼り付けない |
 | ROUTER_MODEL | 既定gpt-6-luna |
 | REASONING_MODEL | 既定gpt-6.1-sol |
-| REASONING_EFFORT | 既定high。品質を落とさず、mediumはbenchmarkで比較する |
+| ANSWER_MODE | API既定balanced。quick=low、balanced=medium、deep=high。端末のanswerMode指定が優先 |
+| REASONING_EFFORT | reasoner直接呼び出し・既存CLI向け。既定high。APIはANSWER_MODEで選択 |
 | JEV_OPENROUTER_API_KEY | Jev用。Backendのみに保存し、APKへ入れない |
 | JEV_MODEL | 既定typesafe/jev-1.13。比較再現性のため固定版を使用 |
 | JEV_ENDPOINT | 既定https://openrouter.ai/api/alpha/decisions |
@@ -20,8 +21,8 @@ v0.4.19の現行設定は `gpt-6-luna` ＋ `gpt-6.1-sol`。GPT-6.1 Lunaは公式
 
 ## 実装状況
 
-通常のPoC既定はGPT-6 Luna（ルーティング・簡単な会話）とGPT-6.1 Sol high（複雑な質問）。`ROUTER_MODEL` / `REASONING_MODEL`環境変数が設定されている場合はそちらが優先される。GET /api/healthで実際に有効なモデルIDを確認する。
-Luna-firstはGPT-6 Luna 1回で分類とsimple_chat回答を兼ね、深い質問だけGPT-6.1 Sol。Jev-firstはJev 1回でrouteと閉じた操作パラメータを判断し、simple_chatだけGPT-6 Luna、deep_reasoningだけGPT-6.1 Sol highへ送る。家電・アラーム・天気はAndroid側で処理する。
+通常のPoC既定はGPT-6 Luna（ルーティング・簡単な会話）とGPT-6.1 Sol（複雑な質問、標準medium／詳細high）。`ROUTER_MODEL` / `REASONING_MODEL`環境変数が設定されている場合はそちらが優先される。GET /api/healthで実際に有効なモデルIDを確認する。
+Luna-firstはGPT-6 Luna 1回で分類とsimple_chat回答を兼ね、深い質問だけGPT-6.1 Sol。Jev-firstはJev 1回でrouteと閉じた操作パラメータを判断し、simple_chatだけGPT-6 Luna、deep_reasoningだけGPT-6.1 Solの選択モードへ送る。家電・アラーム・天気はAndroid側で処理する。
 通常モードも将来は音声の途中停止を実装。Live限定機能にしない。
 
 ## Vercel
@@ -44,3 +45,7 @@ AI設定の保存にSwitchBotのToken/Secretは不要。
 5. Phase 0Bで音声応答開始、停止、Liveの費用を追加比較。
 
 [Phase 0計画](docs/PHASE_0.md) / [性能比較](docs/PERFORMANCE.md) / [アーキテクチャ](docs/ARCHITECTURE.md)
+
+## v0.4.22
+
+Androidの「回答の考え方」は標準balancedが既定。速く答えるquick、じっくり考えるdeepも選べる。標準は短い読み上げ向け返答で、詳しい回答はdeepで取得できる。モデルIDだけでなく `/api/health` の `answerMode` と結果の `answer.effort` も確認する。測定条件は[性能資料](docs/PERFORMANCE.md)参照。

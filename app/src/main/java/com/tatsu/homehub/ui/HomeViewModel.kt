@@ -32,6 +32,7 @@ import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.update.UpdateManager
+import com.tatsu.homehub.voice.LocalConversation
 import com.tatsu.homehub.voice.VoiceController
 import com.tatsu.homehub.voice.WakeWordController
 import com.tatsu.homehub.voice.AnswerComparisonSide
@@ -64,7 +65,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val appPrefs = AppPrefs(application)
     private val alarmRepo = AlarmRepository(application)
     private val weatherClient = WeatherClient()
-    private val aiBackendClient = AiBackendClient()
+    private val aiBackendClient = AiBackendClient { appPrefs.answerMode }
     private val actionResolver = ActionResolver()
     private val actionPolicyEngine = ActionPolicyEngine()
     private val updateManager = UpdateManager(application)
@@ -130,6 +131,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _voiceState = MutableStateFlow(VoiceSessionState())
     val voiceState: StateFlow<VoiceSessionState> = _voiceState.asStateFlow()
     val voiceLanguageTag: String get() = appPrefs.voiceLanguageTag
+    val answerMode: String get() = appPrefs.answerMode
 
     private val _wakeWordStatus = MutableStateFlow("停止中")
     val wakeWordStatus: StateFlow<String> = _wakeWordStatus.asStateFlow()
@@ -604,6 +606,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         checkAiBackend()
     }
 
+    fun saveAnswerMode(mode: String) {
+        if (mode !in setOf("quick", "balanced", "deep") || mode == appPrefs.answerMode) return
+        appPrefs.answerMode = mode
+        comparisonGeneration++
+        routerComparisonJob?.cancel()
+        _modelComparison.value = null
+        _answerComparison.value = null
+        _routerComparing.value = false
+    }
+
     fun saveVoiceLanguage(languageTag: String) {
         if (languageTag in setOf(AppPrefs.VOICE_LANGUAGE_AUTO, "ja-JP", "en-US", "de-DE")) {
             appPrefs.voiceLanguageTag = languageTag
@@ -1057,13 +1069,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 timestamps = _voiceState.value.timings.timestamps + ("client_t2_dispatch_start" to started)
             ))
             try {
-                val result = withTimeout(60_000) {
-                    if (mode == VoiceMode.JEV) aiBackendClient.dispatchJev(url, text, context)
-                    else aiBackendClient.dispatch(url, text, context)
-                }.getOrThrow()
+                val localReply = LocalConversation.reply(text)
+                val result = if (localReply != null) {
+                    val localMs = android.os.SystemClock.elapsedRealtime() - started
+                    AiDispatchResult(
+                        requestId = "local-${UUID.randomUUID()}", routerModel = "local", reasoningModel = "local",
+                        language = localReply.language, route = "simple_chat", confidence = 1.0,
+                        action = null, target = null, temperatureC = null, timeLocal = null, referenceTimeLocal = null,
+                        answerModel = "local", answerText = localReply.text, answerMode = appPrefs.answerMode,
+                        reasoningEffort = "none", clientLatencyMs = localMs, routerMs = localMs,
+                        latencyMs = localMs, timings = AiPipelineTimings(totalMs = localMs, routingMs = localMs)
+                    )
+                } else {
+                    withTimeout(60_000) {
+                        if (mode == VoiceMode.JEV) aiBackendClient.dispatchJev(url, text, context)
+                        else aiBackendClient.dispatch(url, text, context)
+                    }.getOrThrow()
+                }
                 if (generation != voiceGeneration) return@launch
                 _aiResult.value = result
-                _aiBackendOnline.value = true
+                if (localReply == null) _aiBackendOnline.value = true
                 val backendTimings = result.timings
                 val receivedAt = android.os.SystemClock.elapsedRealtime()
                 _voiceState.value = _voiceState.value.copy(timings = backendTimings.copy(

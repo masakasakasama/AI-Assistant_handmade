@@ -41,6 +41,6 @@ test("incomplete and missing answers fail visibly", async () => {
   await assert.rejects(dispatch({}, {routeIntent: async () => ({route: "simple_chat"})}), /Missing/);
 });
 
-test("deep reasoning does not silently downgrade quality", () => {
+test("direct reasoner keeps high available for the detailed benchmark", () => {
   assert.equal(DEFAULT_REASONING_EFFORT, "high");
 });

@@ -68,6 +68,8 @@ data class AiDispatchResult(
     val routerMs: Long = 0,
     val answerMs: Long = 0,
     val latencyMs: Long,
+    val answerMode: String? = null,
+    val reasoningEffort: String? = null,
     val targetType: String? = null,
     val goal: String? = null,
     val parameters: Map<String, Double> = emptyMap(),
@@ -98,7 +100,7 @@ data class AiPipelineTimings(
     val timingError: String? = null
 )
 
-class AiBackendClient {
+class AiBackendClient(private val answerModeProvider: () -> String = { "balanced" }) {
     suspend fun dispatch(
         baseUrl: String,
         text: String,
@@ -149,6 +151,8 @@ class AiBackendClient {
                 routerMs = json.optJSONObject("timings")?.optLong("routerMs") ?: 0,
                 answerMs = json.optJSONObject("timings")?.optLong("answerMs") ?: 0,
                 latencyMs = json.optLong("latencyMs", 0L),
+                answerMode = json.optString("answerMode").takeIf { it.isNotBlank() },
+                reasoningEffort = answer?.optString("effort")?.takeIf { it.isNotBlank() },
                 targetType = route.optString("targetType").takeIf { it.isNotBlank() && it != "null" },
                 goal = route.optString("goal").takeIf { it.isNotBlank() && it != "null" },
                 parameters = route.optJSONObject("parameters")?.let { params ->
@@ -216,7 +220,8 @@ class AiBackendClient {
                 invokeImmediately = true
             ) { cause -> if (cause != null) connection.disconnect() }
             try {
-                val payload = JSONObject().put("text", text).put("context", context).apply {
+                val payload = JSONObject().put("text", text).put("context", context)
+                    .put("answerMode", answerModeProvider()).apply {
                     if (modelProfile != null) put("modelProfile", modelProfile)
                 }
                 connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }

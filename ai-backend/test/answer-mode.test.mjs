@@ -69,3 +69,18 @@ test("spoken responses request low verbosity without reducing the output budget"
     else process.env.OPENAI_API_KEY = previousKey;
   }
 });
+
+test("standard requests default to medium and record the selected mode", async () => {
+  for (const [execute, routeKey] of [[dispatch, "routeIntent"], [dispatchJev, "routeIntentJev"]]) {
+    const result = await execute({ text: "compare" }, {
+      [routeKey]: async () => ({ route: "deep_reasoning", language: "ja" }),
+      reason: async input => {
+        assert.equal(input.effort, "medium");
+        assert.equal(input.concise, true);
+        return { model: input.model, text: "answer" };
+      }
+    });
+    assert.equal(result.answerMode, "balanced");
+    assert.equal(result.answer.effort, "medium");
+  }
+});

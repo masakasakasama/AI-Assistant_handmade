@@ -38,6 +38,15 @@ class AppPrefs(context: Context) {
             ?: BuildConfig.DEFAULT_AI_BACKEND_URL
         set(value) = prefs.edit().putString(KEY_AI_BACKEND_URL, value.trim()).apply()
 
+    var answerMode: String
+        get() = prefs.getString(KEY_ANSWER_MODE, "balanced")
+            ?.takeIf { it in setOf("quick", "balanced", "deep") } ?: "balanced"
+        set(value) {
+            if (value in setOf("quick", "balanced", "deep")) {
+                prefs.edit().putString(KEY_ANSWER_MODE, value).apply()
+            }
+        }
+
     var voiceLanguageTag: String
         get() {
             if (!prefs.getBoolean(KEY_VOICE_AUTO_MIGRATED, false)) {
@@ -134,6 +143,7 @@ class AppPrefs(context: Context) {
         private const val KEY_WEATHER_LON = "weather_lon"
         private const val KEY_LAST_UPDATE_CHECK = "last_update_check"
         private const val KEY_WEATHER_CACHE = "weather_cache"
+        private const val KEY_ANSWER_MODE = "answer_mode"
         private const val KEY_AI_BACKEND_URL = "ai_backend_url"
         private const val KEY_VOICE_LANGUAGE = "voice_language_tag"
         private const val KEY_VOICE_AUTO_MIGRATED = "voice_language_auto_migrated_v044"

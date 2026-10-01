@@ -1,3 +1,4 @@
+import { DEFAULT_ANSWER_MODE } from "./answer-mode.mjs";
 import { apiError } from "./openai.mjs";
 import http from "node:http";
 import { dispatch } from "./dispatch.mjs";
@@ -34,6 +35,7 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         routerModel: ROUTER_MODEL,
         reasoningModel: REASONING_MODEL,
+        answerMode: DEFAULT_ANSWER_MODE,
         openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
         jevConfigured: Boolean(process.env.JEV_OPENROUTER_API_KEY)
       });

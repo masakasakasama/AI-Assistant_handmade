@@ -35,7 +35,7 @@ test("Jev simple_chat routes to Luna after Jev", async () => {
 });
 
 test("Jev deep_reasoning routes to Sol high", async () => {
-  const result = await dispatchJev({ text: "比較して" }, {
+  const result = await dispatchJev({ text: "比較して", answerMode: "deep" }, {
     routeIntentJev: async () => routed("deep_reasoning"),
     reason: async input => {
       assert.equal(input.effort, "high");
@@ -59,7 +59,7 @@ test("Jev uses the selected 5.6 models after classification", async () => {
   assert.equal(simple.answer.model, "gpt-5.6-luna");
   assert.equal(simple.reasoningModel, "gpt-5.6-sol");
 
-  const deep = await dispatchJev({ text: "比較して", modelProfile: "gpt-5.6" }, {
+  const deep = await dispatchJev({ text: "比較して", modelProfile: "gpt-5.6", answerMode: "deep" }, {
     routeIntentJev: async () => routed("deep_reasoning"),
     reason: async input => {
       assert.equal(input.model, "gpt-5.6-sol");

@@ -9,14 +9,14 @@ A: Luna-first
 音声 → STT → GPT-6 Luna
   ├ 家電 / アラーム / 天気 → Android
   ├ simple_chat → GPT-6 Lunaの同一応答
-  ├ deep_reasoning → GPT-6.1 Sol high
+  ├ deep_reasoning → GPT-6.1 Sol（標準medium／詳細high）
   └ clarify → GPT-6 Lunaの同一応答
 
 B: Jev-first
 音声 → STT → Jev
   ├ 家電 / アラーム / 天気 → Android
   ├ simple_chat → GPT-6 Luna
-  ├ deep_reasoning → GPT-6.1 Sol high
+  ├ deep_reasoning → GPT-6.1 Sol（標準medium／詳細high）
   └ clarify → ローカル定型確認
 ```
 

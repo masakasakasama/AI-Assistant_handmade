@@ -4,8 +4,8 @@ export const ANSWER_MODES = Object.freeze({
   deep: Object.freeze({ effort: "high", concise: false })
 });
 
-// Keep the previous default until the live comparison is reviewed.
-export const DEFAULT_ANSWER_MODE = process.env.ANSWER_MODE || "deep";
+// The measured standard is medium effort with a concise spoken response.
+export const DEFAULT_ANSWER_MODE = process.env.ANSWER_MODE || "balanced";
 
 export function resolveAnswerMode(mode = DEFAULT_ANSWER_MODE) {
   if (!Object.hasOwn(ANSWER_MODES, mode)) {

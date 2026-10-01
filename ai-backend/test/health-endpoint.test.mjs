@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import health from "../../api/health.mjs";
 import { ROUTER_MODEL } from "../src/router.mjs";
+import { DEFAULT_ANSWER_MODE } from "../src/answer-mode.mjs";
 import { REASONING_MODEL } from "../src/reasoner.mjs";
 
 test("Vercel health reports the same model configuration used by dispatch", async () => {
@@ -19,4 +20,5 @@ test("Vercel health reports the same model configuration used by dispatch", asyn
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.routerModel, ROUTER_MODEL);
   assert.equal(response.body.reasoningModel, REASONING_MODEL);
+  assert.equal(response.body.answerMode, DEFAULT_ANSWER_MODE);
 });

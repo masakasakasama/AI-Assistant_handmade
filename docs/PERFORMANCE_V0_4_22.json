@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-01",
+  "scope": "Server completion for one synthetic Japanese comparison question; no STT, TTS or physical actions. These are different response modes and answer lengths, not an equal-output model comparison. Three samples per mode do not establish p95.",
+  "prompt": "自然な会話と家電操作の正確さを両立するため、ルール型、LLMから家電API直接実行、LLMと構造化ツール実行、複数エージェント、エッジとクラウド併用の構成を比較して。自然な会話、操作精度、応答速度、安全性の観点で、家庭用スマートスピーカーに最適な構成と理由を説明して。",
+  "before": {
+    "mode": "deep/high/full answer",
+    "samples": [
+      {
+        "measuredAt": "2026-10-01T07:12:05Z",
+        "model": "gpt-6.1-sol",
+        "route": "deep_reasoning",
+        "serverMs": 61241,
+        "routerMs": 3151,
+        "answerMs": 58090,
+        "ttftMs": 27819,
+        "inputTokens": 180,
+        "outputTokens": 2362
+      },
+      {
+        "measuredAt": "2026-10-01T07:17:44Z",
+        "model": "gpt-6.1-sol",
+        "route": "deep_reasoning",
+        "serverMs": 45730,
+        "routerMs": 1394,
+        "answerMs": 44336,
+        "ttftMs": 13413,
+        "inputTokens": 180,
+        "outputTokens": 1907
+      },
+      {
+        "measuredAt": "2026-10-01T07:17:47Z",
+        "model": "gpt-6.1-sol",
+        "route": "deep_reasoning",
+        "serverMs": 46119,
+        "routerMs": 2337,
+        "answerMs": 43782,
+        "ttftMs": 15203,
+        "inputTokens": 180,
+        "outputTokens": 2038
+      }
+    ],
+    "medianMs": 46119
+  },
+  "after": {
+    "mode": "balanced/medium/concise spoken answer",
+    "samples": [
+      {
+        "measuredAt": "2026-10-01T07:26:24Z",
+        "model": "gpt-6.1-sol",
+        "route": "deep_reasoning",
+        "serverMs": 14780,
+        "routerMs": 2585,
+        "answerMs": 12195,
+        "ttftMs": 4890,
+        "inputTokens": 312,
+        "outputTokens": 371
+      },
+      {
+        "measuredAt": "2026-10-01T07:26:24Z",
+        "model": "gpt-6.1-sol",
+        "route": "deep_reasoning",
+        "serverMs": 18402,
+        "routerMs": 1949,
+        "answerMs": 16453,
+        "ttftMs": 11424,
+        "inputTokens": 312,
+        "outputTokens": 569
+      },
+      {
+        "measuredAt": "2026-10-01T07:26:24Z",
+        "model": "gpt-6.1-sol",
+        "route": "deep_reasoning",
+        "serverMs": 15493,
+        "routerMs": 2711,
+        "answerMs": 12783,
+        "ttftMs": 6997,
+        "inputTokens": 312,
+        "outputTokens": 466
+      }
+    ],
+    "medianMs": 15493
+  },
+  "reductionPercent": 66.4,
+  "qualityReview": "Manual review, not a blind evaluation: summaries retained all five architecture alternatives, the recommended validated tool layer, and important safety caveats. Two medium-effort arithmetic answers returned 1800 yen correctly; two age-order answers returned A,C,B correctly. No real device was operated."
+}

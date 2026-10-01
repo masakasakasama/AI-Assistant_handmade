@@ -324,12 +324,14 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
             initialLongitude = weatherSettings.longitude,
             initialAiBackendUrl = viewModel.aiBackendUrl(),
             initialVoiceLanguageTag = viewModel.voiceLanguageTag,
+            initialAnswerMode = viewModel.answerMode,
             onDismiss = { showSettings = false },
-            onSave = { token, secret, label, latitude, longitude, backendUrl, voiceLanguageTag ->
+            onSave = { token, secret, label, latitude, longitude, backendUrl, voiceLanguageTag, answerMode ->
                 if (viewModel.saveSwitchBotCredentials(token, secret)) {
                     viewModel.saveWeatherSettings(label, latitude, longitude)
                     viewModel.saveAiBackendUrl(backendUrl)
                     viewModel.saveVoiceLanguage(voiceLanguageTag)
+                    viewModel.saveAnswerMode(answerMode)
                     showSettings = false
                 }
             }
@@ -1200,7 +1202,7 @@ private fun AiCard(
                         Text("端末往復 ${it.clientLatencyMs}ms · 分類 ${it.routerMs}ms · 回答 ${it.answerMs}ms", style = MaterialTheme.typography.bodySmall)
                         it.answerModel?.let { model ->
                             Spacer(Modifier.height(6.dp))
-                            Text("回答: " + model, color = MaterialTheme.colorScheme.primary)
+                            Text("回答: " + model + (it.reasoningEffort?.let { effort -> " · $effort" } ?: ""), color = MaterialTheme.colorScheme.primary)
                         }
                         it.answerText?.let { text ->
                             Spacer(Modifier.height(6.dp))
@@ -1268,7 +1270,7 @@ private fun ModelComparisonSideCard(title: String, side: ModelComparisonSide) {
                 side.result != null -> {
                     val result = side.result
                     Text("${result.routerModel} → ${result.route}", style = MaterialTheme.typography.labelSmall)
-                    Text("回答モデル: ${result.answerModel ?: "—"}", style = MaterialTheme.typography.labelSmall)
+                    Text("回答モデル: ${result.answerModel ?: "—"} · 推論: ${result.reasoningEffort ?: "なし"}", style = MaterialTheme.typography.labelSmall)
                     val ttft = result.timings.answerTtftMs?.let { " · TTFT ${it}ms" }.orEmpty()
                     Text("サーバー ${result.latencyMs}ms · 端末往復 ${side.clientLatencyMs ?: result.clientLatencyMs}ms · 判定 ${result.routerMs}ms · 回答 ${result.answerMs}ms$ttft", style = MaterialTheme.typography.labelSmall)
                     val response = result.answerText ?: buildString {
@@ -1666,8 +1668,9 @@ private fun SettingsDialog(
     initialLongitude: Double,
     initialAiBackendUrl: String,
     initialVoiceLanguageTag: String,
+    initialAnswerMode: String,
     onDismiss: () -> Unit,
-    onSave: (String, String, String, Double, Double, String, String) -> Unit
+    onSave: (String, String, String, Double, Double, String, String, String) -> Unit
 ) {
     var token by remember { mutableStateOf("") }
     var secret by remember { mutableStateOf("") }
@@ -1676,6 +1679,7 @@ private fun SettingsDialog(
     var longitude by remember { mutableStateOf(initialLongitude.toString()) }
     var backendUrl by remember { mutableStateOf(initialAiBackendUrl) }
     var voiceLanguageTag by remember { mutableStateOf(initialVoiceLanguageTag) }
+    var answerMode by remember { mutableStateOf(initialAnswerMode) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1726,6 +1730,14 @@ private fun SettingsDialog(
                     singleLine = true
                 )
 
+                Spacer(Modifier.height(20.dp))
+                Text("回答の考え方", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("quick" to "速く答える", "balanced" to "標準", "deep" to "じっくり考える").forEach { (mode, label) ->
+                        FilterChip(selected = answerMode == mode, onClick = { answerMode = mode }, label = { Text(label) })
+                    }
+                }
+                Text("標準は短く答えます。複雑な検討を優先したいときは、じっくり考えるを選べます。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(20.dp))
                 Text("音声入力", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text("自動では日本語・英語・ドイツ語を発話ごとに判定します", style = MaterialTheme.typography.bodySmall,
@@ -1781,7 +1793,8 @@ private fun SettingsDialog(
                     latitude.toDoubleOrNull() ?: initialLatitude,
                     longitude.toDoubleOrNull() ?: initialLongitude,
                     backendUrl,
-                    voiceLanguageTag
+                    voiceLanguageTag,
+                    answerMode
                 )
             }) { Text("保存") }
         },

@@ -5,7 +5,7 @@ AndroidへOpenAI長期キーを埋め込まず、文字入力から回答また�
 ## 現在の処理
 
 - GPT-6 Luna 1回で分類・抽出・簡単な回答／確認文を生成。
-- 深い質問だけGPT-6.1 Sol。既定highを維持し、REASONING_EFFORTでmedium/highを比較。
+- 深い質問だけGPT-6.1 Sol。API標準はbalanced（medium＋短い返答）。deep（high＋詳細回答）も選べる。
 - `ROUTER_MODEL` / `REASONING_MODEL` で既定を上書きできる。PoCの`/api/health`が現在有効なモデルIDを返す。
 - 物理操作は実行しない。Androidの検証・実行層は別途必要。
 - 応答にtimings.routerMs、timings.answerMs、latencyMsとcalls[].usageを含める。
@@ -37,3 +37,5 @@ confidenceは診断値であり実行許可に使わない。
 現在、端末認証・予算制限・レート制限は未実装。キーを設定した無防備な公開デプロイはしない。
 health成功はOpenAI疎通や音声品質合格を意味しない。
 詳しくは[セットアップ](../AI_BACKEND_SETUP.md)、[性能計画](../docs/PERFORMANCE.md)。
+
+`answerMode` はquick / balanced / deepのみ許可。実際のモードと推論設定を結果に含める。REASONING_EFFORTは直接reasonerと従来CLI向けで、HTTPの既定はANSWER_MODEで選ぶ。
