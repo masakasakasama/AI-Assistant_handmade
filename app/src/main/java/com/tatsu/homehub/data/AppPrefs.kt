@@ -3,10 +3,22 @@ package com.tatsu.homehub.data
 import android.content.Context
 import com.tatsu.homehub.BuildConfig
 import com.tatsu.homehub.model.AcControlState
+import com.tatsu.homehub.voice.WakeWordChoice
+import com.tatsu.homehub.voice.WakeWordSettings
 import org.json.JSONObject
 
 class AppPrefs(context: Context) {
     private val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+
+    var wakeWordSettings: WakeWordSettings
+        get() = WakeWordSettings(
+            WakeWordChoice.fromStored(prefs.getString("wake_word_choice", null)),
+            prefs.getString("wake_word_custom_phrase", null)?.takeIf { it.isNotBlank() } ?: "独自ウェイクワード"
+        )
+        set(value) = prefs.edit()
+            .putString("wake_word_choice", value.choice.name)
+            .putString("wake_word_custom_phrase", value.customPhrase)
+            .apply()
 
     var weatherLabel: String
         get() = prefs.getString(KEY_WEATHER_LABEL, "元浅草") ?: "元浅草"

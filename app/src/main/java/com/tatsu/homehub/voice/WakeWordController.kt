@@ -19,6 +19,17 @@ class WakeWordController(
     private val appContext = context.applicationContext
     private var detector: OpenWakeWord? = null
     private var listening = false
+    private var settings = WakeWordSettings()
+    private var generation = 0L
+    private val modelStore = WakeWordModelStore(appContext)
+
+    fun configure(value: WakeWordSettings) {
+        if (value == settings) return
+        release()
+        settings = value
+    }
+
+    fun reloadModel() = release()
 
     fun start() {
         if (listening) return
@@ -32,7 +43,14 @@ class WakeWordController(
 
         val instance = runCatching {
             detector ?: OpenWakeWord.Builder(appContext)
-                .setModel(OpenWakeWord.BuiltInModel.HEY_JARVIS)
+                .apply {
+                    when (settings.choice) {
+                        WakeWordChoice.HEY_JARVIS -> setModel(OpenWakeWord.BuiltInModel.HEY_JARVIS)
+                        WakeWordChoice.ALEXA -> setModel(OpenWakeWord.BuiltInModel.ALEXA)
+                        WakeWordChoice.HEY_MYCROFT -> setModel(OpenWakeWord.BuiltInModel.HEY_MYCROFT)
+                        WakeWordChoice.CUSTOM -> setModelBytes(modelStore.modelBytes())
+                    }
+                }
                 .setThreshold(DEFAULT_THRESHOLD)
                 .setDebounceMs(DEFAULT_DEBOUNCE_MS)
                 .build()
@@ -43,10 +61,11 @@ class WakeWordController(
         }
 
         listening = true
+        val activeGeneration = ++generation
         listener.onListeningChanged(true)
         runCatching {
             instance.start { score ->
-                if (listening) {
+                if (listening && generation == activeGeneration) {
                     stop()
                     listener.onDetected(score)
                 }
@@ -59,6 +78,7 @@ class WakeWordController(
     }
 
     fun stop() {
+        generation++
         if (!listening) return
         listening = false
         runCatching { detector?.stop() }
@@ -66,6 +86,7 @@ class WakeWordController(
     }
 
     fun release() {
+        generation++
         listening = false
         runCatching { detector?.release() }
         detector = null
@@ -73,7 +94,6 @@ class WakeWordController(
     }
 
     companion object {
-        const val PHRASE = "Hey Jarvis"
         const val DEFAULT_THRESHOLD = 0.55f
         const val DEFAULT_DEBOUNCE_MS = 2_500L
     }

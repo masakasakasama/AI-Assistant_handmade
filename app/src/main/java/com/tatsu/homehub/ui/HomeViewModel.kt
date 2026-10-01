@@ -1,6 +1,7 @@
 package com.tatsu.homehub.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
@@ -35,12 +36,18 @@ import com.tatsu.homehub.update.UpdateManager
 import com.tatsu.homehub.voice.LocalConversation
 import com.tatsu.homehub.voice.VoiceController
 import com.tatsu.homehub.voice.WakeWordController
+import com.tatsu.homehub.voice.WakeWordChoice
+import com.tatsu.homehub.voice.WakeWordSettings
+import com.tatsu.homehub.voice.WakeWordModelStore
 import com.tatsu.homehub.voice.AnswerComparisonSide
 import com.tatsu.homehub.voice.AnswerComparisonState
 import com.tatsu.homehub.voice.VoiceMode
 import com.tatsu.homehub.voice.VoicePhase
 import com.tatsu.homehub.voice.VoiceSessionState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -135,7 +142,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _wakeWordStatus = MutableStateFlow("停止中")
     val wakeWordStatus: StateFlow<String> = _wakeWordStatus.asStateFlow()
-    val wakeWordPhrase: String get() = WakeWordController.PHRASE
+    private val wakeWordModelStore = WakeWordModelStore(application)
+    private val _wakeWordSettings = MutableStateFlow(appPrefs.wakeWordSettings)
+    val wakeWordSettings = _wakeWordSettings.asStateFlow()
+    private val _customWakeWordAvailable = MutableStateFlow(wakeWordModelStore.hasModel())
+    val customWakeWordAvailable = _customWakeWordAvailable.asStateFlow()
+    private val _wakeWordImporting = MutableStateFlow(false)
+    val wakeWordImporting = _wakeWordImporting.asStateFlow()
+    private val _wakeWordImportMessage = MutableStateFlow<String?>(null)
+    val wakeWordImportMessage = _wakeWordImportMessage.asStateFlow()
+    val wakeWordPhrase: String get() = _wakeWordSettings.value.phrase
 
     private var wakeWordRequested = false
     private var voiceGeneration = 0L
@@ -153,7 +169,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val wakeWordController = WakeWordController(application, object : WakeWordController.Listener {
         override fun onListeningChanged(listening: Boolean) {
             _wakeWordStatus.value = if (listening) {
-                "待受中: ${WakeWordController.PHRASE}"
+                "待受中: $wakeWordPhrase"
             } else {
                 "停止中"
             }
@@ -842,6 +858,45 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         resumeWakeWordIfRequested()
     }
 
+    fun selectWakeWord(choice: WakeWordChoice) {
+        if (_wakeWordImporting.value) return
+        if (choice == WakeWordChoice.CUSTOM && !_customWakeWordAvailable.value) return
+        applyWakeWordSettings(_wakeWordSettings.value.copy(choice = choice))
+    }
+
+    private fun applyWakeWordSettings(settings: WakeWordSettings) {
+        appPrefs.wakeWordSettings = settings
+        _wakeWordSettings.value = settings
+        wakeWordController.configure(settings)
+        resumeWakeWordIfRequested()
+    }
+
+    fun importWakeWordModel(uri: Uri, phrase: String) {
+        if (_wakeWordImporting.value) return
+        val label = phrase.trim()
+        if (label.isEmpty() || label.length > 60) {
+            _wakeWordImportMessage.value = "モデルが検出する呼びかけを1〜60文字で入力してください"
+            return
+        }
+        _wakeWordImporting.value = true
+        _wakeWordImportMessage.value = "モデルを確認しています…"
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { wakeWordModelStore.importModel(uri) }
+                _customWakeWordAvailable.value = true
+                wakeWordController.reloadModel()
+                applyWakeWordSettings(WakeWordSettings(WakeWordChoice.CUSTOM, label))
+                _wakeWordImportMessage.value = "「$label」のモデルを保存しました"
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _wakeWordImportMessage.value = "読み込み失敗: ${error.message ?: error.javaClass.simpleName}"
+            } finally {
+                _wakeWordImporting.value = false
+            }
+        }
+    }
+
     fun stopWakeWordListening() {
         wakeWordRequested = false
         wakeWordController.stop()
@@ -849,7 +904,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun handleWakeWordDetected(score: Float) {
         if (!wakeWordRequested) return
-        _wakeWordStatus.value = "検出: ${WakeWordController.PHRASE} (${String.format("%.2f", score)})"
+        _wakeWordStatus.value = "検出: $wakeWordPhrase (${String.format("%.2f", score)})"
         if (appPrefs.aiBackendUrl.isBlank()) {
             _message.value = "Wake Wordを検出しましたがAI Backend URLが未設定です"
             resumeWakeWordIfRequested()
@@ -866,7 +921,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             phase == VoicePhase.THINKING ||
             phase == VoicePhase.SPEAKING ||
             phase == VoicePhase.ANSWER_READY
-        if (!voiceBusy) wakeWordController.start()
+        if (!voiceBusy) {
+            wakeWordController.configure(_wakeWordSettings.value)
+            wakeWordController.start()
+        }
     }
 
     fun startVoiceSession() {

@@ -325,6 +325,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
             initialAiBackendUrl = viewModel.aiBackendUrl(),
             initialVoiceLanguageTag = viewModel.voiceLanguageTag,
             initialAnswerMode = viewModel.answerMode,
+            wakeWordControls = { WakeWordSettingsPanel(viewModel) },
             onDismiss = { showSettings = false },
             onSave = { token, secret, label, latitude, longitude, backendUrl, voiceLanguageTag, answerMode ->
                 if (viewModel.saveSwitchBotCredentials(token, secret)) {
@@ -1669,6 +1670,7 @@ private fun SettingsDialog(
     initialAiBackendUrl: String,
     initialVoiceLanguageTag: String,
     initialAnswerMode: String,
+    wakeWordControls: @Composable () -> Unit,
     onDismiss: () -> Unit,
     onSave: (String, String, String, Double, Double, String, String, String) -> Unit
 ) {
@@ -1755,6 +1757,9 @@ private fun SettingsDialog(
                         FilterChip(selected = voiceLanguageTag == tag, onClick = { voiceLanguageTag = tag }, label = { Text(label) })
                     }
                 }
+
+                Spacer(Modifier.height(20.dp))
+                wakeWordControls()
 
                 Spacer(Modifier.height(20.dp))
                 Text("天気", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)

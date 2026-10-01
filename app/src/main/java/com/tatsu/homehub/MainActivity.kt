@@ -44,6 +44,11 @@ class MainActivity : ComponentActivity() {
         startWakeWordIfPermitted()
     }
 
+    override fun onPause() {
+        viewModel.stopWakeWordListening()
+        super.onPause()
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<String>,

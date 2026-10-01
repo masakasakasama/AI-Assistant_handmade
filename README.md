@@ -76,13 +76,20 @@ PRのGitHub ActionsでもAndroidをビルドします。mainの自動デプロ�
 
 Tatsu Home can keep a wake-word detector running entirely on the Android device.
 
-- Initial phrase: `Hey Jarvis`
+- Initial phrase: `Hey Jarvis`; Settings → ウェイクワード switches between `Hey Jarvis`, `Alexa`, and `Hey Mycroft`. Changes apply immediately and survive restarts.
+- For a different phrase, import a trained openWakeWord-compatible single-class ONNX classifier in the same settings panel. The entered phrase is its display label; typing a label does not train a detector. The app validates the float `[1,16,96]` input, runs one prediction, and checks the output before replacing the saved model. Models up to 10 MB are copied to private app storage, so the source file can then be removed.
 - Runtime: openWakeWord-compatible ONNX models through `openwakeword-android`
 - Network/API use before wake detection: none
 - On detection: the wake detector releases the microphone, then the existing Android speech-recognition flow starts
 - After TTS completes or an error/cancel occurs: wake-word listening resumes automatically
-- Target: the dedicated low-cost Android tablet, not the Galaxy PoC device
+- Listening pauses when the activity leaves the foreground and resumes when it returns. Background/screen-off operation is not provided by this foreground implementation.
+- Test on the existing Galaxy before choosing dedicated hardware.
 
 The dependency is pinned to upstream tag `0.1.2` (commit `b49f3ab14cf558ac0c2aef73a5e6c83da7a08558`).
 The bundled pre-trained wake-word models are CC BY-NC-SA 4.0, so this initial configuration is intended for the personal/non-commercial Tatsu Home deployment. A custom `Tatsu` model can replace the built-in classifier later without changing the app flow.
 
+### Existing USB microphone trial
+
+The user's Sanwa 400-MC011 is a USB-A bus-powered omnidirectional microphone, without a built-in speaker. Try it on the existing Galaxy with a USB-C host/OTG adapter (or a data-capable hub); a charging-only cable will not work. The manufacturer lists Windows/macOS/ChromeOS, not Android, so compatibility with Galaxy and the Android speech-recognition service is unverified. Android chooses the input route; this app does not force USB input. Verify input by muting the 400-MC011 while the phone's microphone is still exposed and checking that recognition stops using that input. USB output may route to the microphone's 3.5 mm jack; if TTS becomes silent, check the output route or attach a speaker/headphones there. For continuous charging, a hub must support both USB data and PD charging with the specific phone/tablet.
+
+Official specifications: https://direct.sanwa.co.jp/ItemPage/400-MC011. Advertised coverage is an environmental estimate, not verified wake-word range. A microphone replacement or ESP32 board is not required to begin this test.
