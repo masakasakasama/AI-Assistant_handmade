@@ -1746,7 +1746,7 @@ private fun SettingsDialog(
                 Text("標準は短く答えます。複雑な検討を優先したいときは、じっくり考えるを選べます。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(20.dp))
                 Text("音声入力", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("自動判定は音声認識サービスの対応状況に依存します。ドイツ語がうまく認識されない場合はDeutschに固定してください。", style = MaterialTheme.typography.bodySmall,
+                Text("自動では日本語・英語・ドイツ語の音声をクラウドで判定し、その言語のまま文字起こしします。言語の切り替え操作は不要です。", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -1762,13 +1762,18 @@ private fun SettingsDialog(
                     }
                 }
 
+                if (voiceLanguageTag != AppPrefs.VOICE_LANGUAGE_AUTO) {
                 Text("音声認識サービス", style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = !preferOnDevice, onClick = { preferOnDevice = false }, label = { Text("標準サービス") })
                     FilterChip(selected = preferOnDevice, onClick = { preferOnDevice = true }, label = { Text("端末内優先") })
                 }
-                Text("標準サービスは通信を使う場合があります。端末内優先の自動判定には日本語・英語・ドイツ語のデータが必要です。", style = MaterialTheme.typography.bodySmall,
+                Text("標準サービスは通信を使う場合があります。端末内優先には選択した言語のデータが必要です。", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Text("ウェイクワード検出後の発話を送信します。自動音声認識には通信と音声APIの利用料がかかります。", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Spacer(Modifier.height(20.dp))
                 wakeWordControls()
 

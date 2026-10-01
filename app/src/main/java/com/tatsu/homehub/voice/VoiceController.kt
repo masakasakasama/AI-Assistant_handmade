@@ -20,7 +20,8 @@ import java.util.Locale
 
 class VoiceController(
     context: Context,
-    private val listener: Listener
+    private val listener: Listener,
+    private val backendUrlProvider: () -> String = { "" }
 ) {
     interface Listener {
         fun onListeningChanged(sessionId: Long, listening: Boolean)
@@ -46,6 +47,8 @@ class VoiceController(
     )
 
     private val appContext = context.applicationContext
+    private val multilingualSpeech = MultilingualSpeechController(appContext, listener)
+    private var cloudAutoMode = false
     private val mainHandler = Handler(Looper.getMainLooper())
     private var currentAttempt: Attempt? = null
     private var activeSessionId: Long? = null
@@ -106,6 +109,12 @@ class VoiceController(
             fallbackAttempted = false
             stopSpeakingNow()
             listener.onStatus(sessionId, "音声入力を準備しています")
+            cloudAutoMode = languageTag == AppPrefs.VOICE_LANGUAGE_AUTO
+            if (cloudAutoMode) {
+                listener.onDiagnostic(sessionId, "lang=auto; recognizer=multilingual-cloud; candidates=ja,en,de; language-fixed=false")
+                multilingualSpeech.start(sessionId, backendUrlProvider())
+                return@post
+            }
             val onDeviceAvailable = preferOnDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && runCatching {
                 SpeechRecognizer.isOnDeviceRecognitionAvailable(appContext)
             }.getOrDefault(false)
@@ -116,6 +125,10 @@ class VoiceController(
 
     fun stopListening() {
         mainHandler.post {
+            if (cloudAutoMode) {
+                multilingualSpeech.stop()
+                return@post
+            }
             val attempt = currentAttempt ?: return@post
             if (isCurrent(attempt)) {
                 listener.onStatus(attempt.sessionId, "音声を確認しています")
@@ -172,6 +185,7 @@ class VoiceController(
     fun release() {
         mainHandler.post {
             invalidateCurrentAttempt()
+            multilingualSpeech.release()
             activeSessionId = null
             tts.stop()
             tts.shutdown()
@@ -430,6 +444,7 @@ class VoiceController(
     }
 
     private fun invalidateCurrentAttempt() {
+        multilingualSpeech.cancel()
         val old = currentAttempt
         currentAttempt = null
         if (old != null) {

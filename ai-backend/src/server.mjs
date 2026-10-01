@@ -6,6 +6,7 @@ import { compareRouters } from "./router-compare.mjs";
 import { dispatchJev } from "./dispatch-jev.mjs";
 import { ROUTER_MODEL } from "./router.mjs";
 import { REASONING_MODEL } from "./reasoner.mjs";
+import { transcribe, transcriptionError } from "./transcribe.mjs";
 
 const port = Number(process.env.PORT || 8787);
 
@@ -17,11 +18,11 @@ function json(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-async function readJson(req) {
+async function readJson(req, limit = 64 * 1024) {
   let body = "";
   for await (const chunk of req) {
     body += chunk;
-    if (body.length > 64 * 1024) {
+    if (body.length > limit) {
       throw new Error("Request body too large");
     }
   }
@@ -53,6 +54,15 @@ const server = http.createServer(async (req, res) => {
       answerMode: body.answerMode
       });
       return json(res, 200, result);
+    }
+
+    if (req.method === "POST" && req.url === "/api/transcribe") {
+      try {
+        return json(res, 200, await transcribe(await readJson(req, 1_300_000)));
+      } catch (error) {
+        const failure = transcriptionError(error);
+        return json(res, failure.status, failure.body);
+      }
     }
 
     if (req.method === "POST" && req.url === "/api/router-compare") {

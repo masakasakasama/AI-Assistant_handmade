@@ -298,7 +298,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _voiceState.value = _voiceState.value.copy(phase = VoicePhase.ERROR, error = message)
             resumeWakeWordIfRequested()
         }
-    })
+    }, backendUrlProvider = { appPrefs.aiBackendUrl })
 
     fun hasSwitchBotCredentials(): Boolean = _switchBotConfigured.value
 
