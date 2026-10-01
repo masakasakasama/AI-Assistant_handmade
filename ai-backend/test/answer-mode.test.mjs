@@ -47,3 +47,25 @@ test("invalid modes fail before any provider call", async () => {
   }
   assert.equal(resolveAnswerMode("deep").effort, "high");
 });
+
+test("spoken responses request low verbosity without reducing the output budget", async () => {
+  const { reason } = await import("../src/reasoner.mjs");
+  const previousFetch = globalThis.fetch;
+  const previousKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    assert.equal(body.text.verbosity, "low");
+    assert.equal(body.reasoning.effort, "medium");
+    assert.equal(body.max_output_tokens, 8192);
+    assert.match(body.instructions, /Preserve correctness and uncertainty/);
+    throw new Error("test stop before provider");
+  };
+  try {
+    await assert.rejects(reason({ text: "compare", effort: "medium", concise: true }), /test stop/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousKey;
+  }
+});
