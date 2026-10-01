@@ -47,7 +47,8 @@ const server = http.createServer(async (req, res) => {
       const result = await dispatchJev({
         text: body.text.trim(),
         context: typeof body.context === "string" ? body.context : "",
-        modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : "current"
+        modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : "current",
+      answerMode: body.answerMode
       });
       return json(res, 200, result);
     }
@@ -73,7 +74,8 @@ const server = http.createServer(async (req, res) => {
       const result = await dispatch({
         text: body.text.trim(),
         context: typeof body.context === "string" ? body.context : "",
-        modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : "current"
+        modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : "current",
+      answerMode: body.answerMode
       });
       return json(res, 200, result);
     }

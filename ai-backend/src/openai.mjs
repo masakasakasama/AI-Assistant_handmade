@@ -21,6 +21,9 @@ export class ModelTimeoutError extends Error {
 }
 
 export function apiError(error) {
+  if (error?.code === "invalid_answer_mode") {
+    return { status: 400, body: { error: error.code, message: error.message } };
+  }
   if (error instanceof ModelTimeoutError) {
     return { status: 504, body: { error: "model_timeout", message: error.message,
       model: error.model, stage: error.stage, timeoutMs: error.timeoutMs, elapsedMs: error.elapsedMs } };

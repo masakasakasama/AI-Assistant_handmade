@@ -17,7 +17,8 @@ export default async function handler(req, res) {
     const result = await dispatchJev({
       text: body.text.trim(),
       context: typeof body.context === "string" ? body.context : "",
-      modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : "current"
+      modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : "current",
+      answerMode: body.answerMode
     });
     res.setHeader("Cache-Control", "no-store");
     res.status(200).json(result);

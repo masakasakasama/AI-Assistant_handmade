@@ -23,7 +23,8 @@ export default async function handler(req, res) {
     const result = await dispatch({
       text: body.text.trim(),
       context: typeof body.context === "string" ? body.context : "",
-      modelProfile
+      modelProfile,
+      answerMode: body.answerMode
     });
     res.setHeader("Cache-Control", "no-store");
     res.status(200).json(result);

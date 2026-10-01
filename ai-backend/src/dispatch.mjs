@@ -1,3 +1,4 @@
+import { resolveAnswerMode } from "./answer-mode.mjs";
 import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import { routeIntent, ROUTER_MODEL } from "./router.mjs";
@@ -6,6 +7,7 @@ import { resolveModelProfile } from "./model-profiles.mjs";
 
 // Tests inject dependencies; this endpoint never executes physical actions.
 export async function dispatch(input, dependencies = {}) {
+  const answerMode = resolveAnswerMode(input.answerMode);
   const modelProfile = resolveModelProfile(input.modelProfile);
   if (!modelProfile) throw new Error("Unsupported modelProfile");
   const started = performance.now();
@@ -29,14 +31,14 @@ export async function dispatch(input, dependencies = {}) {
     const answerStarted = performance.now();
     answerStartedAt = answerStarted;
     answerStartWaitMs = Math.round(answerStarted - routingCompletedAt);
-    const response = await (dependencies.reason || reason)({ ...input, language: route.language, model: modelProfile.reasoningModel });
+    const response = await (dependencies.reason || reason)({ ...input, language: route.language, model: modelProfile.reasoningModel, effort: answerMode.effort, concise: answerMode.concise });
     answerMs = Math.round(performance.now() - answerStarted);
     answerTtftMs = response.timings?.ttftMs ?? null;
     answerGenerationMs = response.timings?.generationMs ?? answerMs;
     answerFirstTokenAt = response.timings?.firstTokenAtMs ?? null;
     answerCompletedAt = response.timings?.completedAtMs ?? null;
     calls.push({ model: response.model, usage: response.usage ?? null });
-    answer = { model: response.model, text: response.text };
+    answer = { model: response.model, text: response.text, effort: answerMode.effort };
   }
   if (["simple_chat", "clarify"].includes(route.route)) {
     answerTtftMs = _timings?.ttftMs ?? null;
@@ -47,7 +49,7 @@ export async function dispatch(input, dependencies = {}) {
   const answerGenerationExclusiveMs = answerGenerationMs == null || answerTtftMs == null
     ? null : answerGenerationMs - answerTtftMs;
   const result = { requestId: randomUUID(), routerModel: modelProfile.routerModel, reasoningModel: modelProfile.reasoningModel,
-    route, answer, calls, timings: {}, latencyMs: null };
+    route, answer, answerMode: answerMode.name, calls, timings: {}, latencyMs: null };
   const finishedAt = performance.now();
   const responseAssemblyMs = Math.round(finishedAt - responseAssemblyStarted);
   const totalMs = Math.round(finishedAt - started);

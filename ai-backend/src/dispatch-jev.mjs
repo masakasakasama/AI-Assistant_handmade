@@ -1,3 +1,4 @@
+import { resolveAnswerMode } from "./answer-mode.mjs";
 import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import { routeIntentJev, JEV_MODEL } from "./jev.mjs";
@@ -15,6 +16,7 @@ function clarification(language) {
 // simple_chat -> Luna, deep_reasoning -> Sol high.
 // weather/device/alarm stay structured for Android to handle.
 export async function dispatchJev(input, dependencies = {}) {
+  const answerMode = resolveAnswerMode(input.answerMode);
   const modelProfile = resolveModelProfile(input.modelProfile);
   if (!modelProfile) throw new Error("Unsupported modelProfile");
   const started = performance.now();
@@ -48,7 +50,7 @@ export async function dispatchJev(input, dependencies = {}) {
     answerFirstTokenAt = response.timings?.firstTokenAtMs ?? null;
     answerCompletedAt = response.timings?.completedAtMs ?? null;
     calls.push({ model: response.model, usage: response.usage ?? null });
-    answer = { model: response.model, text: response.text };
+    answer = { model: response.model, text: response.text, effort: route.route === "deep_reasoning" ? answerMode.effort : "none" };
   } else if (route.route === "deep_reasoning") {
     const answerStarted = performance.now();
     answerStartedAt = answerStarted;
@@ -56,7 +58,8 @@ export async function dispatchJev(input, dependencies = {}) {
     const response = await (dependencies.reason || reason)({
       ...input,
       language: route.language,
-      effort: "high",
+      effort: answerMode.effort,
+      concise: answerMode.concise,
       model: modelProfile.reasoningModel
     });
     answerMs = Math.round(performance.now() - answerStarted);
@@ -65,7 +68,7 @@ export async function dispatchJev(input, dependencies = {}) {
     answerFirstTokenAt = response.timings?.firstTokenAtMs ?? null;
     answerCompletedAt = response.timings?.completedAtMs ?? null;
     calls.push({ model: response.model, usage: response.usage ?? null });
-    answer = { model: response.model, text: response.text };
+    answer = { model: response.model, text: response.text, effort: route.route === "deep_reasoning" ? answerMode.effort : "none" };
   } else if (route.route === "clarify") {
     answer = { model: "local", text: clarification(route.language) };
   }
@@ -97,6 +100,7 @@ export async function dispatchJev(input, dependencies = {}) {
       routerProbabilities: probabilities ?? null
     },
     answer,
+    answerMode: answerMode.name,
     calls,
     timings: {
       totalMs,
