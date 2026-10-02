@@ -79,13 +79,13 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
         scene = engine.createScene()
         camera = engine.createCamera(EntityManager.get().create()).apply {
             setExposure(16f, 1f / 125f, 100f)
-            lookAt(0.0, 2.25, 7.6, 0.0, 1.42, 0.0)
+            lookAt(0.0, 2.25, 7.6, 0.0, 1.42, 0.0, 0.0, 1.0, 0.0)
         }
         filamentView = engine.createView().apply {
             this.scene = this@NativeMascotView.scene
             this.camera = this@NativeMascotView.camera
             blendMode = com.google.android.filament.View.BlendMode.TRANSLUCENT
-            isShadowingEnabled = false
+            setShadowingEnabled(false)
             antiAliasing = com.google.android.filament.View.AntiAliasing.FXAA
         }
         val irradiance = FloatArray(27).apply { this[0] = .9f; this[1] = .94f; this[2] = 1f }
@@ -112,7 +112,7 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
             renderCallback = object : UiHelper.RendererCallback {
                 override fun onNativeWindowChanged(surface: Surface) {
                     swapChain?.let { engine.destroySwapChain(it) }
-                    swapChain = engine.createSwapChain(surface, SwapChain.CONFIG_TRANSPARENT)
+                    swapChain = engine.createSwapChain(surface, SwapChainFlags.CONFIG_TRANSPARENT)
                     schedule()
                 }
                 override fun onDetachedFromSurface() {
