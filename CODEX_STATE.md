@@ -9,7 +9,8 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - 不正JSON・null/配列・過大入力を400/413でAPI呼び出し前に拒否する。ローカルHTTP/Vercelの4経路へ適用。
 
 ## Current
-- Backend入力検証を改善済み。Androidの実装は今回変更していない。
+- Backend入力検証を改善済み。この司令塔はAndroid実装を変更していない。
+- 並行作業のv0.4.29 (063b45a)を検出。状態更新時に誤上書きしたAndroid変更は直ちに復元し、追加実装を停止した。最新README/handoffを再取得してから再開する。
 - Phase 0の残作業はdocs/PHASE_0.md、最新マスコット引き継ぎはdocs/MASCOT_3D_HANDOFF.mdを参照。
 
 ## Next
