@@ -11,3 +11,4 @@ benchmark-results/
 **/benchmark-results/
 __pycache__/
 *.pyc
+node_modules/

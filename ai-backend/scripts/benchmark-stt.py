@@ -89,6 +89,9 @@ def rows_for(config):
 
 
 def select_human(config, per_intent, cache, seed=SEED, excluded_ids=None):
+    metadata = get_json("https://huggingface.co/api/datasets/" + DATASET)
+    if metadata.get("sha") != REVISION:
+        raise ValueError("Dataset revision changed; use archived audio with matching SHA256")
     rows = rows_for(config)
     groups = {}
     for row in rows:

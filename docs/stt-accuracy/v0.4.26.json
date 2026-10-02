@@ -1,0 +1,3538 @@
+{
+  "partial": false,
+  "measuredAtUTC": "2026-10-02T00:01:11Z",
+  "endpoint": "https://ai-assistant-handmade.vercel.app/api/transcribe",
+  "manifest": {
+    "seed": 20261001,
+    "dataset": "PolyAI/minds14",
+    "datasetRevision": "40ce77cb32a384e4d50a568e1ec39ac804019d33",
+    "license": "CC-BY-4.0",
+    "source": "https://huggingface.co/datasets/PolyAI/minds14",
+    "cases": [
+      {
+        "caseId": "minds14-de-DE-453-clean",
+        "sourceId": "minds14-de-DE-453",
+        "datasetPath": "de-DE~ABROAD/CA8c7062299fe649b5b3ba676a78ba6906_2.wav",
+        "datasetRow": 453,
+        "intent": 0,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo ich habe bei Ihnen einen Kater ein Kondom und ich möchte fahr bald in Urlaub und möchte wissen ob ich diese Karte auch im Ausland nutzen kann",
+        "seconds": 15.72,
+        "audioFile": "minds14-de-DE-453-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-438-clean",
+        "sourceId": "minds14-de-DE-438",
+        "datasetPath": "de-DE~ABROAD/CA0e5333bf687d1024d82e652b208428e1_0.wav",
+        "datasetRow": 438,
+        "intent": 0,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ja grüß Gott Thyrnau Weissmüller und zwar fliege ich in den nächsten Wochen nach Österreich und wollte wissen ob meine Karte im Ausland funktioniert oder ob es da etwaige Extrakosten gibt oder ob ich nur bescheid sagen muss",
+        "seconds": 19.72,
+        "audioFile": "minds14-de-DE-438-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-485-clean",
+        "sourceId": "minds14-de-DE-485",
+        "datasetPath": "de-DE~ABROAD/CAbdf654fff5e058d70915d3fcd6586169_2.wav",
+        "datasetRow": 485,
+        "intent": 0,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich brauche meine Karte im Ausland",
+        "seconds": 4.52,
+        "audioFile": "minds14-de-DE-485-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-419-clean",
+        "sourceId": "minds14-de-DE-419",
+        "datasetPath": "de-DE~ADDRESS/CA85fd716f9e3e3e6c9d836ddaa6537559_2.wav",
+        "datasetRow": 419,
+        "intent": 1,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich möchte meine Adresse ändern",
+        "seconds": 5.36,
+        "audioFile": "minds14-de-DE-419-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-407-clean",
+        "sourceId": "minds14-de-DE-407",
+        "datasetPath": "de-DE~ADDRESS/response_12.wav",
+        "datasetRow": 407,
+        "intent": 1,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "schönen guten Tag ich würde ganz gerne meine Adresse ändern und wollte mich erkundigen ob ich da bei welchen Mitarbeiter ich das machen kann oder ob nicht eventuell weiterleiten können genau danke",
+        "seconds": 13.467625,
+        "audioFile": "minds14-de-DE-407-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-387-clean",
+        "sourceId": "minds14-de-DE-387",
+        "datasetPath": "de-DE~ADDRESS/CA837f98066860fd66f3ccf17f78ade52e_0.wav",
+        "datasetRow": 387,
+        "intent": 1,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "guten Tag ich würde gerne meine Adresse ändern",
+        "seconds": 8.3,
+        "audioFile": "minds14-de-DE-387-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-606-clean",
+        "sourceId": "minds14-de-DE-606",
+        "datasetPath": "de-DE~APP_ERROR/CA506fcd9676c03e4fed44ab49d62cb478_0.wav",
+        "datasetRow": 606,
+        "intent": 2,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "hi ich habe ein problem mit meiner App",
+        "seconds": 4.92,
+        "audioFile": "minds14-de-DE-606-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-579-clean",
+        "sourceId": "minds14-de-DE-579",
+        "datasetPath": "de-DE~APP_ERROR/CAe768126e5f139d7e46cfad368298d9e0_0.wav",
+        "datasetRow": 579,
+        "intent": 2,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "alles geht um meine Apps von ihrer Bank ich benutze da haben sich paar Probleme ergeben sie die Athleten nämlich nicht richtig können Sie mir hier bitte weiterhelfen",
+        "seconds": 14.06,
+        "audioFile": "minds14-de-DE-579-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-585-clean",
+        "sourceId": "minds14-de-DE-585",
+        "datasetPath": "de-DE~APP_ERROR/CA6ef756ac28a2f9b1026018bf16f36bca_3.wav",
+        "datasetRow": 585,
+        "intent": 2,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "die Apps lädt nicht",
+        "seconds": 5.34,
+        "audioFile": "minds14-de-DE-585-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-363-clean",
+        "sourceId": "minds14-de-DE-363",
+        "datasetPath": "de-DE~ATM_LIMIT/CA7e2ee712424a961959f6256bef1a65c1_0.wav",
+        "datasetRow": 363,
+        "intent": 3,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "hallo ich wollte fragen wie viel Geld ich maximal am Geldautomaten abheben kann",
+        "seconds": 7.28,
+        "audioFile": "minds14-de-DE-363-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-346-clean",
+        "sourceId": "minds14-de-DE-346",
+        "datasetPath": "de-DE~ATM_LIMIT/CAc0590ecbb57e7974aaf1f848ae463d33_0.wav",
+        "datasetRow": 346,
+        "intent": 3,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo ich brauche eine größere Summe Bargeld und möchte den Maximalbetrag von meinem Konto abheben wenn Sie mir sagen wie viel Geld ich maximal abheben kann",
+        "seconds": 11.74,
+        "audioFile": "minds14-de-DE-346-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-378-clean",
+        "sourceId": "minds14-de-DE-378",
+        "datasetPath": "de-DE~ATM_LIMIT/response_24.wav",
+        "datasetRow": 378,
+        "intent": 3,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "hallo ich wollte fragen wie viel Geld ich maximal mit meiner Karte am Geldautomaten abheben kann und es ist dieselbe Betrag den ich jetzt abgeben kann die man generell am Automat abheben kann oder sie mir irgendwie begrenzt",
+        "seconds": 16.213375,
+        "audioFile": "minds14-de-DE-378-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-285-clean",
+        "sourceId": "minds14-de-DE-285",
+        "datasetPath": "de-DE~BALANCE/CAd53fe6ac30d4570a606c47929ad67b79_0.wav",
+        "datasetRow": 285,
+        "intent": 4,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich möchte gerne meinen Kontostand erfahren",
+        "seconds": 5.62,
+        "audioFile": "minds14-de-DE-285-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-270-clean",
+        "sourceId": "minds14-de-DE-270",
+        "datasetPath": "de-DE~BALANCE/CAbe0e624f04330088165979fff5e0771b_0.wav",
+        "datasetRow": 270,
+        "intent": 4,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Kontostand abrufen",
+        "seconds": 4.54,
+        "audioFile": "minds14-de-DE-270-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-279-clean",
+        "sourceId": "minds14-de-DE-279",
+        "datasetPath": "de-DE~BALANCE/response_19.wav",
+        "datasetRow": 279,
+        "intent": 4,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "wie viel Geld habe ich momentan auf meinem Konto könnten Sie mir bitte meinen Kontostand mitteilen",
+        "seconds": 7.430375,
+        "audioFile": "minds14-de-DE-279-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-178-clean",
+        "sourceId": "minds14-de-DE-178",
+        "datasetPath": "de-DE~BUSINESS_LOAN/CA64560a4bdfd5200ae040da4afc321d14_0.wav",
+        "datasetRow": 178,
+        "intent": 5,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ja guten Tag ich rufe an wegen eines neuen Kredites bei hätte ich einige Fragen zu",
+        "seconds": 10.12,
+        "audioFile": "minds14-de-DE-178-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-160-clean",
+        "sourceId": "minds14-de-DE-160",
+        "datasetPath": "de-DE~BUSINESS_LOAN/response_7.wav",
+        "datasetRow": 160,
+        "intent": 5,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "guten Tag ich rufe an bei Fragen haben wegen einen Firmenkredit ich möchte gern einen neuen Kredit beantragen",
+        "seconds": 9.984,
+        "audioFile": "minds14-de-DE-160-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-190-clean",
+        "sourceId": "minds14-de-DE-190",
+        "datasetPath": "de-DE~BUSINESS_LOAN/response_19.wav",
+        "datasetRow": 190,
+        "intent": 5,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich wollte mich über meinen firmenkredite informieren was können Sie mir denn dazu sagen",
+        "seconds": 7.253375,
+        "audioFile": "minds14-de-DE-190-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-236-clean",
+        "sourceId": "minds14-de-DE-236",
+        "datasetPath": "de-DE~CARD_ISSUES/response_18.wav",
+        "datasetRow": 236,
+        "intent": 6,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "hallo guten Tag ich rufe an weil meine Kreditkarte nicht mehr funktioniert ich habe vorhin versucht im Laden zu bezahlen ich habe die Karte eingesteckt ich habe versucht kontaktlos zu bezahlen und ich kann damit einfach nicht bezahlen funktioniert nicht die Karte scheint kaputt zu sein",
+        "seconds": 19.114625,
+        "audioFile": "minds14-de-DE-236-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-232-clean",
+        "sourceId": "minds14-de-DE-232",
+        "datasetPath": "de-DE~CARD_ISSUES/CAd148dd6bca81336f83c06f7480726d93_3.wav",
+        "datasetRow": 232,
+        "intent": 6,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo ich habe ein Problem ein Problem mit meiner Karte war versucht sie mir damit helfen",
+        "seconds": 10.8,
+        "audioFile": "minds14-de-DE-232-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-213-clean",
+        "sourceId": "minds14-de-DE-213",
+        "datasetPath": "de-DE~CARD_ISSUES/CAbfe9f9902d7869b56389c66290a783b2_0.wav",
+        "datasetRow": 213,
+        "intent": 6,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "alle meine Bankomatkarte funktioniert mit Jürgen wissen warum und warum die Bezahlung abgelehnt worden ist",
+        "seconds": 9.74,
+        "audioFile": "minds14-de-DE-213-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-0-clean",
+        "sourceId": "minds14-de-DE-0",
+        "datasetPath": "de-DE~CASH_DEPOSIT/response_4.wav",
+        "datasetRow": 0,
+        "intent": 7,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich möchte gerne Geld auf mein Konto einzahlen",
+        "seconds": 5.851375,
+        "audioFile": "minds14-de-DE-0-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-15-clean",
+        "sourceId": "minds14-de-DE-15",
+        "datasetPath": "de-DE~CASH_DEPOSIT/response_13.wav",
+        "datasetRow": 15,
+        "intent": 7,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "guten Tag ich würde gerne Geld auf mein Konto einzahlen wie kann ich das am besten tun",
+        "seconds": 8.545,
+        "audioFile": "minds14-de-DE-15-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-27-clean",
+        "sourceId": "minds14-de-DE-27",
+        "datasetPath": "de-DE~CASH_DEPOSIT/CA00f360ac5266a58ae8516ccec8d82000_0.wav",
+        "datasetRow": 27,
+        "intent": 7,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo schönen guten Tag ich würde gerne Geld auf mein Konto einzahlen und wollte noch mal nachfragen wie genau das Ding geht",
+        "seconds": 10.9,
+        "audioFile": "minds14-de-DE-27-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-105-clean",
+        "sourceId": "minds14-de-DE-105",
+        "datasetPath": "de-DE~DIRECT_DEBIT/CA9f8a3237ead71272855fc88d40edc2ab_2.wav",
+        "datasetRow": 105,
+        "intent": 8,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ähm ich habe eine Frage bei dir zum Lastschrift geht",
+        "seconds": 7.7,
+        "audioFile": "minds14-de-DE-105-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-85-clean",
+        "sourceId": "minds14-de-DE-85",
+        "datasetPath": "de-DE~DIRECT_DEBIT/response_6.wav",
+        "datasetRow": 85,
+        "intent": 8,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "hallo ich hätte eine Frage bezüglich Lastschriften und zwar geht es um folgendes dass ich online etwas bestellt habe und per Lastschrift bezahlt habe das aber nur noch rückgängig machen würde gerne könnten Sie mir da weiterhelfen",
+        "seconds": 22.613375,
+        "audioFile": "minds14-de-DE-85-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-107-clean",
+        "sourceId": "minds14-de-DE-107",
+        "datasetPath": "de-DE~DIRECT_DEBIT/CA963def05ca5c2a98013f67930f69ab3d_0.wav",
+        "datasetRow": 107,
+        "intent": 8,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "guten Tag ich möchte meine Lastschrift widerrufen der letzten 4 Wochen vielen Dank",
+        "seconds": 7.78,
+        "audioFile": "minds14-de-DE-107-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-569-clean",
+        "sourceId": "minds14-de-DE-569",
+        "datasetPath": "de-DE~FREEZE/CA25bf5637335534b6f17c82c5580eb856_0.wav",
+        "datasetRow": 569,
+        "intent": 9,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "guten Tag ich habe meine Karte verloren bitte sperren sie meine Kreditkarte vielen Dank auf Wiederhören",
+        "seconds": 8.6,
+        "audioFile": "minds14-de-DE-569-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-534-clean",
+        "sourceId": "minds14-de-DE-534",
+        "datasetPath": "de-DE~FREEZE/CA18c354b127c0b25c7a4289a82284c5fa_2.wav",
+        "datasetRow": 534,
+        "intent": 9,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich habe meine Karte verloren und möchte sie sperren lassen",
+        "seconds": 7.04,
+        "audioFile": "minds14-de-DE-534-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-541-clean",
+        "sourceId": "minds14-de-DE-541",
+        "datasetPath": "de-DE~FREEZE/response_14.wav",
+        "datasetRow": 541,
+        "intent": 9,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich muss meine Karte sperren lassen",
+        "seconds": 4.437375,
+        "audioFile": "minds14-de-DE-541-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-126-clean",
+        "sourceId": "minds14-de-DE-126",
+        "datasetPath": "de-DE~HIGH_VALUE_PAYMENT/response_10.wav",
+        "datasetRow": 126,
+        "intent": 10,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo und zwar habe ich jetzt versucht eine recht hohe Summe zu überweisen und die Meldung sagt dass ich eine SMS bekomme allerdings weiß ich nicht wo ich diesen Code jetzt eintragen soll oder was ich jetzt damit machen soll können Sie mir bitte helfen",
+        "seconds": 20.821375,
+        "audioFile": "minds14-de-DE-126-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-121-clean",
+        "sourceId": "minds14-de-DE-121",
+        "datasetPath": "de-DE~HIGH_VALUE_PAYMENT/response_5.wav",
+        "datasetRow": 121,
+        "intent": 10,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "guten Tag ich möchte gerne einen Ruck Reise bezahlen PIN und ich möchte gerne einen Bestätigungscode SMS bekommen danke",
+        "seconds": 10.24,
+        "audioFile": "minds14-de-DE-121-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-145-clean",
+        "sourceId": "minds14-de-DE-145",
+        "datasetPath": "de-DE~HIGH_VALUE_PAYMENT/CA7f310b3d6f3b2a73c3e04befd21a68eb_0.wav",
+        "datasetRow": 145,
+        "intent": 10,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo ich versuche gerade eine größere Bezahlung online zu machen und mir wurde gesagt dass ich eine SMS mit einem Bestätigungscode bekomme ich wollte nur fragen ob das stimmt und wann der kommt",
+        "seconds": 15.68,
+        "audioFile": "minds14-de-DE-145-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-318-clean",
+        "sourceId": "minds14-de-DE-318",
+        "datasetPath": "de-DE~JOINT_ACCOUNT/CAd40415bbc670d665a28952449c627b05_0.wav",
+        "datasetRow": 318,
+        "intent": 11,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "guten Tag ich würde gerne ein Gemeinschaftskonto einrichten auf das sowohl ich als auch meine Lebenspartnerin Zugriff haben und zwar möglichst off und online",
+        "seconds": 16.84,
+        "audioFile": "minds14-de-DE-318-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-320-clean",
+        "sourceId": "minds14-de-DE-320",
+        "datasetPath": "de-DE~JOINT_ACCOUNT/CA78eb0ec4f59449b00168d900cc5f3260_0.wav",
+        "datasetRow": 320,
+        "intent": 11,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "guten Tag ich würde gerne über die app ein Gemeinschaftskonto mit meinem partner anlegen und ich möchte Sie fragen wie kann ich ein Gemeinschaftskonto einrichten",
+        "seconds": 14.2,
+        "audioFile": "minds14-de-DE-320-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-309-clean",
+        "sourceId": "minds14-de-DE-309",
+        "datasetPath": "de-DE~JOINT_ACCOUNT/CA35d92d4368706fc57b94cf95315cc5a7_0.wav",
+        "datasetRow": 309,
+        "intent": 11,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich möchte gerne ein Gemeinschaftskonto einrichten wie mache ich das",
+        "seconds": 8.14,
+        "audioFile": "minds14-de-DE-309-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-41-clean",
+        "sourceId": "minds14-de-DE-41",
+        "datasetPath": "de-DE~LATEST_TRANSACTIONS/response_7.wav",
+        "datasetRow": 41,
+        "intent": 12,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo ich habe einen Barzahlungen in meinem Auszug die ich nicht erkennen können Sie mir weiterhelfen",
+        "seconds": 7.253375,
+        "audioFile": "minds14-de-DE-41-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-45-clean",
+        "sourceId": "minds14-de-DE-45",
+        "datasetPath": "de-DE~LATEST_TRANSACTIONS/response_15.wav",
+        "datasetRow": 45,
+        "intent": 12,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo schönen guten Tag ich rufe an weil ich gerade am Online-Banking Bezahlung gesehen habe die ich bis jetzt noch nicht kannte und nicht weiß von wem die kommen dann können Sie da mal erklären von wem die abgebucht wurde",
+        "seconds": 12.373375,
+        "audioFile": "minds14-de-DE-45-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-70-clean",
+        "sourceId": "minds14-de-DE-70",
+        "datasetPath": "de-DE~LATEST_TRANSACTIONS/response_20.wav",
+        "datasetRow": 70,
+        "intent": 12,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich möchte gerne ein und Ausgänge meines Kontos der letzten Woche sehen",
+        "seconds": 6.966,
+        "audioFile": "minds14-de-DE-70-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-512-clean",
+        "sourceId": "minds14-de-DE-512",
+        "datasetPath": "de-DE~PAY_BILL/CA8c4cd70068d3b7bb5d553f82cac714d5_0.wav",
+        "datasetRow": 512,
+        "intent": 13,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "Hallo ich muss eine Rechnung bezahlen und ja habe Fragen dazu wie das so läuft danke schön",
+        "seconds": 12.2,
+        "audioFile": "minds14-de-DE-512-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-509-clean",
+        "sourceId": "minds14-de-DE-509",
+        "datasetPath": "de-DE~PAY_BILL/CA477771013edbf5cd999ca6eff367f9a9_0.wav",
+        "datasetRow": 509,
+        "intent": 13,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ja hallo guten Tag ich wollte gerne mit dir besprechen weil ich meine Rechnung bezahlen möchte",
+        "seconds": 8.78,
+        "audioFile": "minds14-de-DE-509-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-528-clean",
+        "sourceId": "minds14-de-DE-528",
+        "datasetPath": "de-DE~PAY_BILL/CA95df814c2f892c2b2638187f25b933cb_2.wav",
+        "datasetRow": 528,
+        "intent": 13,
+        "language": "de",
+        "kind": "human_clean",
+        "reference": "ich habe eine Rechnung bekommen und die möchte ich jetzt gerne bezahlen",
+        "seconds": 8.08,
+        "audioFile": "minds14-de-DE-528-clean.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-453-noise10db",
+        "sourceId": "minds14-de-DE-453",
+        "datasetPath": "de-DE~ABROAD/CA8c7062299fe649b5b3ba676a78ba6906_2.wav",
+        "datasetRow": 453,
+        "intent": 0,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "Hallo ich habe bei Ihnen einen Kater ein Kondom und ich möchte fahr bald in Urlaub und möchte wissen ob ich diese Karte auch im Ausland nutzen kann",
+        "seconds": 15.72,
+        "audioFile": "minds14-de-DE-453-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-419-noise10db",
+        "sourceId": "minds14-de-DE-419",
+        "datasetPath": "de-DE~ADDRESS/CA85fd716f9e3e3e6c9d836ddaa6537559_2.wav",
+        "datasetRow": 419,
+        "intent": 1,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "ich möchte meine Adresse ändern",
+        "seconds": 5.36,
+        "audioFile": "minds14-de-DE-419-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-606-noise10db",
+        "sourceId": "minds14-de-DE-606",
+        "datasetPath": "de-DE~APP_ERROR/CA506fcd9676c03e4fed44ab49d62cb478_0.wav",
+        "datasetRow": 606,
+        "intent": 2,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "hi ich habe ein problem mit meiner App",
+        "seconds": 4.92,
+        "audioFile": "minds14-de-DE-606-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-363-noise10db",
+        "sourceId": "minds14-de-DE-363",
+        "datasetPath": "de-DE~ATM_LIMIT/CA7e2ee712424a961959f6256bef1a65c1_0.wav",
+        "datasetRow": 363,
+        "intent": 3,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "hallo ich wollte fragen wie viel Geld ich maximal am Geldautomaten abheben kann",
+        "seconds": 7.28,
+        "audioFile": "minds14-de-DE-363-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-285-noise10db",
+        "sourceId": "minds14-de-DE-285",
+        "datasetPath": "de-DE~BALANCE/CAd53fe6ac30d4570a606c47929ad67b79_0.wav",
+        "datasetRow": 285,
+        "intent": 4,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "ich möchte gerne meinen Kontostand erfahren",
+        "seconds": 5.62,
+        "audioFile": "minds14-de-DE-285-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-178-noise10db",
+        "sourceId": "minds14-de-DE-178",
+        "datasetPath": "de-DE~BUSINESS_LOAN/CA64560a4bdfd5200ae040da4afc321d14_0.wav",
+        "datasetRow": 178,
+        "intent": 5,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "ja guten Tag ich rufe an wegen eines neuen Kredites bei hätte ich einige Fragen zu",
+        "seconds": 10.12,
+        "audioFile": "minds14-de-DE-178-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-236-noise10db",
+        "sourceId": "minds14-de-DE-236",
+        "datasetPath": "de-DE~CARD_ISSUES/response_18.wav",
+        "datasetRow": 236,
+        "intent": 6,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "hallo guten Tag ich rufe an weil meine Kreditkarte nicht mehr funktioniert ich habe vorhin versucht im Laden zu bezahlen ich habe die Karte eingesteckt ich habe versucht kontaktlos zu bezahlen und ich kann damit einfach nicht bezahlen funktioniert nicht die Karte scheint kaputt zu sein",
+        "seconds": 19.114625,
+        "audioFile": "minds14-de-DE-236-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-0-noise10db",
+        "sourceId": "minds14-de-DE-0",
+        "datasetPath": "de-DE~CASH_DEPOSIT/response_4.wav",
+        "datasetRow": 0,
+        "intent": 7,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "ich möchte gerne Geld auf mein Konto einzahlen",
+        "seconds": 5.851375,
+        "audioFile": "minds14-de-DE-0-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-105-noise10db",
+        "sourceId": "minds14-de-DE-105",
+        "datasetPath": "de-DE~DIRECT_DEBIT/CA9f8a3237ead71272855fc88d40edc2ab_2.wav",
+        "datasetRow": 105,
+        "intent": 8,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "ähm ich habe eine Frage bei dir zum Lastschrift geht",
+        "seconds": 7.7,
+        "audioFile": "minds14-de-DE-105-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-569-noise10db",
+        "sourceId": "minds14-de-DE-569",
+        "datasetPath": "de-DE~FREEZE/CA25bf5637335534b6f17c82c5580eb856_0.wav",
+        "datasetRow": 569,
+        "intent": 9,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "guten Tag ich habe meine Karte verloren bitte sperren sie meine Kreditkarte vielen Dank auf Wiederhören",
+        "seconds": 8.6,
+        "audioFile": "minds14-de-DE-569-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-126-noise10db",
+        "sourceId": "minds14-de-DE-126",
+        "datasetPath": "de-DE~HIGH_VALUE_PAYMENT/response_10.wav",
+        "datasetRow": 126,
+        "intent": 10,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "Hallo und zwar habe ich jetzt versucht eine recht hohe Summe zu überweisen und die Meldung sagt dass ich eine SMS bekomme allerdings weiß ich nicht wo ich diesen Code jetzt eintragen soll oder was ich jetzt damit machen soll können Sie mir bitte helfen",
+        "seconds": 20.821375,
+        "audioFile": "minds14-de-DE-126-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-318-noise10db",
+        "sourceId": "minds14-de-DE-318",
+        "datasetPath": "de-DE~JOINT_ACCOUNT/CAd40415bbc670d665a28952449c627b05_0.wav",
+        "datasetRow": 318,
+        "intent": 11,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "guten Tag ich würde gerne ein Gemeinschaftskonto einrichten auf das sowohl ich als auch meine Lebenspartnerin Zugriff haben und zwar möglichst off und online",
+        "seconds": 16.84,
+        "audioFile": "minds14-de-DE-318-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-41-noise10db",
+        "sourceId": "minds14-de-DE-41",
+        "datasetPath": "de-DE~LATEST_TRANSACTIONS/response_7.wav",
+        "datasetRow": 41,
+        "intent": 12,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "Hallo ich habe einen Barzahlungen in meinem Auszug die ich nicht erkennen können Sie mir weiterhelfen",
+        "seconds": 7.253375,
+        "audioFile": "minds14-de-DE-41-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-de-DE-512-noise10db",
+        "sourceId": "minds14-de-DE-512",
+        "datasetPath": "de-DE~PAY_BILL/CA8c4cd70068d3b7bb5d553f82cac714d5_0.wav",
+        "datasetRow": 512,
+        "intent": 13,
+        "language": "de",
+        "kind": "human_noise10db",
+        "reference": "Hallo ich muss eine Rechnung bezahlen und ja habe Fragen dazu wie das so läuft danke schön",
+        "seconds": 12.2,
+        "audioFile": "minds14-de-DE-512-noise10db.wav"
+      },
+      {
+        "caseId": "minds14-en-US-290-clean",
+        "sourceId": "minds14-en-US-290",
+        "datasetPath": "en-US~ABROAD/602ba62705f96973d6794449.wav",
+        "datasetRow": 290,
+        "intent": 0,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "hi I'm going to be leaving the country and I'm going abroad I need to make sure that my card will work or anything that I need to do to make sure does it stop working",
+        "seconds": 12.288,
+        "audioFile": "minds14-en-US-290-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-214-clean",
+        "sourceId": "minds14-en-US-214",
+        "datasetPath": "en-US~ADDRESS/602b96b9963e11ccd901cb7b.wav",
+        "datasetRow": 214,
+        "intent": 1,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "I would like to change my address",
+        "seconds": 4.365375,
+        "audioFile": "minds14-en-US-214-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-200-clean",
+        "sourceId": "minds14-en-US-200",
+        "datasetPath": "en-US~APP_ERROR/602bad435f67b421554f6491.wav",
+        "datasetRow": 200,
+        "intent": 2,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "I'm hoping you can help me I can't access my account it just says that the app is being serviced",
+        "seconds": 12.032,
+        "audioFile": "minds14-en-US-200-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-262-clean",
+        "sourceId": "minds14-en-US-262",
+        "datasetPath": "en-US~ATM_LIMIT/602ba1a5bb1e6d0fbce91fea.wav",
+        "datasetRow": 262,
+        "intent": 3,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "what is the maximum amount that I can withdraw from the ATM",
+        "seconds": 7.424,
+        "audioFile": "minds14-en-US-262-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-49-clean",
+        "sourceId": "minds14-en-US-49",
+        "datasetPath": "en-US~BALANCE/602ba75c963e11ccd901ccef.wav",
+        "datasetRow": 49,
+        "intent": 4,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "please show me my account balance please",
+        "seconds": 4.096,
+        "audioFile": "minds14-en-US-49-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-560-clean",
+        "sourceId": "minds14-en-US-560",
+        "datasetPath": "en-US~BUSINESS_LOAN/602b98a5963e11ccd901cba2.wav",
+        "datasetRow": 560,
+        "intent": 5,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "hi there I'm working about a business loan I would like to take a new one out",
+        "seconds": 9.6595,
+        "audioFile": "minds14-en-US-560-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-486-clean",
+        "sourceId": "minds14-en-US-486",
+        "datasetPath": "en-US~CARD_ISSUES/602bace4963e11ccd901cdc1.wav",
+        "datasetRow": 486,
+        "intent": 6,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "why was my payment declined",
+        "seconds": 5.034625,
+        "audioFile": "minds14-en-US-486-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-434-clean",
+        "sourceId": "minds14-en-US-434",
+        "datasetPath": "en-US~CASH_DEPOSIT/602ba393bb1e6d0fbce9201f.wav",
+        "datasetRow": 434,
+        "intent": 7,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "deposit money into account",
+        "seconds": 3.754625,
+        "audioFile": "minds14-en-US-434-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-339-clean",
+        "sourceId": "minds14-en-US-339",
+        "datasetPath": "en-US~DIRECT_DEBIT/602baf6505f96973d6794515.wav",
+        "datasetRow": 339,
+        "intent": 8,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "please show me to my direct debit",
+        "seconds": 6.741375,
+        "audioFile": "minds14-en-US-339-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-128-clean",
+        "sourceId": "minds14-en-US-128",
+        "datasetPath": "en-US~FREEZE/602ba947bb1e6d0fbce92119.wav",
+        "datasetRow": 128,
+        "intent": 9,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "good morning single lost my ATM card like a debit card I need to put a freezer",
+        "seconds": 11.349375,
+        "audioFile": "minds14-en-US-128-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-402-clean",
+        "sourceId": "minds14-en-US-402",
+        "datasetPath": "en-US~HIGH_VALUE_PAYMENT/602bab78963e11ccd901cd8c.wav",
+        "datasetRow": 402,
+        "intent": 10,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "I am attempting to make a high-value purchase could you please tell me how I use the SMS code",
+        "seconds": 8.362625,
+        "audioFile": "minds14-en-US-402-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-41-clean",
+        "sourceId": "minds14-en-US-41",
+        "datasetPath": "en-US~JOINT_ACCOUNT/602baee7bb1e6d0fbce9228e.wav",
+        "datasetRow": 41,
+        "intent": 11,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "I would like to set up a joint account how would I go about doing that",
+        "seconds": 4.437375,
+        "audioFile": "minds14-en-US-41-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-386-clean",
+        "sourceId": "minds14-en-US-386",
+        "datasetPath": "en-US~LATEST_TRANSACTIONS/602ba8395f67b421554f643d.wav",
+        "datasetRow": 386,
+        "intent": 12,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "what are my most recent transactions",
+        "seconds": 5.0155,
+        "audioFile": "minds14-en-US-386-clean.wav"
+      },
+      {
+        "caseId": "minds14-en-US-100-clean",
+        "sourceId": "minds14-en-US-100",
+        "datasetPath": "en-US~PAY_BILL/602b9b81963e11ccd901cbe6.wav",
+        "datasetRow": 100,
+        "intent": 13,
+        "language": "en",
+        "kind": "human_clean",
+        "reference": "hi I have a bill to pay",
+        "seconds": 3.157375,
+        "audioFile": "minds14-en-US-100-clean.wav"
+      },
+      {
+        "caseId": "synthetic-de-1",
+        "sourceId": "synthetic-de-1",
+        "language": "de",
+        "kind": "synthetic_clean",
+        "reference": "Guten Morgen, wie geht es dir heute?",
+        "seconds": 3.384,
+        "audioFile": "synthetic-de-1.wav",
+        "voice": "de-DE-KatjaNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-de-2",
+        "sourceId": "synthetic-de-2",
+        "language": "de",
+        "kind": "synthetic_clean",
+        "reference": "Kannst du bitte das Licht im Schlafzimmer ausschalten?",
+        "seconds": 3.672,
+        "audioFile": "synthetic-de-2.wav",
+        "voice": "de-DE-ConradNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-de-3",
+        "sourceId": "synthetic-de-3",
+        "language": "de",
+        "kind": "synthetic_clean",
+        "reference": "Stell mir bitte einen Wecker für morgen um halb sieben.",
+        "seconds": 4.056,
+        "audioFile": "synthetic-de-3.wav",
+        "voice": "de-DE-KatjaNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-de-4",
+        "sourceId": "synthetic-de-4",
+        "language": "de",
+        "kind": "synthetic_clean",
+        "reference": "Wie wird das Wetter morgen in Düsseldorf?",
+        "seconds": 3.192,
+        "audioFile": "synthetic-de-4.wav",
+        "voice": "de-DE-ConradNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-de-5",
+        "sourceId": "synthetic-de-5",
+        "language": "de",
+        "kind": "synthetic_clean",
+        "reference": "Ich möchte die Heizung auf zweiundzwanzig Grad einstellen.",
+        "seconds": 4.272,
+        "audioFile": "synthetic-de-5.wav",
+        "voice": "de-DE-KatjaNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-de-6",
+        "sourceId": "synthetic-de-6",
+        "language": "de",
+        "kind": "synthetic_clean",
+        "reference": "Bitte schalte das Licht nicht aus, sondern mach es heller.",
+        "seconds": 3.888,
+        "audioFile": "synthetic-de-6.wav",
+        "voice": "de-DE-ConradNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-de-7",
+        "sourceId": "synthetic-de-7",
+        "language": "de",
+        "kind": "synthetic_clean",
+        "reference": "Kannst du Japanisch, Englisch und Deutsch automatisch erkennen?",
+        "seconds": 4.68,
+        "audioFile": "synthetic-de-7.wav",
+        "voice": "de-DE-KatjaNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-ja-1",
+        "sourceId": "synthetic-ja-1",
+        "language": "ja",
+        "kind": "synthetic_clean",
+        "reference": "おはよう。今日もよろしくね。",
+        "seconds": 3.72,
+        "audioFile": "synthetic-ja-1.wav",
+        "voice": "ja-JP-NanamiNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-ja-2",
+        "sourceId": "synthetic-ja-2",
+        "language": "ja",
+        "kind": "synthetic_clean",
+        "reference": "寝室の照明を消してください。",
+        "seconds": 2.88,
+        "audioFile": "synthetic-ja-2.wav",
+        "voice": "ja-JP-KeitaNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-ja-3",
+        "sourceId": "synthetic-ja-3",
+        "language": "ja",
+        "kind": "synthetic_clean",
+        "reference": "明日の朝7時にアラームを設定して。",
+        "seconds": 3.888,
+        "audioFile": "synthetic-ja-3.wav",
+        "voice": "ja-JP-NanamiNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-ja-4",
+        "sourceId": "synthetic-ja-4",
+        "language": "ja",
+        "kind": "synthetic_clean",
+        "reference": "明日の東京の天気はどうなる？",
+        "seconds": 2.928,
+        "audioFile": "synthetic-ja-4.wav",
+        "voice": "ja-JP-KeitaNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-ja-5",
+        "sourceId": "synthetic-ja-5",
+        "language": "ja",
+        "kind": "synthetic_clean",
+        "reference": "エアコンの温度を22度に設定してください。",
+        "seconds": 4.128,
+        "audioFile": "synthetic-ja-5.wav",
+        "voice": "ja-JP-NanamiNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-ja-6",
+        "sourceId": "synthetic-ja-6",
+        "language": "ja",
+        "kind": "synthetic_clean",
+        "reference": "電気は消さないで、少し明るくして。",
+        "seconds": 3.504,
+        "audioFile": "synthetic-ja-6.wav",
+        "voice": "ja-JP-KeitaNeural",
+        "generator": "edge-tts"
+      },
+      {
+        "caseId": "synthetic-ja-7",
+        "sourceId": "synthetic-ja-7",
+        "language": "ja",
+        "kind": "synthetic_clean",
+        "reference": "日本語と英語とドイツ語を自動で認識できる？",
+        "seconds": 4.248,
+        "audioFile": "synthetic-ja-7.wav",
+        "voice": "ja-JP-NanamiNeural",
+        "generator": "edge-tts"
+      }
+    ],
+    "excluded": [
+      {
+        "caseId": "minds14-de-DE-563",
+        "reason": "duration_or_empty_reference",
+        "seconds": 35.88
+      }
+    ]
+  },
+  "scope": "Cloud transcription only; no Galaxy microphone/Android provider/VAD/TTS measurement",
+  "normalization": "NFKC, lowercase, punctuation ignored; number representations not canonicalized",
+  "baseline": null,
+  "summary": {
+    "de/human_clean": {
+      "count": 42,
+      "succeeded": 42,
+      "languageCorrect": 42,
+      "exactNormalized": 16,
+      "wordErrors": 111,
+      "referenceWords": 792,
+      "charErrors": 276,
+      "referenceChars": 3942,
+      "languageAccuracyPct": 100.0,
+      "languageAccuracyWilson95Pct": [
+        91.62,
+        100
+      ],
+      "wordErrorRatePct": 14.02,
+      "charErrorRatePct": 7.0,
+      "clientMedianMs": 988
+    },
+    "de/human_noise10db": {
+      "count": 14,
+      "succeeded": 14,
+      "languageCorrect": 14,
+      "exactNormalized": 7,
+      "wordErrors": 23,
+      "referenceWords": 258,
+      "charErrors": 40,
+      "referenceChars": 1263,
+      "languageAccuracyPct": 100.0,
+      "languageAccuracyWilson95Pct": [
+        78.47,
+        100
+      ],
+      "wordErrorRatePct": 8.91,
+      "charErrorRatePct": 3.17,
+      "clientMedianMs": 939
+    },
+    "en/human_clean": {
+      "count": 14,
+      "succeeded": 14,
+      "languageCorrect": 14,
+      "exactNormalized": 9,
+      "wordErrors": 19,
+      "referenceWords": 181,
+      "charErrors": 44,
+      "referenceChars": 685,
+      "languageAccuracyPct": 100.0,
+      "languageAccuracyWilson95Pct": [
+        78.47,
+        100
+      ],
+      "wordErrorRatePct": 10.5,
+      "charErrorRatePct": 6.42,
+      "clientMedianMs": 792
+    },
+    "de/synthetic_clean": {
+      "count": 7,
+      "succeeded": 7,
+      "languageCorrect": 7,
+      "exactNormalized": 6,
+      "wordErrors": 1,
+      "referenceWords": 58,
+      "charErrors": 14,
+      "referenceChars": 304,
+      "languageAccuracyPct": 100.0,
+      "languageAccuracyWilson95Pct": [
+        64.57,
+        100
+      ],
+      "wordErrorRatePct": 1.72,
+      "charErrorRatePct": 4.61,
+      "clientMedianMs": 618
+    },
+    "ja/synthetic_clean": {
+      "count": 7,
+      "succeeded": 7,
+      "languageCorrect": 7,
+      "exactNormalized": 7,
+      "wordErrors": 0,
+      "referenceWords": 9,
+      "charErrors": 0,
+      "referenceChars": 109,
+      "languageAccuracyPct": 100.0,
+      "languageAccuracyWilson95Pct": [
+        64.57,
+        100
+      ],
+      "wordErrorRatePct": 0.0,
+      "charErrorRatePct": 0.0,
+      "clientMedianMs": 701
+    }
+  },
+  "rows": [
+    {
+      "caseId": "minds14-de-DE-453-clean",
+      "sourceId": "minds14-de-DE-453",
+      "datasetPath": "de-DE~ABROAD/CA8c7062299fe649b5b3ba676a78ba6906_2.wav",
+      "datasetRow": 453,
+      "intent": 0,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo ich habe bei Ihnen einen Kater ein Kondom und ich möchte fahr bald in Urlaub und möchte wissen ob ich diese Karte auch im Ausland nutzen kann",
+      "seconds": 15.72,
+      "audioFile": "minds14-de-DE-453-clean.wav",
+      "audioSha256": "5e482cd061763c33374165896f77460560e6ca21acd8d947698589b7152989e4",
+      "ok": true,
+      "text": "Hallo, ich habe bei Ihnen eine Karte, ein Konto und ich möchte fahren bald in den Urlaub und möchte wissen, ob ich diese Karte auch im Ausland nutzen kann.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 1048,
+      "clientMs": 1929,
+      "wordErrors": 5,
+      "referenceWords": 28,
+      "charErrors": 10,
+      "referenceChars": 120
+    },
+    {
+      "caseId": "minds14-de-DE-438-clean",
+      "sourceId": "minds14-de-DE-438",
+      "datasetPath": "de-DE~ABROAD/CA0e5333bf687d1024d82e652b208428e1_0.wav",
+      "datasetRow": 438,
+      "intent": 0,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ja grüß Gott Thyrnau Weissmüller und zwar fliege ich in den nächsten Wochen nach Österreich und wollte wissen ob meine Karte im Ausland funktioniert oder ob es da etwaige Extrakosten gibt oder ob ich nur bescheid sagen muss",
+      "seconds": 19.72,
+      "audioFile": "minds14-de-DE-438-clean.wav",
+      "audioSha256": "bf2f81f4446724aebffd2f29ad7ab0da1e22c05aa76c0d3a331d161971969dc1",
+      "ok": true,
+      "text": "Ja, grüß Gott. Mein Name ist Müller und zwar fliege ich in den nächsten paar Wochen nach Österreich und wollte wissen, ob meine Karte da im Ausland funktioniert oder ob es da etwaige Extrakosten gibt oder ob das alles okay ist oder ob ich Ihnen Bescheid sagen muss.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 1159,
+      "clientMs": 2124,
+      "wordErrors": 13,
+      "referenceWords": 38,
+      "charErrors": 38,
+      "referenceChars": 186
+    },
+    {
+      "caseId": "minds14-de-DE-485-clean",
+      "sourceId": "minds14-de-DE-485",
+      "datasetPath": "de-DE~ABROAD/CAbdf654fff5e058d70915d3fcd6586169_2.wav",
+      "datasetRow": 485,
+      "intent": 0,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich brauche meine Karte im Ausland",
+      "seconds": 4.52,
+      "audioFile": "minds14-de-DE-485-clean.wav",
+      "audioSha256": "14ec8456f8fe171322925b5315a57a69a25e7d087cc55f3397bf739c8ed3e053",
+      "ok": true,
+      "text": "Ich brauche meine Karte im Ausland.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 684,
+      "clientMs": 1732,
+      "wordErrors": 0,
+      "referenceWords": 6,
+      "charErrors": 0,
+      "referenceChars": 29
+    },
+    {
+      "caseId": "minds14-de-DE-419-clean",
+      "sourceId": "minds14-de-DE-419",
+      "datasetPath": "de-DE~ADDRESS/CA85fd716f9e3e3e6c9d836ddaa6537559_2.wav",
+      "datasetRow": 419,
+      "intent": 1,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich möchte meine Adresse ändern",
+      "seconds": 5.36,
+      "audioFile": "minds14-de-DE-419-clean.wav",
+      "audioSha256": "9737f7ceccfde59dff3c290927a4db66fb682b30ac39dadb1d2203d7ba90c4a4",
+      "ok": true,
+      "text": "Ich möchte meine Adresse ändern.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 607,
+      "clientMs": 1029,
+      "wordErrors": 0,
+      "referenceWords": 5,
+      "charErrors": 0,
+      "referenceChars": 27
+    },
+    {
+      "caseId": "minds14-de-DE-407-clean",
+      "sourceId": "minds14-de-DE-407",
+      "datasetPath": "de-DE~ADDRESS/response_12.wav",
+      "datasetRow": 407,
+      "intent": 1,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "schönen guten Tag ich würde ganz gerne meine Adresse ändern und wollte mich erkundigen ob ich da bei welchen Mitarbeiter ich das machen kann oder ob nicht eventuell weiterleiten können genau danke",
+      "seconds": 13.467625,
+      "audioFile": "minds14-de-DE-407-clean.wav",
+      "audioSha256": "adf8e21942469c4172bc77f875a87fb03e92fd81613015b47d1887bb6c1fe6e8",
+      "ok": true,
+      "text": "Schönen guten Tag, ich würde ganz gerne meine Adresse ändern und wollte mich erkundigen, bei welchem Mitarbeiter ich das machen kann oder ob Sie mich eventuell weiterleiten können. Genau, danke.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 754,
+      "clientMs": 1132,
+      "wordErrors": 6,
+      "referenceWords": 32,
+      "charErrors": 13,
+      "referenceChars": 165
+    },
+    {
+      "caseId": "minds14-de-DE-387-clean",
+      "sourceId": "minds14-de-DE-387",
+      "datasetPath": "de-DE~ADDRESS/CA837f98066860fd66f3ccf17f78ade52e_0.wav",
+      "datasetRow": 387,
+      "intent": 1,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "guten Tag ich würde gerne meine Adresse ändern",
+      "seconds": 8.3,
+      "audioFile": "minds14-de-DE-387-clean.wav",
+      "audioSha256": "9dabe818481005dc9050001a4b4022c6fe526e42ece585765c8f65272a367f9c",
+      "ok": true,
+      "text": "Guten Tag, ich würde gerne meine Adresse ändern.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 654,
+      "clientMs": 1069,
+      "wordErrors": 0,
+      "referenceWords": 8,
+      "charErrors": 0,
+      "referenceChars": 39
+    },
+    {
+      "caseId": "minds14-de-DE-606-clean",
+      "sourceId": "minds14-de-DE-606",
+      "datasetPath": "de-DE~APP_ERROR/CA506fcd9676c03e4fed44ab49d62cb478_0.wav",
+      "datasetRow": 606,
+      "intent": 2,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "hi ich habe ein problem mit meiner App",
+      "seconds": 4.92,
+      "audioFile": "minds14-de-DE-606-clean.wav",
+      "audioSha256": "fc641eb45145d513208780d521991d1615cd436defd6d9ea28fe5d31b32a6fa2",
+      "ok": true,
+      "text": "Hi, ich habe ein Problem mit meiner App.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 600,
+      "clientMs": 846,
+      "wordErrors": 0,
+      "referenceWords": 8,
+      "charErrors": 0,
+      "referenceChars": 31
+    },
+    {
+      "caseId": "minds14-de-DE-579-clean",
+      "sourceId": "minds14-de-DE-579",
+      "datasetPath": "de-DE~APP_ERROR/CAe768126e5f139d7e46cfad368298d9e0_0.wav",
+      "datasetRow": 579,
+      "intent": 2,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "alles geht um meine Apps von ihrer Bank ich benutze da haben sich paar Probleme ergeben sie die Athleten nämlich nicht richtig können Sie mir hier bitte weiterhelfen",
+      "seconds": 14.06,
+      "audioFile": "minds14-de-DE-579-clean.wav",
+      "audioSha256": "858c24fdb3d220aa6b85b32c2840679290cecd89277068761cb0cade4d37eb9a",
+      "ok": true,
+      "text": "Also es geht um eine App von Ihrer Bank, die ich benutze. Da haben sich ein paar Probleme ergeben, die App lädt nämlich nicht richtig. Können Sie mir hier bitte weiterhelfen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 862,
+      "clientMs": 1142,
+      "wordErrors": 9,
+      "referenceWords": 28,
+      "charErrors": 19,
+      "referenceChars": 138
+    },
+    {
+      "caseId": "minds14-de-DE-585-clean",
+      "sourceId": "minds14-de-DE-585",
+      "datasetPath": "de-DE~APP_ERROR/CA6ef756ac28a2f9b1026018bf16f36bca_3.wav",
+      "datasetRow": 585,
+      "intent": 2,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "die Apps lädt nicht",
+      "seconds": 5.34,
+      "audioFile": "minds14-de-DE-585-clean.wav",
+      "audioSha256": "cf0dc4a3b0620bfbad30e6d892ed42db4d9b62a8b74db9bfd94188dbf33b85fb",
+      "ok": true,
+      "text": "Die App lädt nicht.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 552,
+      "clientMs": 800,
+      "wordErrors": 1,
+      "referenceWords": 4,
+      "charErrors": 1,
+      "referenceChars": 16
+    },
+    {
+      "caseId": "minds14-de-DE-363-clean",
+      "sourceId": "minds14-de-DE-363",
+      "datasetPath": "de-DE~ATM_LIMIT/CA7e2ee712424a961959f6256bef1a65c1_0.wav",
+      "datasetRow": 363,
+      "intent": 3,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "hallo ich wollte fragen wie viel Geld ich maximal am Geldautomaten abheben kann",
+      "seconds": 7.28,
+      "audioFile": "minds14-de-DE-363-clean.wav",
+      "audioSha256": "8a324b47648379d47442b07c117a76e4813b1da509883ca8ceab22c96b093f25",
+      "ok": true,
+      "text": "Hallo, ich wollte fragen, wie viel Geld ich maximal am Geldautomaten abheben kann.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 795,
+      "clientMs": 1137,
+      "wordErrors": 0,
+      "referenceWords": 13,
+      "charErrors": 0,
+      "referenceChars": 67
+    },
+    {
+      "caseId": "minds14-de-DE-346-clean",
+      "sourceId": "minds14-de-DE-346",
+      "datasetPath": "de-DE~ATM_LIMIT/CAc0590ecbb57e7974aaf1f848ae463d33_0.wav",
+      "datasetRow": 346,
+      "intent": 3,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo ich brauche eine größere Summe Bargeld und möchte den Maximalbetrag von meinem Konto abheben wenn Sie mir sagen wie viel Geld ich maximal abheben kann",
+      "seconds": 11.74,
+      "audioFile": "minds14-de-DE-346-clean.wav",
+      "audioSha256": "0bf65ee186a9928461d4dc7bea15e7d5ee8aa09ecfe28f633abd8f5a3b64961a",
+      "ok": true,
+      "text": "Hallo, ich brauche eine größere Summe Bargeld und möchte den Maximalbetrag von meinem Konto abheben. Können Sie mir sagen, wie viel Geld ich maximal abheben kann?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 663,
+      "clientMs": 1031,
+      "wordErrors": 1,
+      "referenceWords": 26,
+      "charErrors": 4,
+      "referenceChars": 131
+    },
+    {
+      "caseId": "minds14-de-DE-378-clean",
+      "sourceId": "minds14-de-DE-378",
+      "datasetPath": "de-DE~ATM_LIMIT/response_24.wav",
+      "datasetRow": 378,
+      "intent": 3,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "hallo ich wollte fragen wie viel Geld ich maximal mit meiner Karte am Geldautomaten abheben kann und es ist dieselbe Betrag den ich jetzt abgeben kann die man generell am Automat abheben kann oder sie mir irgendwie begrenzt",
+      "seconds": 16.213375,
+      "audioFile": "minds14-de-DE-378-clean.wav",
+      "audioSha256": "347dfe20864a82af367f111767f195a439d1e9ec5ddb90a9e0c501cf57b6f4af",
+      "ok": true,
+      "text": "Hallo, ich wollte fragen, wie viel Geld ich maximal mit meiner Karte am Geldautomaten abheben kann. Und ist das derselbe Betrag, den ich jetzt abheben kann, den man generell am Automaten abheben kann, oder ist es bei mir irgendwie begrenzt?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 785,
+      "clientMs": 1050,
+      "wordErrors": 9,
+      "referenceWords": 38,
+      "charErrors": 17,
+      "referenceChars": 186
+    },
+    {
+      "caseId": "minds14-de-DE-285-clean",
+      "sourceId": "minds14-de-DE-285",
+      "datasetPath": "de-DE~BALANCE/CAd53fe6ac30d4570a606c47929ad67b79_0.wav",
+      "datasetRow": 285,
+      "intent": 4,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich möchte gerne meinen Kontostand erfahren",
+      "seconds": 5.62,
+      "audioFile": "minds14-de-DE-285-clean.wav",
+      "audioSha256": "355d3d29c0be5eaa844ad40e28cfd2f5384b5ef28b7f2773d15f62c5578a9b59",
+      "ok": true,
+      "text": "Ich möchte gerne meinen Kontostand erfahren.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 879,
+      "clientMs": 1084,
+      "wordErrors": 0,
+      "referenceWords": 6,
+      "charErrors": 0,
+      "referenceChars": 38
+    },
+    {
+      "caseId": "minds14-de-DE-270-clean",
+      "sourceId": "minds14-de-DE-270",
+      "datasetPath": "de-DE~BALANCE/CAbe0e624f04330088165979fff5e0771b_0.wav",
+      "datasetRow": 270,
+      "intent": 4,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Kontostand abrufen",
+      "seconds": 4.54,
+      "audioFile": "minds14-de-DE-270-clean.wav",
+      "audioSha256": "54a592bf073178d9a774308f2d7902a1ff0896f75bf976f0f311c6c5df2a115c",
+      "ok": true,
+      "text": "Konstant abrufen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 787,
+      "clientMs": 1045,
+      "wordErrors": 1,
+      "referenceWords": 2,
+      "charErrors": 3,
+      "referenceChars": 17
+    },
+    {
+      "caseId": "minds14-de-DE-279-clean",
+      "sourceId": "minds14-de-DE-279",
+      "datasetPath": "de-DE~BALANCE/response_19.wav",
+      "datasetRow": 279,
+      "intent": 4,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "wie viel Geld habe ich momentan auf meinem Konto könnten Sie mir bitte meinen Kontostand mitteilen",
+      "seconds": 7.430375,
+      "audioFile": "minds14-de-DE-279-clean.wav",
+      "audioSha256": "f4bf865c91a18b11da7f70608b1fb44a7153471cf826d35e52ccf6311787811c",
+      "ok": true,
+      "text": "Wie viel Geld habe ich momentan auf meinem Konto? Könnten Sie mir bitte meinen Kontenstand mitteilen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 718,
+      "clientMs": 951,
+      "wordErrors": 1,
+      "referenceWords": 16,
+      "charErrors": 2,
+      "referenceChars": 83
+    },
+    {
+      "caseId": "minds14-de-DE-178-clean",
+      "sourceId": "minds14-de-DE-178",
+      "datasetPath": "de-DE~BUSINESS_LOAN/CA64560a4bdfd5200ae040da4afc321d14_0.wav",
+      "datasetRow": 178,
+      "intent": 5,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ja guten Tag ich rufe an wegen eines neuen Kredites bei hätte ich einige Fragen zu",
+      "seconds": 10.12,
+      "audioFile": "minds14-de-DE-178-clean.wav",
+      "audioSha256": "57bd0d2b58a8311c39083f8c6ffe2da1dbed68465bfafb6ad78d11253e131b80",
+      "ok": true,
+      "text": "Guten Tag, ich rufe an wegen eines neuen Kredites. Da hätte ich einige Fragen zu.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 654,
+      "clientMs": 922,
+      "wordErrors": 2,
+      "referenceWords": 16,
+      "charErrors": 5,
+      "referenceChars": 67
+    },
+    {
+      "caseId": "minds14-de-DE-160-clean",
+      "sourceId": "minds14-de-DE-160",
+      "datasetPath": "de-DE~BUSINESS_LOAN/response_7.wav",
+      "datasetRow": 160,
+      "intent": 5,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "guten Tag ich rufe an bei Fragen haben wegen einen Firmenkredit ich möchte gern einen neuen Kredit beantragen",
+      "seconds": 9.984,
+      "audioFile": "minds14-de-DE-160-clean.wav",
+      "audioSha256": "25ca708ce5d3d5ec73a0de46cd3c98e7fc6b4e9d0aeb7be812a3d1c9012b5167",
+      "ok": true,
+      "text": "Guten Tag, ich rufe an, weil ich Fragen habe wegen eines Firmenkredits. Ich möchte gerne einen neuen Kredit beantragen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 578,
+      "clientMs": 832,
+      "wordErrors": 6,
+      "referenceWords": 18,
+      "charErrors": 9,
+      "referenceChars": 92
+    },
+    {
+      "caseId": "minds14-de-DE-190-clean",
+      "sourceId": "minds14-de-DE-190",
+      "datasetPath": "de-DE~BUSINESS_LOAN/response_19.wav",
+      "datasetRow": 190,
+      "intent": 5,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich wollte mich über meinen firmenkredite informieren was können Sie mir denn dazu sagen",
+      "seconds": 7.253375,
+      "audioFile": "minds14-de-DE-190-clean.wav",
+      "audioSha256": "ebdfc276aa8425b5de8df22f1e1c40b4ce71da51e448e6cf02ca6725ceb11492",
+      "ok": true,
+      "text": "Ich wollte mich über meinen Firmenkredit informieren. Was können Sie mir denn dazu sagen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 674,
+      "clientMs": 917,
+      "wordErrors": 1,
+      "referenceWords": 14,
+      "charErrors": 1,
+      "referenceChars": 75
+    },
+    {
+      "caseId": "minds14-de-DE-236-clean",
+      "sourceId": "minds14-de-DE-236",
+      "datasetPath": "de-DE~CARD_ISSUES/response_18.wav",
+      "datasetRow": 236,
+      "intent": 6,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "hallo guten Tag ich rufe an weil meine Kreditkarte nicht mehr funktioniert ich habe vorhin versucht im Laden zu bezahlen ich habe die Karte eingesteckt ich habe versucht kontaktlos zu bezahlen und ich kann damit einfach nicht bezahlen funktioniert nicht die Karte scheint kaputt zu sein",
+      "seconds": 19.114625,
+      "audioFile": "minds14-de-DE-236-clean.wav",
+      "audioSha256": "26d4c471f7ed875a494c9d34d5e4900eedcd36a9c5a8575cd83b00c37b0b5a59",
+      "ok": true,
+      "text": "Hallo, guten Tag. Ich rufe an, weil meine Kreditkarte nicht mehr funktioniert. Ich habe vorhin versucht, im Laden zu bezahlen. Ich habe die Karte eingesteckt, ich habe versucht, kontaktlos zu bezahlen und ich kann damit einfach nicht bezahlen. Es funktioniert nicht. Die Karte scheint kaputt zu sein.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 777,
+      "clientMs": 1003,
+      "wordErrors": 1,
+      "referenceWords": 46,
+      "charErrors": 2,
+      "referenceChars": 241
+    },
+    {
+      "caseId": "minds14-de-DE-232-clean",
+      "sourceId": "minds14-de-DE-232",
+      "datasetPath": "de-DE~CARD_ISSUES/CAd148dd6bca81336f83c06f7480726d93_3.wav",
+      "datasetRow": 232,
+      "intent": 6,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo ich habe ein Problem ein Problem mit meiner Karte war versucht sie mir damit helfen",
+      "seconds": 10.8,
+      "audioFile": "minds14-de-DE-232-clean.wav",
+      "audioSha256": "220c05406bc9cfc851c4b8779a5935a0f33ef57ab978048e81a38bfee65c6261",
+      "ok": true,
+      "text": "Hallo, ich habe ein Problem mit meiner Karte, und zwar funktioniert die nicht, wenn ich versuche, sie zum Bezahlen zu benutzen. Können Sie mir damit helfen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 738,
+      "clientMs": 990,
+      "wordErrors": 16,
+      "referenceWords": 16,
+      "charErrors": 67,
+      "referenceChars": 74
+    },
+    {
+      "caseId": "minds14-de-DE-213-clean",
+      "sourceId": "minds14-de-DE-213",
+      "datasetPath": "de-DE~CARD_ISSUES/CAbfe9f9902d7869b56389c66290a783b2_0.wav",
+      "datasetRow": 213,
+      "intent": 6,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "alle meine Bankomatkarte funktioniert mit Jürgen wissen warum und warum die Bezahlung abgelehnt worden ist",
+      "seconds": 9.74,
+      "audioFile": "minds14-de-DE-213-clean.wav",
+      "audioSha256": "4800f3f112c643918e279219074d16cd9792e5664f1f6a031fddc252a6ac0255",
+      "ok": true,
+      "text": "Hallo, meine Bankomatkarte funktioniert nicht. Ich würde gern wissen, warum und warum die Bezahlung abgelehnt worden ist.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 730,
+      "clientMs": 1001,
+      "wordErrors": 5,
+      "referenceWords": 15,
+      "charErrors": 12,
+      "referenceChars": 92
+    },
+    {
+      "caseId": "minds14-de-DE-0-clean",
+      "sourceId": "minds14-de-DE-0",
+      "datasetPath": "de-DE~CASH_DEPOSIT/response_4.wav",
+      "datasetRow": 0,
+      "intent": 7,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich möchte gerne Geld auf mein Konto einzahlen",
+      "seconds": 5.851375,
+      "audioFile": "minds14-de-DE-0-clean.wav",
+      "audioSha256": "6b172bb17535a7973c7773706285a7f8236eb67d29d8c1a6d7592d9e4c1f1ddb",
+      "ok": true,
+      "text": "Ich möchte gerne Geld auf mein Konto einzahlen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 519,
+      "clientMs": 724,
+      "wordErrors": 0,
+      "referenceWords": 8,
+      "charErrors": 0,
+      "referenceChars": 39
+    },
+    {
+      "caseId": "minds14-de-DE-15-clean",
+      "sourceId": "minds14-de-DE-15",
+      "datasetPath": "de-DE~CASH_DEPOSIT/response_13.wav",
+      "datasetRow": 15,
+      "intent": 7,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "guten Tag ich würde gerne Geld auf mein Konto einzahlen wie kann ich das am besten tun",
+      "seconds": 8.545,
+      "audioFile": "minds14-de-DE-15-clean.wav",
+      "audioSha256": "81225cb666030806491d5341774bbbfc3c7a8f5fab13ba6e6f76bfd8a516b748",
+      "ok": true,
+      "text": "Guten Tag, ich würde gerne Geld auf mein Konto einzahlen. Wie kann ich das am besten tun?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 565,
+      "clientMs": 811,
+      "wordErrors": 0,
+      "referenceWords": 17,
+      "charErrors": 0,
+      "referenceChars": 70
+    },
+    {
+      "caseId": "minds14-de-DE-27-clean",
+      "sourceId": "minds14-de-DE-27",
+      "datasetPath": "de-DE~CASH_DEPOSIT/CA00f360ac5266a58ae8516ccec8d82000_0.wav",
+      "datasetRow": 27,
+      "intent": 7,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo schönen guten Tag ich würde gerne Geld auf mein Konto einzahlen und wollte noch mal nachfragen wie genau das Ding geht",
+      "seconds": 10.9,
+      "audioFile": "minds14-de-DE-27-clean.wav",
+      "audioSha256": "1401a25c54dde973d1be7c4a709ad92457b0acbb2438fd0cf3c57f2e59535f40",
+      "ok": true,
+      "text": "Hallo, schönen guten Tag. Ich würde gerne Geld auf mein Konto einzahlen und wollte nochmal nachfragen, wie genau das denn geht.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 972,
+      "clientMs": 1128,
+      "wordErrors": 3,
+      "referenceWords": 22,
+      "charErrors": 2,
+      "referenceChars": 103
+    },
+    {
+      "caseId": "minds14-de-DE-105-clean",
+      "sourceId": "minds14-de-DE-105",
+      "datasetPath": "de-DE~DIRECT_DEBIT/CA9f8a3237ead71272855fc88d40edc2ab_2.wav",
+      "datasetRow": 105,
+      "intent": 8,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ähm ich habe eine Frage bei dir zum Lastschrift geht",
+      "seconds": 7.7,
+      "audioFile": "minds14-de-DE-105-clean.wav",
+      "audioSha256": "7842237c289fa8f4521aecf32512e00d7b5a92e9cdb79d150942baf618a25249",
+      "ok": true,
+      "text": "Ich habe eine Frage, bei der es um Lastschrift geht.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 577,
+      "clientMs": 3964,
+      "wordErrors": 4,
+      "referenceWords": 10,
+      "charErrors": 6,
+      "referenceChars": 43
+    },
+    {
+      "caseId": "minds14-de-DE-85-clean",
+      "sourceId": "minds14-de-DE-85",
+      "datasetPath": "de-DE~DIRECT_DEBIT/response_6.wav",
+      "datasetRow": 85,
+      "intent": 8,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "hallo ich hätte eine Frage bezüglich Lastschriften und zwar geht es um folgendes dass ich online etwas bestellt habe und per Lastschrift bezahlt habe das aber nur noch rückgängig machen würde gerne könnten Sie mir da weiterhelfen",
+      "seconds": 22.613375,
+      "audioFile": "minds14-de-DE-85-clean.wav",
+      "audioSha256": "c02ebebf22786d8b42f5508216d10b61e3c499da25b82fb0b2423069528d6772",
+      "ok": true,
+      "text": "Hallo, ich hätte eine Frage bezüglich Lastschriften. Und zwar geht es um Folgendes, dass ich online etwas bestellt habe und per Lastschrift bezahlt habe, das aber nun rückgängig machen würde, gerne. Könnten Sie mir da weiterhelfen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 825,
+      "clientMs": 1080,
+      "wordErrors": 2,
+      "referenceWords": 37,
+      "charErrors": 4,
+      "referenceChars": 193
+    },
+    {
+      "caseId": "minds14-de-DE-107-clean",
+      "sourceId": "minds14-de-DE-107",
+      "datasetPath": "de-DE~DIRECT_DEBIT/CA963def05ca5c2a98013f67930f69ab3d_0.wav",
+      "datasetRow": 107,
+      "intent": 8,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "guten Tag ich möchte meine Lastschrift widerrufen der letzten 4 Wochen vielen Dank",
+      "seconds": 7.78,
+      "audioFile": "minds14-de-DE-107-clean.wav",
+      "audioSha256": "7297f75c3d2f46cef7a2cf0a446229379645987d51633701277a672a4d9179ce",
+      "ok": true,
+      "text": "Guten Tag, ich möchte meine Lastschriften widerrufen der letzten vier Wochen. Vielen Dank.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 571,
+      "clientMs": 843,
+      "wordErrors": 2,
+      "referenceWords": 13,
+      "charErrors": 6,
+      "referenceChars": 70
+    },
+    {
+      "caseId": "minds14-de-DE-569-clean",
+      "sourceId": "minds14-de-DE-569",
+      "datasetPath": "de-DE~FREEZE/CA25bf5637335534b6f17c82c5580eb856_0.wav",
+      "datasetRow": 569,
+      "intent": 9,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "guten Tag ich habe meine Karte verloren bitte sperren sie meine Kreditkarte vielen Dank auf Wiederhören",
+      "seconds": 8.6,
+      "audioFile": "minds14-de-DE-569-clean.wav",
+      "audioSha256": "8f9bddb56ac37bbe54ad40696b0bf370e2af243a30261a17d65bcc1b188dc964",
+      "ok": true,
+      "text": "Guten Tag, ich habe meine Karte verloren. Bitte sperren Sie meine Kreditkarte. Vielen Dank, auf Wiederhören.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 504,
+      "clientMs": 764,
+      "wordErrors": 0,
+      "referenceWords": 16,
+      "charErrors": 0,
+      "referenceChars": 88
+    },
+    {
+      "caseId": "minds14-de-DE-534-clean",
+      "sourceId": "minds14-de-DE-534",
+      "datasetPath": "de-DE~FREEZE/CA18c354b127c0b25c7a4289a82284c5fa_2.wav",
+      "datasetRow": 534,
+      "intent": 9,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich habe meine Karte verloren und möchte sie sperren lassen",
+      "seconds": 7.04,
+      "audioFile": "minds14-de-DE-534-clean.wav",
+      "audioSha256": "fe02509e02cdbea15c1b6a578316b8964a91dc06a250309e2b58c9d14232f4da",
+      "ok": true,
+      "text": "Ich habe meine Karte verloren und möchte sie sperren lassen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 477,
+      "clientMs": 774,
+      "wordErrors": 0,
+      "referenceWords": 10,
+      "charErrors": 0,
+      "referenceChars": 50
+    },
+    {
+      "caseId": "minds14-de-DE-541-clean",
+      "sourceId": "minds14-de-DE-541",
+      "datasetPath": "de-DE~FREEZE/response_14.wav",
+      "datasetRow": 541,
+      "intent": 9,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich muss meine Karte sperren lassen",
+      "seconds": 4.437375,
+      "audioFile": "minds14-de-DE-541-clean.wav",
+      "audioSha256": "17c856994ab5a82d98acc324ac371538b21158c40a41cbdddcf3df48cd40fda3",
+      "ok": true,
+      "text": "Ich muss meine Karte sperren lassen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 471,
+      "clientMs": 699,
+      "wordErrors": 0,
+      "referenceWords": 6,
+      "charErrors": 0,
+      "referenceChars": 30
+    },
+    {
+      "caseId": "minds14-de-DE-126-clean",
+      "sourceId": "minds14-de-DE-126",
+      "datasetPath": "de-DE~HIGH_VALUE_PAYMENT/response_10.wav",
+      "datasetRow": 126,
+      "intent": 10,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo und zwar habe ich jetzt versucht eine recht hohe Summe zu überweisen und die Meldung sagt dass ich eine SMS bekomme allerdings weiß ich nicht wo ich diesen Code jetzt eintragen soll oder was ich jetzt damit machen soll können Sie mir bitte helfen",
+      "seconds": 20.821375,
+      "audioFile": "minds14-de-DE-126-clean.wav",
+      "audioSha256": "94522d9028efc62220d8237fe332642e9c198ffdce434986c70aed6f215e67b8",
+      "ok": true,
+      "text": "Hallo, und zwar habe ich jetzt versucht, eine recht hohe Summe zu überweisen und die Meldung sagt, dass ich eine SMS bekomme. Allerdings weiß ich nicht, wo ich diesen Code jetzt eintragen soll oder was ich jetzt damit machen soll. Können Sie mir bitte helfen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 865,
+      "clientMs": 1128,
+      "wordErrors": 0,
+      "referenceWords": 45,
+      "charErrors": 0,
+      "referenceChars": 208
+    },
+    {
+      "caseId": "minds14-de-DE-121-clean",
+      "sourceId": "minds14-de-DE-121",
+      "datasetPath": "de-DE~HIGH_VALUE_PAYMENT/response_5.wav",
+      "datasetRow": 121,
+      "intent": 10,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "guten Tag ich möchte gerne einen Ruck Reise bezahlen PIN und ich möchte gerne einen Bestätigungscode SMS bekommen danke",
+      "seconds": 10.24,
+      "audioFile": "minds14-de-DE-121-clean.wav",
+      "audioSha256": "e66a2a85368e6b78bdf470aaf1bd7396840671b62d503aeea4db4995c7aee99b",
+      "ok": true,
+      "text": "Guten Tag, ich möchte gerne einen hochpreisigen Bezahligen tätigen und ich möchte gerne einen Bestätigungscode per SMS bekommen. Danke.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 750,
+      "clientMs": 987,
+      "wordErrors": 5,
+      "referenceWords": 19,
+      "charErrors": 17,
+      "referenceChars": 101
+    },
+    {
+      "caseId": "minds14-de-DE-145-clean",
+      "sourceId": "minds14-de-DE-145",
+      "datasetPath": "de-DE~HIGH_VALUE_PAYMENT/CA7f310b3d6f3b2a73c3e04befd21a68eb_0.wav",
+      "datasetRow": 145,
+      "intent": 10,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo ich versuche gerade eine größere Bezahlung online zu machen und mir wurde gesagt dass ich eine SMS mit einem Bestätigungscode bekomme ich wollte nur fragen ob das stimmt und wann der kommt",
+      "seconds": 15.68,
+      "audioFile": "minds14-de-DE-145-clean.wav",
+      "audioSha256": "b1b6b9c1aa00ee5455c0cba11f1612ae5c888df90c3fca34bbf02f95eb3cb799",
+      "ok": true,
+      "text": "Hallo, ich versuche gerade eine größere Bezahlung online zu machen und mir wurde gesagt, dass ich eine SMS mit einem Bestätigungscode bekomme. Ich wollte nur fragen, ob das stimmt und wann der kommt.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 1138,
+      "clientMs": 1428,
+      "wordErrors": 0,
+      "referenceWords": 33,
+      "charErrors": 0,
+      "referenceChars": 162
+    },
+    {
+      "caseId": "minds14-de-DE-318-clean",
+      "sourceId": "minds14-de-DE-318",
+      "datasetPath": "de-DE~JOINT_ACCOUNT/CAd40415bbc670d665a28952449c627b05_0.wav",
+      "datasetRow": 318,
+      "intent": 11,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "guten Tag ich würde gerne ein Gemeinschaftskonto einrichten auf das sowohl ich als auch meine Lebenspartnerin Zugriff haben und zwar möglichst off und online",
+      "seconds": 16.84,
+      "audioFile": "minds14-de-DE-318-clean.wav",
+      "audioSha256": "32ba1dd4e8c46445393dcaf7a2e5633977deefa7498d13dc9bcdd792b2e29cca",
+      "ok": true,
+      "text": "Guten Tag, ich würde gerne ein Gemeinschaftskonto einrichten, auf das sowohl ich als auch meine Lebenspartnerin Zugriff haben, und zwar möglichst offline und online.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 674,
+      "clientMs": 894,
+      "wordErrors": 1,
+      "referenceWords": 24,
+      "charErrors": 4,
+      "referenceChars": 134
+    },
+    {
+      "caseId": "minds14-de-DE-320-clean",
+      "sourceId": "minds14-de-DE-320",
+      "datasetPath": "de-DE~JOINT_ACCOUNT/CA78eb0ec4f59449b00168d900cc5f3260_0.wav",
+      "datasetRow": 320,
+      "intent": 11,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "guten Tag ich würde gerne über die app ein Gemeinschaftskonto mit meinem partner anlegen und ich möchte Sie fragen wie kann ich ein Gemeinschaftskonto einrichten",
+      "seconds": 14.2,
+      "audioFile": "minds14-de-DE-320-clean.wav",
+      "audioSha256": "60fd0e7c5a0fba2e758661629f171a4a92d006cf36133c451814367d58c340db",
+      "ok": true,
+      "text": "Guten Tag, ich würde gerne über die App ein Gemeinschaftskonto mit meinem Partner anlegen und ich möchte Sie fragen, wie kann ich ein Gemeinschaftskonto einrichten?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 661,
+      "clientMs": 873,
+      "wordErrors": 0,
+      "referenceWords": 25,
+      "charErrors": 0,
+      "referenceChars": 137
+    },
+    {
+      "caseId": "minds14-de-DE-309-clean",
+      "sourceId": "minds14-de-DE-309",
+      "datasetPath": "de-DE~JOINT_ACCOUNT/CA35d92d4368706fc57b94cf95315cc5a7_0.wav",
+      "datasetRow": 309,
+      "intent": 11,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich möchte gerne ein Gemeinschaftskonto einrichten wie mache ich das",
+      "seconds": 8.14,
+      "audioFile": "minds14-de-DE-309-clean.wav",
+      "audioSha256": "3c1ffe52a28f456be31949dde09a6dc79a4cd610017466022b94a8762f374f6f",
+      "ok": true,
+      "text": "Ich möchte gerne ein Gemeinschaftskonto einrichten. Wie mache ich das?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 574,
+      "clientMs": 831,
+      "wordErrors": 0,
+      "referenceWords": 10,
+      "charErrors": 0,
+      "referenceChars": 59
+    },
+    {
+      "caseId": "minds14-de-DE-41-clean",
+      "sourceId": "minds14-de-DE-41",
+      "datasetPath": "de-DE~LATEST_TRANSACTIONS/response_7.wav",
+      "datasetRow": 41,
+      "intent": 12,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo ich habe einen Barzahlungen in meinem Auszug die ich nicht erkennen können Sie mir weiterhelfen",
+      "seconds": 7.253375,
+      "audioFile": "minds14-de-DE-41-clean.wav",
+      "audioSha256": "2e14daf8e04a7c7b79b9aade756147fef1099293b8e0d18c56d76ce7d95449a2",
+      "ok": true,
+      "text": "Hallo, ich habe ein paar Zahlungen in meinem Auszug, die ich nicht erkenne. Können Sie mir weiterhelfen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 1669,
+      "clientMs": 1836,
+      "wordErrors": 4,
+      "referenceWords": 16,
+      "charErrors": 4,
+      "referenceChars": 86
+    },
+    {
+      "caseId": "minds14-de-DE-45-clean",
+      "sourceId": "minds14-de-DE-45",
+      "datasetPath": "de-DE~LATEST_TRANSACTIONS/response_15.wav",
+      "datasetRow": 45,
+      "intent": 12,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo schönen guten Tag ich rufe an weil ich gerade am Online-Banking Bezahlung gesehen habe die ich bis jetzt noch nicht kannte und nicht weiß von wem die kommen dann können Sie da mal erklären von wem die abgebucht wurde",
+      "seconds": 12.373375,
+      "audioFile": "minds14-de-DE-45-clean.wav",
+      "audioSha256": "280b543fe42139fa8708291ede32dc04c58df08478071f6f7e18f5bb098b3ce9",
+      "ok": true,
+      "text": "Hallo, schönen guten Tag. Ich rufe an, weil ich gerade im Online-Banking eine Zahlung gesehen habe, die ich bis jetzt noch nicht kannte und nicht weiß, von wem die kommt. Können Sie mir mal erklären, von wem die abgebucht wurde?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 808,
+      "clientMs": 960,
+      "wordErrors": 6,
+      "referenceWords": 41,
+      "charErrors": 13,
+      "referenceChars": 182
+    },
+    {
+      "caseId": "minds14-de-DE-70-clean",
+      "sourceId": "minds14-de-DE-70",
+      "datasetPath": "de-DE~LATEST_TRANSACTIONS/response_20.wav",
+      "datasetRow": 70,
+      "intent": 12,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich möchte gerne ein und Ausgänge meines Kontos der letzten Woche sehen",
+      "seconds": 6.966,
+      "audioFile": "minds14-de-DE-70-clean.wav",
+      "audioSha256": "2974129d58ae438c2e94caf576f7aedd1bfd79462f399dcb0e84854d75e0f3f8",
+      "ok": true,
+      "text": "Ich möchte gerne die Ein- und Ausgänge meines Kontos der letzten Woche sehen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 638,
+      "clientMs": 849,
+      "wordErrors": 1,
+      "referenceWords": 12,
+      "charErrors": 3,
+      "referenceChars": 60
+    },
+    {
+      "caseId": "minds14-de-DE-512-clean",
+      "sourceId": "minds14-de-DE-512",
+      "datasetPath": "de-DE~PAY_BILL/CA8c4cd70068d3b7bb5d553f82cac714d5_0.wav",
+      "datasetRow": 512,
+      "intent": 13,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "Hallo ich muss eine Rechnung bezahlen und ja habe Fragen dazu wie das so läuft danke schön",
+      "seconds": 12.2,
+      "audioFile": "minds14-de-DE-512-clean.wav",
+      "audioSha256": "ca7963c4759db4400b3f3e1411eae56ca216db0ab4f5e288d00f4592c0d4dedc",
+      "ok": true,
+      "text": "Hallo, ich muss eine Rechnung bezahlen und ja, habe ein paar Fragen dazu, wie das so läuft. Dankeschön.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 618,
+      "clientMs": 877,
+      "wordErrors": 4,
+      "referenceWords": 17,
+      "charErrors": 7,
+      "referenceChars": 74
+    },
+    {
+      "caseId": "minds14-de-DE-509-clean",
+      "sourceId": "minds14-de-DE-509",
+      "datasetPath": "de-DE~PAY_BILL/CA477771013edbf5cd999ca6eff367f9a9_0.wav",
+      "datasetRow": 509,
+      "intent": 13,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ja hallo guten Tag ich wollte gerne mit dir besprechen weil ich meine Rechnung bezahlen möchte",
+      "seconds": 8.78,
+      "audioFile": "minds14-de-DE-509-clean.wav",
+      "audioSha256": "fcebe52347b3c7966f42a641745834eb8f6e90294c727fc1ac98fcdf914e3fcf",
+      "ok": true,
+      "text": "Ja, hallo, guten Tag. Ich wollte gerne mit jemandem sprechen, weil ich meine Rechnung bezahlen möchte.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 684,
+      "clientMs": 926,
+      "wordErrors": 2,
+      "referenceWords": 16,
+      "charErrors": 7,
+      "referenceChars": 79
+    },
+    {
+      "caseId": "minds14-de-DE-528-clean",
+      "sourceId": "minds14-de-DE-528",
+      "datasetPath": "de-DE~PAY_BILL/CA95df814c2f892c2b2638187f25b933cb_2.wav",
+      "datasetRow": 528,
+      "intent": 13,
+      "language": "de",
+      "kind": "human_clean",
+      "reference": "ich habe eine Rechnung bekommen und die möchte ich jetzt gerne bezahlen",
+      "seconds": 8.08,
+      "audioFile": "minds14-de-DE-528-clean.wav",
+      "audioSha256": "7ef7a41be4ded597d5e668eac69f00ed07a1644c32730ef4958a36cbe0111d63",
+      "ok": true,
+      "text": "Ich habe eine Rechnung bekommen und die möchte ich jetzt gerne bezahlen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 546,
+      "clientMs": 768,
+      "wordErrors": 0,
+      "referenceWords": 12,
+      "charErrors": 0,
+      "referenceChars": 60
+    },
+    {
+      "caseId": "minds14-de-DE-453-noise10db",
+      "sourceId": "minds14-de-DE-453",
+      "datasetPath": "de-DE~ABROAD/CA8c7062299fe649b5b3ba676a78ba6906_2.wav",
+      "datasetRow": 453,
+      "intent": 0,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "Hallo ich habe bei Ihnen einen Kater ein Kondom und ich möchte fahr bald in Urlaub und möchte wissen ob ich diese Karte auch im Ausland nutzen kann",
+      "seconds": 15.72,
+      "audioFile": "minds14-de-DE-453-noise10db.wav",
+      "audioSha256": "82079fa658cb1037197b3097df3c3617155f9bc1114589af0efe9705315744c7",
+      "ok": true,
+      "text": "Hallo, ich habe bei Ihnen eine Karte, ein Konto und ich möchte, ich war bald im Urlaub und möchte wissen, ob ich diese Karte auch im Ausland nutzen kann.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 645,
+      "clientMs": 825,
+      "wordErrors": 6,
+      "referenceWords": 28,
+      "charErrors": 10,
+      "referenceChars": 120
+    },
+    {
+      "caseId": "minds14-de-DE-419-noise10db",
+      "sourceId": "minds14-de-DE-419",
+      "datasetPath": "de-DE~ADDRESS/CA85fd716f9e3e3e6c9d836ddaa6537559_2.wav",
+      "datasetRow": 419,
+      "intent": 1,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "ich möchte meine Adresse ändern",
+      "seconds": 5.36,
+      "audioFile": "minds14-de-DE-419-noise10db.wav",
+      "audioSha256": "2f48d8f0dd7ec0c78a7933e5cf0ccc9b54fe9f10452f9def3e925a1c65248bc6",
+      "ok": true,
+      "text": "Ich möchte meine Adresse ändern.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 360,
+      "clientMs": 580,
+      "wordErrors": 0,
+      "referenceWords": 5,
+      "charErrors": 0,
+      "referenceChars": 27
+    },
+    {
+      "caseId": "minds14-de-DE-606-noise10db",
+      "sourceId": "minds14-de-DE-606",
+      "datasetPath": "de-DE~APP_ERROR/CA506fcd9676c03e4fed44ab49d62cb478_0.wav",
+      "datasetRow": 606,
+      "intent": 2,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "hi ich habe ein problem mit meiner App",
+      "seconds": 4.92,
+      "audioFile": "minds14-de-DE-606-noise10db.wav",
+      "audioSha256": "2c7aed0c1876c3fd1afac39ac9e4c4efe1440b232dda5f5d1c50db333d19c8a1",
+      "ok": true,
+      "text": "Hi, ich habe ein Problem mit meiner App.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 386,
+      "clientMs": 594,
+      "wordErrors": 0,
+      "referenceWords": 8,
+      "charErrors": 0,
+      "referenceChars": 31
+    },
+    {
+      "caseId": "minds14-de-DE-363-noise10db",
+      "sourceId": "minds14-de-DE-363",
+      "datasetPath": "de-DE~ATM_LIMIT/CA7e2ee712424a961959f6256bef1a65c1_0.wav",
+      "datasetRow": 363,
+      "intent": 3,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "hallo ich wollte fragen wie viel Geld ich maximal am Geldautomaten abheben kann",
+      "seconds": 7.28,
+      "audioFile": "minds14-de-DE-363-noise10db.wav",
+      "audioSha256": "ff6d24cc4351d260a93ef4a540a107b262008639eb798f1da1fbe4dd6dc0712d",
+      "ok": true,
+      "text": "Hallo, ich wollte fragen, wie viel Geld ich maximal am Geldautomaten abheben kann.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 713,
+      "clientMs": 936,
+      "wordErrors": 0,
+      "referenceWords": 13,
+      "charErrors": 0,
+      "referenceChars": 67
+    },
+    {
+      "caseId": "minds14-de-DE-285-noise10db",
+      "sourceId": "minds14-de-DE-285",
+      "datasetPath": "de-DE~BALANCE/CAd53fe6ac30d4570a606c47929ad67b79_0.wav",
+      "datasetRow": 285,
+      "intent": 4,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "ich möchte gerne meinen Kontostand erfahren",
+      "seconds": 5.62,
+      "audioFile": "minds14-de-DE-285-noise10db.wav",
+      "audioSha256": "61a1d897cf12fcf9020d65e42971bb7805a40ed6dd8f5fc9a9b4ca8ba27c3bea",
+      "ok": true,
+      "text": "Ich möchte gerne meinen Kontostand erfahren.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 410,
+      "clientMs": 633,
+      "wordErrors": 0,
+      "referenceWords": 6,
+      "charErrors": 0,
+      "referenceChars": 38
+    },
+    {
+      "caseId": "minds14-de-DE-178-noise10db",
+      "sourceId": "minds14-de-DE-178",
+      "datasetPath": "de-DE~BUSINESS_LOAN/CA64560a4bdfd5200ae040da4afc321d14_0.wav",
+      "datasetRow": 178,
+      "intent": 5,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "ja guten Tag ich rufe an wegen eines neuen Kredites bei hätte ich einige Fragen zu",
+      "seconds": 10.12,
+      "audioFile": "minds14-de-DE-178-noise10db.wav",
+      "audioSha256": "c011537530292598c0d2002b422fa3405b4d5cd81cf24a8de1c58570ee587865",
+      "ok": true,
+      "text": "Jeden Tag, ich rufe an wegen eines neuen Kredites, da hätte ich einige Fragen zu.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 700,
+      "clientMs": 1088,
+      "wordErrors": 3,
+      "referenceWords": 16,
+      "charErrors": 7,
+      "referenceChars": 67
+    },
+    {
+      "caseId": "minds14-de-DE-236-noise10db",
+      "sourceId": "minds14-de-DE-236",
+      "datasetPath": "de-DE~CARD_ISSUES/response_18.wav",
+      "datasetRow": 236,
+      "intent": 6,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "hallo guten Tag ich rufe an weil meine Kreditkarte nicht mehr funktioniert ich habe vorhin versucht im Laden zu bezahlen ich habe die Karte eingesteckt ich habe versucht kontaktlos zu bezahlen und ich kann damit einfach nicht bezahlen funktioniert nicht die Karte scheint kaputt zu sein",
+      "seconds": 19.114625,
+      "audioFile": "minds14-de-DE-236-noise10db.wav",
+      "audioSha256": "a446ccf66b6aef10fa406b89898a2a9cbb407aef2f57cf4b3823ff2539ccb765",
+      "ok": true,
+      "text": "Hallo, guten Tag. Ich rufe an, weil meine Kreditkarte nicht mehr funktioniert. Ich habe vorhin versucht, im Laden zu bezahlen. Ich habe die Karte eingesteckt, ich habe versucht kontaktlos zu bezahlen und ich kann damit einfach nicht bezahlen. Es funktioniert nicht, die Karte scheint kaputt zu sein.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 1056,
+      "clientMs": 1347,
+      "wordErrors": 1,
+      "referenceWords": 46,
+      "charErrors": 2,
+      "referenceChars": 241
+    },
+    {
+      "caseId": "minds14-de-DE-0-noise10db",
+      "sourceId": "minds14-de-DE-0",
+      "datasetPath": "de-DE~CASH_DEPOSIT/response_4.wav",
+      "datasetRow": 0,
+      "intent": 7,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "ich möchte gerne Geld auf mein Konto einzahlen",
+      "seconds": 5.851375,
+      "audioFile": "minds14-de-DE-0-noise10db.wav",
+      "audioSha256": "f543f5cf6e9ad16ffa5e7c1b9786adbbc694fd43cdeef5055becd88f188df40a",
+      "ok": true,
+      "text": "Ich möchte gerne Geld auf mein Konto einzahlen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 879,
+      "clientMs": 1090,
+      "wordErrors": 0,
+      "referenceWords": 8,
+      "charErrors": 0,
+      "referenceChars": 39
+    },
+    {
+      "caseId": "minds14-de-DE-105-noise10db",
+      "sourceId": "minds14-de-DE-105",
+      "datasetPath": "de-DE~DIRECT_DEBIT/CA9f8a3237ead71272855fc88d40edc2ab_2.wav",
+      "datasetRow": 105,
+      "intent": 8,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "ähm ich habe eine Frage bei dir zum Lastschrift geht",
+      "seconds": 7.7,
+      "audioFile": "minds14-de-DE-105-noise10db.wav",
+      "audioSha256": "6c26cff94ce42401f0f7e535b5834a6911eca87263aa2ddf9759fb84968d3c83",
+      "ok": true,
+      "text": "Ich habe eine Frage, bei der es um Lastschrift geht.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 721,
+      "clientMs": 925,
+      "wordErrors": 4,
+      "referenceWords": 10,
+      "charErrors": 6,
+      "referenceChars": 43
+    },
+    {
+      "caseId": "minds14-de-DE-569-noise10db",
+      "sourceId": "minds14-de-DE-569",
+      "datasetPath": "de-DE~FREEZE/CA25bf5637335534b6f17c82c5580eb856_0.wav",
+      "datasetRow": 569,
+      "intent": 9,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "guten Tag ich habe meine Karte verloren bitte sperren sie meine Kreditkarte vielen Dank auf Wiederhören",
+      "seconds": 8.6,
+      "audioFile": "minds14-de-DE-569-noise10db.wav",
+      "audioSha256": "6b7cad3543be1f02804afa3f40bffdd968d48560d1ccec44ad0625ce25627990",
+      "ok": true,
+      "text": "Guten Tag, ich habe meine Karte verloren. Bitte sperren Sie meine Kreditkarte. Vielen Dank, auf Wiederhören.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 727,
+      "clientMs": 942,
+      "wordErrors": 0,
+      "referenceWords": 16,
+      "charErrors": 0,
+      "referenceChars": 88
+    },
+    {
+      "caseId": "minds14-de-DE-126-noise10db",
+      "sourceId": "minds14-de-DE-126",
+      "datasetPath": "de-DE~HIGH_VALUE_PAYMENT/response_10.wav",
+      "datasetRow": 126,
+      "intent": 10,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "Hallo und zwar habe ich jetzt versucht eine recht hohe Summe zu überweisen und die Meldung sagt dass ich eine SMS bekomme allerdings weiß ich nicht wo ich diesen Code jetzt eintragen soll oder was ich jetzt damit machen soll können Sie mir bitte helfen",
+      "seconds": 20.821375,
+      "audioFile": "minds14-de-DE-126-noise10db.wav",
+      "audioSha256": "4758847b875dadec836e8722b82619eea8ccc3718e6569595ad45e88dad78d01",
+      "ok": true,
+      "text": "Hallo, und zwar habe ich jetzt versucht, eine recht hohe Summe zu überweisen und die Meldung sagt, dass ich eine SMS bekomme. Allerdings weiß ich nicht, wo ich diesen Code jetzt eintragen soll oder was ich jetzt damit machen soll. Können Sie mir bitte helfen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 1124,
+      "clientMs": 1502,
+      "wordErrors": 0,
+      "referenceWords": 45,
+      "charErrors": 0,
+      "referenceChars": 208
+    },
+    {
+      "caseId": "minds14-de-DE-318-noise10db",
+      "sourceId": "minds14-de-DE-318",
+      "datasetPath": "de-DE~JOINT_ACCOUNT/CAd40415bbc670d665a28952449c627b05_0.wav",
+      "datasetRow": 318,
+      "intent": 11,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "guten Tag ich würde gerne ein Gemeinschaftskonto einrichten auf das sowohl ich als auch meine Lebenspartnerin Zugriff haben und zwar möglichst off und online",
+      "seconds": 16.84,
+      "audioFile": "minds14-de-DE-318-noise10db.wav",
+      "audioSha256": "be36ff92babe2490979a7add9d3233979faf34501786167c489348eca24d5868",
+      "ok": true,
+      "text": "Guten Tag, ich würde gerne ein Gemeinschaftskonto einrichten, auf das sowohl ich als auch meine Lebenspartnerin Zugriff haben, und zwar möglichst offline und online.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 785,
+      "clientMs": 974,
+      "wordErrors": 1,
+      "referenceWords": 24,
+      "charErrors": 4,
+      "referenceChars": 134
+    },
+    {
+      "caseId": "minds14-de-DE-41-noise10db",
+      "sourceId": "minds14-de-DE-41",
+      "datasetPath": "de-DE~LATEST_TRANSACTIONS/response_7.wav",
+      "datasetRow": 41,
+      "intent": 12,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "Hallo ich habe einen Barzahlungen in meinem Auszug die ich nicht erkennen können Sie mir weiterhelfen",
+      "seconds": 7.253375,
+      "audioFile": "minds14-de-DE-41-noise10db.wav",
+      "audioSha256": "0383141fe52bc8aa899af4ac0d4e078381e62939946ecf27b31539f1e7e7ef51",
+      "ok": true,
+      "text": "Hallo, ich habe ein paar Zahlungen in meinem Auszug, die ich nicht erkenne. Können Sie mir weiterhelfen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 899,
+      "clientMs": 1049,
+      "wordErrors": 4,
+      "referenceWords": 16,
+      "charErrors": 4,
+      "referenceChars": 86
+    },
+    {
+      "caseId": "minds14-de-DE-512-noise10db",
+      "sourceId": "minds14-de-DE-512",
+      "datasetPath": "de-DE~PAY_BILL/CA8c4cd70068d3b7bb5d553f82cac714d5_0.wav",
+      "datasetRow": 512,
+      "intent": 13,
+      "language": "de",
+      "kind": "human_noise10db",
+      "reference": "Hallo ich muss eine Rechnung bezahlen und ja habe Fragen dazu wie das so läuft danke schön",
+      "seconds": 12.2,
+      "audioFile": "minds14-de-DE-512-noise10db.wav",
+      "audioSha256": "57e1c4d6a9aaa7afe2804f7847194f2eb3f127944c250e96597f59206a08188c",
+      "ok": true,
+      "text": "Hallo, ich muss eine Rechnung bezahlen und ja, habe ein paar Fragen dazu, wie das so läuft. Dankeschön.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "transcript-check",
+      "model": "gpt-transcribe",
+      "serverMs": 535,
+      "clientMs": 684,
+      "wordErrors": 4,
+      "referenceWords": 17,
+      "charErrors": 7,
+      "referenceChars": 74
+    },
+    {
+      "caseId": "minds14-en-US-290-clean",
+      "sourceId": "minds14-en-US-290",
+      "datasetPath": "en-US~ABROAD/602ba62705f96973d6794449.wav",
+      "datasetRow": 290,
+      "intent": 0,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "hi I'm going to be leaving the country and I'm going abroad I need to make sure that my card will work or anything that I need to do to make sure does it stop working",
+      "seconds": 12.288,
+      "audioFile": "minds14-en-US-290-clean.wav",
+      "audioSha256": "daa8d2ac924b07804552606cf9281c5bbcd199335f4e997026ef33f1fcf934ef",
+      "ok": true,
+      "text": "Hi, I'm going to be leaving the country and going abroad. I need to make sure that my card will work. Is there anything that I need to do to make sure it doesn't stop working?",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 598,
+      "clientMs": 766,
+      "wordErrors": 5,
+      "referenceWords": 36,
+      "charErrors": 11,
+      "referenceChars": 129
+    },
+    {
+      "caseId": "minds14-en-US-214-clean",
+      "sourceId": "minds14-en-US-214",
+      "datasetPath": "en-US~ADDRESS/602b96b9963e11ccd901cb7b.wav",
+      "datasetRow": 214,
+      "intent": 1,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "I would like to change my address",
+      "seconds": 4.365375,
+      "audioFile": "minds14-en-US-214-clean.wav",
+      "audioSha256": "e25936b2422324f037b33129015c65bbd76faa76d26b1a1fb624ef25ea4bb4e2",
+      "ok": true,
+      "text": "I would like to change my address.",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 449,
+      "clientMs": 575,
+      "wordErrors": 0,
+      "referenceWords": 7,
+      "charErrors": 0,
+      "referenceChars": 27
+    },
+    {
+      "caseId": "minds14-en-US-200-clean",
+      "sourceId": "minds14-en-US-200",
+      "datasetPath": "en-US~APP_ERROR/602bad435f67b421554f6491.wav",
+      "datasetRow": 200,
+      "intent": 2,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "I'm hoping you can help me I can't access my account it just says that the app is being serviced",
+      "seconds": 12.032,
+      "audioFile": "minds14-en-US-200-clean.wav",
+      "audioSha256": "e65bbd8e51ec31be89d60253b2ab8e0e623137ec6dcfc381de89049021163e3b",
+      "ok": true,
+      "text": "Hi, I'm hoping you can help me. I can't access my account. It just says that the app is being serviced.",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 513,
+      "clientMs": 749,
+      "wordErrors": 1,
+      "referenceWords": 20,
+      "charErrors": 2,
+      "referenceChars": 75
+    },
+    {
+      "caseId": "minds14-en-US-262-clean",
+      "sourceId": "minds14-en-US-262",
+      "datasetPath": "en-US~ATM_LIMIT/602ba1a5bb1e6d0fbce91fea.wav",
+      "datasetRow": 262,
+      "intent": 3,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "what is the maximum amount that I can withdraw from the ATM",
+      "seconds": 7.424,
+      "audioFile": "minds14-en-US-262-clean.wav",
+      "audioSha256": "8283f0a5af5906040eb0fc2c69d4b165312abfa79cbf898b593ffacb3794e945",
+      "ok": true,
+      "text": "What is the maximum amount that I can withdraw from the ATM?",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 586,
+      "clientMs": 854,
+      "wordErrors": 0,
+      "referenceWords": 12,
+      "charErrors": 0,
+      "referenceChars": 48
+    },
+    {
+      "caseId": "minds14-en-US-49-clean",
+      "sourceId": "minds14-en-US-49",
+      "datasetPath": "en-US~BALANCE/602ba75c963e11ccd901ccef.wav",
+      "datasetRow": 49,
+      "intent": 4,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "please show me my account balance please",
+      "seconds": 4.096,
+      "audioFile": "minds14-en-US-49-clean.wav",
+      "audioSha256": "8145780c0f08867edbed5b36c6551438bdbc43dc1a7d2e35a77be77f7975aca6",
+      "ok": true,
+      "text": "Please show me my account balance, please.",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 563,
+      "clientMs": 689,
+      "wordErrors": 0,
+      "referenceWords": 7,
+      "charErrors": 0,
+      "referenceChars": 34
+    },
+    {
+      "caseId": "minds14-en-US-560-clean",
+      "sourceId": "minds14-en-US-560",
+      "datasetPath": "en-US~BUSINESS_LOAN/602b98a5963e11ccd901cba2.wav",
+      "datasetRow": 560,
+      "intent": 5,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "hi there I'm working about a business loan I would like to take a new one out",
+      "seconds": 9.6595,
+      "audioFile": "minds14-en-US-560-clean.wav",
+      "audioSha256": "efedab34d85eaf39fa081aa3452f5fe8696d6ad36fd9bcf166594721e7359909",
+      "ok": true,
+      "text": "Hi there, I'm ringing about a business loan. I would like to take a new one out.",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 654,
+      "clientMs": 800,
+      "wordErrors": 1,
+      "referenceWords": 17,
+      "charErrors": 4,
+      "referenceChars": 60
+    },
+    {
+      "caseId": "minds14-en-US-486-clean",
+      "sourceId": "minds14-en-US-486",
+      "datasetPath": "en-US~CARD_ISSUES/602bace4963e11ccd901cdc1.wav",
+      "datasetRow": 486,
+      "intent": 6,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "why was my payment declined",
+      "seconds": 5.034625,
+      "audioFile": "minds14-en-US-486-clean.wav",
+      "audioSha256": "d0a13b975d0605c27041b59b64278ad47deb9441228ffff161845b295b2ab964",
+      "ok": true,
+      "text": "Why was my payment declined?",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 1165,
+      "clientMs": 1337,
+      "wordErrors": 0,
+      "referenceWords": 5,
+      "charErrors": 0,
+      "referenceChars": 23
+    },
+    {
+      "caseId": "minds14-en-US-434-clean",
+      "sourceId": "minds14-en-US-434",
+      "datasetPath": "en-US~CASH_DEPOSIT/602ba393bb1e6d0fbce9201f.wav",
+      "datasetRow": 434,
+      "intent": 7,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "deposit money into account",
+      "seconds": 3.754625,
+      "audioFile": "minds14-en-US-434-clean.wav",
+      "audioSha256": "2729f50d8247432f6f44df5e015363e7819bf204694ec429b9d1da0736c14ccd",
+      "ok": true,
+      "text": "Deposit money into account.",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 425,
+      "clientMs": 662,
+      "wordErrors": 0,
+      "referenceWords": 4,
+      "charErrors": 0,
+      "referenceChars": 23
+    },
+    {
+      "caseId": "minds14-en-US-339-clean",
+      "sourceId": "minds14-en-US-339",
+      "datasetPath": "en-US~DIRECT_DEBIT/602baf6505f96973d6794515.wav",
+      "datasetRow": 339,
+      "intent": 8,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "please show me to my direct debit",
+      "seconds": 6.741375,
+      "audioFile": "minds14-en-US-339-clean.wav",
+      "audioSha256": "d73305b3d9b61a9368a170554df4d27b797aee9719362c0f75beb9ab1323e9a5",
+      "ok": true,
+      "text": "Hello, please show me to my direct debits.",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 661,
+      "clientMs": 883,
+      "wordErrors": 2,
+      "referenceWords": 7,
+      "charErrors": 6,
+      "referenceChars": 27
+    },
+    {
+      "caseId": "minds14-en-US-128-clean",
+      "sourceId": "minds14-en-US-128",
+      "datasetPath": "en-US~FREEZE/602ba947bb1e6d0fbce92119.wav",
+      "datasetRow": 128,
+      "intent": 9,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "good morning single lost my ATM card like a debit card I need to put a freezer",
+      "seconds": 11.349375,
+      "audioFile": "minds14-en-US-128-clean.wav",
+      "audioSha256": "3841a464402ca953479e56576a17feb6263ccd13b44b7d2ceda88d5e63a39722",
+      "ok": true,
+      "text": "Good morning. I seem to have lost my ATM card, my debit card, and I need to put a freeze on it.",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 742,
+      "clientMs": 898,
+      "wordErrors": 10,
+      "referenceWords": 17,
+      "charErrors": 21,
+      "referenceChars": 62
+    },
+    {
+      "caseId": "minds14-en-US-402-clean",
+      "sourceId": "minds14-en-US-402",
+      "datasetPath": "en-US~HIGH_VALUE_PAYMENT/602bab78963e11ccd901cd8c.wav",
+      "datasetRow": 402,
+      "intent": 10,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "I am attempting to make a high-value purchase could you please tell me how I use the SMS code",
+      "seconds": 8.362625,
+      "audioFile": "minds14-en-US-402-clean.wav",
+      "audioSha256": "376ed90f19248a9d468e1de21d375a891ecdafb339f725e8ad180040a9e664f9",
+      "ok": true,
+      "text": "I am attempting to make a high value purchase. Could you please tell me how I use the SMS code?",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 574,
+      "clientMs": 784,
+      "wordErrors": 0,
+      "referenceWords": 20,
+      "charErrors": 0,
+      "referenceChars": 74
+    },
+    {
+      "caseId": "minds14-en-US-41-clean",
+      "sourceId": "minds14-en-US-41",
+      "datasetPath": "en-US~JOINT_ACCOUNT/602baee7bb1e6d0fbce9228e.wav",
+      "datasetRow": 41,
+      "intent": 11,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "I would like to set up a joint account how would I go about doing that",
+      "seconds": 4.437375,
+      "audioFile": "minds14-en-US-41-clean.wav",
+      "audioSha256": "785d92f21441ada97fbbfd7a8e731eaaebe4747ad99dfe49f4b5036fabaa0a02",
+      "ok": true,
+      "text": "I would like to set up a joint account. How would I go about doing that?",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 577,
+      "clientMs": 806,
+      "wordErrors": 0,
+      "referenceWords": 16,
+      "charErrors": 0,
+      "referenceChars": 55
+    },
+    {
+      "caseId": "minds14-en-US-386-clean",
+      "sourceId": "minds14-en-US-386",
+      "datasetPath": "en-US~LATEST_TRANSACTIONS/602ba8395f67b421554f643d.wav",
+      "datasetRow": 386,
+      "intent": 12,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "what are my most recent transactions",
+      "seconds": 5.0155,
+      "audioFile": "minds14-en-US-386-clean.wav",
+      "audioSha256": "9b1e137c28d02b563b5cdbb7161d92d9d941450320da70679508066a74666f42",
+      "ok": true,
+      "text": "What are my most recent transactions?",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 644,
+      "clientMs": 895,
+      "wordErrors": 0,
+      "referenceWords": 6,
+      "charErrors": 0,
+      "referenceChars": 31
+    },
+    {
+      "caseId": "minds14-en-US-100-clean",
+      "sourceId": "minds14-en-US-100",
+      "datasetPath": "en-US~PAY_BILL/602b9b81963e11ccd901cbe6.wav",
+      "datasetRow": 100,
+      "intent": 13,
+      "language": "en",
+      "kind": "human_clean",
+      "reference": "hi I have a bill to pay",
+      "seconds": 3.157375,
+      "audioFile": "minds14-en-US-100-clean.wav",
+      "audioSha256": "7660287d727faf0756a6b2c626e9c4436ac234db29c028e49c6dd8b9fca7f988",
+      "ok": true,
+      "text": "Hi, I have a bill to pay.",
+      "languages": [
+        "en"
+      ],
+      "audioLanguages": [
+        "en"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 647,
+      "clientMs": 747,
+      "wordErrors": 0,
+      "referenceWords": 7,
+      "charErrors": 0,
+      "referenceChars": 17
+    },
+    {
+      "caseId": "synthetic-de-1",
+      "sourceId": "synthetic-de-1",
+      "language": "de",
+      "kind": "synthetic_clean",
+      "reference": "Guten Morgen, wie geht es dir heute?",
+      "seconds": 3.384,
+      "audioFile": "synthetic-de-1.wav",
+      "voice": "de-DE-KatjaNeural",
+      "generator": "edge-tts",
+      "audioSha256": "19a2a97a332a31b6036c337f361902dfd0158beb919cb547f15973dd403e451e",
+      "ok": true,
+      "text": "Guten Morgen, wie geht es dir heute?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 519,
+      "clientMs": 650,
+      "wordErrors": 0,
+      "referenceWords": 7,
+      "charErrors": 0,
+      "referenceChars": 28
+    },
+    {
+      "caseId": "synthetic-de-2",
+      "sourceId": "synthetic-de-2",
+      "language": "de",
+      "kind": "synthetic_clean",
+      "reference": "Kannst du bitte das Licht im Schlafzimmer ausschalten?",
+      "seconds": 3.672,
+      "audioFile": "synthetic-de-2.wav",
+      "voice": "de-DE-ConradNeural",
+      "generator": "edge-tts",
+      "audioSha256": "96aa893f507ea775cba6cfd24f1a8c5cc5e5450013dc8b032d4f9a3646b27908",
+      "ok": true,
+      "text": "Kannst du bitte das Licht im Schlafzimmer ausschalten?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 620,
+      "clientMs": 740,
+      "wordErrors": 0,
+      "referenceWords": 8,
+      "charErrors": 0,
+      "referenceChars": 46
+    },
+    {
+      "caseId": "synthetic-de-3",
+      "sourceId": "synthetic-de-3",
+      "language": "de",
+      "kind": "synthetic_clean",
+      "reference": "Stell mir bitte einen Wecker für morgen um halb sieben.",
+      "seconds": 4.056,
+      "audioFile": "synthetic-de-3.wav",
+      "voice": "de-DE-KatjaNeural",
+      "generator": "edge-tts",
+      "audioSha256": "ae2b127fc444d273ec2e1e15945ead7effe761a351d5dca43fe2b0e320145281",
+      "ok": true,
+      "text": "Stell mir bitte einen Wecker für morgen um halb sieben.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 461,
+      "clientMs": 618,
+      "wordErrors": 0,
+      "referenceWords": 10,
+      "charErrors": 0,
+      "referenceChars": 45
+    },
+    {
+      "caseId": "synthetic-de-4",
+      "sourceId": "synthetic-de-4",
+      "language": "de",
+      "kind": "synthetic_clean",
+      "reference": "Wie wird das Wetter morgen in Düsseldorf?",
+      "seconds": 3.192,
+      "audioFile": "synthetic-de-4.wav",
+      "voice": "de-DE-ConradNeural",
+      "generator": "edge-tts",
+      "audioSha256": "9910f72beb3ec9d5d18fa2acef0d7e1f0830e8859d1e23a7e5ff165edeae3298",
+      "ok": true,
+      "text": "Wie wird das Wetter morgen in Düsseldorf?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 408,
+      "clientMs": 557,
+      "wordErrors": 0,
+      "referenceWords": 7,
+      "charErrors": 0,
+      "referenceChars": 34
+    },
+    {
+      "caseId": "synthetic-de-5",
+      "sourceId": "synthetic-de-5",
+      "language": "de",
+      "kind": "synthetic_clean",
+      "reference": "Ich möchte die Heizung auf zweiundzwanzig Grad einstellen.",
+      "seconds": 4.272,
+      "audioFile": "synthetic-de-5.wav",
+      "voice": "de-DE-KatjaNeural",
+      "generator": "edge-tts",
+      "audioSha256": "d995acca668c3b34d5ccdadbe91699e841a7fff1d20ede3ad451243e8e8b4c22",
+      "ok": true,
+      "text": "Ich möchte die Heizung auf 22 Grad einstellen.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 407,
+      "clientMs": 539,
+      "wordErrors": 1,
+      "referenceWords": 8,
+      "charErrors": 14,
+      "referenceChars": 50
+    },
+    {
+      "caseId": "synthetic-de-6",
+      "sourceId": "synthetic-de-6",
+      "language": "de",
+      "kind": "synthetic_clean",
+      "reference": "Bitte schalte das Licht nicht aus, sondern mach es heller.",
+      "seconds": 3.888,
+      "audioFile": "synthetic-de-6.wav",
+      "voice": "de-DE-ConradNeural",
+      "generator": "edge-tts",
+      "audioSha256": "a7462232027acdec8fbb01a18548013901d64d591dae9ad6e4f34b6ab83afede",
+      "ok": true,
+      "text": "Bitte schalte das Licht nicht aus, sondern mach es heller.",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 576,
+      "clientMs": 787,
+      "wordErrors": 0,
+      "referenceWords": 10,
+      "charErrors": 0,
+      "referenceChars": 47
+    },
+    {
+      "caseId": "synthetic-de-7",
+      "sourceId": "synthetic-de-7",
+      "language": "de",
+      "kind": "synthetic_clean",
+      "reference": "Kannst du Japanisch, Englisch und Deutsch automatisch erkennen?",
+      "seconds": 4.68,
+      "audioFile": "synthetic-de-7.wav",
+      "voice": "de-DE-KatjaNeural",
+      "generator": "edge-tts",
+      "audioSha256": "ab19907782c38e9ccfbc3f77391e26e484e616c79a84d2539d4d3c0cfa0215b9",
+      "ok": true,
+      "text": "Kannst du Japanisch, Englisch und Deutsch automatisch erkennen?",
+      "languages": [
+        "de"
+      ],
+      "audioLanguages": [
+        "de"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 400,
+      "clientMs": 616,
+      "wordErrors": 0,
+      "referenceWords": 8,
+      "charErrors": 0,
+      "referenceChars": 54
+    },
+    {
+      "caseId": "synthetic-ja-1",
+      "sourceId": "synthetic-ja-1",
+      "language": "ja",
+      "kind": "synthetic_clean",
+      "reference": "おはよう。今日もよろしくね。",
+      "seconds": 3.72,
+      "audioFile": "synthetic-ja-1.wav",
+      "voice": "ja-JP-NanamiNeural",
+      "generator": "edge-tts",
+      "audioSha256": "d6c5e1f0211d92c5eebf9d51cc489f2ab2f2d0414a7f08ce49f3b725428cb484",
+      "ok": true,
+      "text": "おはよう。今日もよろしくね。",
+      "languages": [
+        "ja"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 512,
+      "clientMs": 741,
+      "wordErrors": 0,
+      "referenceWords": 2,
+      "charErrors": 0,
+      "referenceChars": 12
+    },
+    {
+      "caseId": "synthetic-ja-2",
+      "sourceId": "synthetic-ja-2",
+      "language": "ja",
+      "kind": "synthetic_clean",
+      "reference": "寝室の照明を消してください。",
+      "seconds": 2.88,
+      "audioFile": "synthetic-ja-2.wav",
+      "voice": "ja-JP-KeitaNeural",
+      "generator": "edge-tts",
+      "audioSha256": "e922be39db4cab9fa5347d84cff49b0772fc489f7767123214d38afeca4bc650",
+      "ok": true,
+      "text": "寝室の照明を消してください。",
+      "languages": [
+        "ja"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 374,
+      "clientMs": 581,
+      "wordErrors": 0,
+      "referenceWords": 1,
+      "charErrors": 0,
+      "referenceChars": 13
+    },
+    {
+      "caseId": "synthetic-ja-3",
+      "sourceId": "synthetic-ja-3",
+      "language": "ja",
+      "kind": "synthetic_clean",
+      "reference": "明日の朝7時にアラームを設定して。",
+      "seconds": 3.888,
+      "audioFile": "synthetic-ja-3.wav",
+      "voice": "ja-JP-NanamiNeural",
+      "generator": "edge-tts",
+      "audioSha256": "6ce8cf6bf5ded7e49223bef409580a2716fa7b4ddf3f102eca82d3aeed3a7000",
+      "ok": true,
+      "text": "明日の朝7時にアラームを設定して。",
+      "languages": [
+        "ja"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 563,
+      "clientMs": 691,
+      "wordErrors": 0,
+      "referenceWords": 1,
+      "charErrors": 0,
+      "referenceChars": 16
+    },
+    {
+      "caseId": "synthetic-ja-4",
+      "sourceId": "synthetic-ja-4",
+      "language": "ja",
+      "kind": "synthetic_clean",
+      "reference": "明日の東京の天気はどうなる？",
+      "seconds": 2.928,
+      "audioFile": "synthetic-ja-4.wav",
+      "voice": "ja-JP-KeitaNeural",
+      "generator": "edge-tts",
+      "audioSha256": "b76caa8e1ab099af1be45e185e92958fafb9fed7a7390d09c1a34a11b00f46ec",
+      "ok": true,
+      "text": "明日の東京の天気はどうなる。",
+      "languages": [
+        "ja"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 1050,
+      "clientMs": 1287,
+      "wordErrors": 0,
+      "referenceWords": 1,
+      "charErrors": 0,
+      "referenceChars": 13
+    },
+    {
+      "caseId": "synthetic-ja-5",
+      "sourceId": "synthetic-ja-5",
+      "language": "ja",
+      "kind": "synthetic_clean",
+      "reference": "エアコンの温度を22度に設定してください。",
+      "seconds": 4.128,
+      "audioFile": "synthetic-ja-5.wav",
+      "voice": "ja-JP-NanamiNeural",
+      "generator": "edge-tts",
+      "audioSha256": "a5c8631e93d22e65588972c071ba250ba5bce95ca85fa849e7ce7410e60d5404",
+      "ok": true,
+      "text": "エアコンの温度を22度に設定してください。",
+      "languages": [
+        "ja"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 652,
+      "clientMs": 782,
+      "wordErrors": 0,
+      "referenceWords": 1,
+      "charErrors": 0,
+      "referenceChars": 20
+    },
+    {
+      "caseId": "synthetic-ja-6",
+      "sourceId": "synthetic-ja-6",
+      "language": "ja",
+      "kind": "synthetic_clean",
+      "reference": "電気は消さないで、少し明るくして。",
+      "seconds": 3.504,
+      "audioFile": "synthetic-ja-6.wav",
+      "voice": "ja-JP-KeitaNeural",
+      "generator": "edge-tts",
+      "audioSha256": "bb2040821a430e2fe34bd7573577480b04cdc6b344fa52f84d950187b963b551",
+      "ok": true,
+      "text": "電気は消さないで、少し明るくして。",
+      "languages": [
+        "ja"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 447,
+      "clientMs": 701,
+      "wordErrors": 0,
+      "referenceWords": 2,
+      "charErrors": 0,
+      "referenceChars": 15
+    },
+    {
+      "caseId": "synthetic-ja-7",
+      "sourceId": "synthetic-ja-7",
+      "language": "ja",
+      "kind": "synthetic_clean",
+      "reference": "日本語と英語とドイツ語を自動で認識できる？",
+      "seconds": 4.248,
+      "audioFile": "synthetic-ja-7.wav",
+      "voice": "ja-JP-NanamiNeural",
+      "generator": "edge-tts",
+      "audioSha256": "d5db7945e360c4422bc04f231ef7376537b943acdce841c7bf5ae8f080a908fd",
+      "ok": true,
+      "text": "日本語と英語とドイツ語を自動で認識できる?",
+      "languages": [
+        "ja"
+      ],
+      "audioLanguages": [
+        "ja"
+      ],
+      "languageSource": "audio",
+      "model": "gpt-transcribe",
+      "serverMs": 425,
+      "clientMs": 542,
+      "wordErrors": 0,
+      "referenceWords": 1,
+      "charErrors": 0,
+      "referenceChars": 20
+    }
+  ],
+  "appVersion": "v0.4.26",
+  "method": "POST same cached WAV directly to production /api/transcribe",
+  "device": "Cloud benchmark client; Android device not measured",
+  "provider": "OpenAI gpt-transcribe"
+}
