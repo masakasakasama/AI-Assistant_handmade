@@ -1,4 +1,4 @@
-name: Mascot Android WebView verification
+name: Mascot Android native rendering verification
 on:
   workflow_dispatch:
 jobs:
@@ -30,7 +30,7 @@ jobs:
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            bash -c 'gradle :app:connectedDebugAndroidTest --stacktrace; mascot_test_status=$?; mkdir -p mascot-evidence; adb pull /sdcard/Android/data/com.tatsu.homehub/files/tatsu-mascot.png mascot-evidence/ || true; adb logcat -d > mascot-evidence/logcat.txt || true; exit "$mascot_test_status"'
+            bash -c 'gradle :app:connectedDebugAndroidTest --stacktrace; mascot_test_status=$?; mkdir -p mascot-evidence; adb exec-out run-as com.tatsu.homehub cat files/mascot-native.png > mascot-evidence/mascot-native.png || true; adb exec-out run-as com.tatsu.homehub cat files/mascot-ai-window.png > mascot-evidence/mascot-ai-window.png || true; adb logcat -d > mascot-evidence/logcat.txt || true; exit "$mascot_test_status"'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,0 +1,120 @@
+package com.tatsu.homehub.ui
+
+import android.graphics.Bitmap
+import android.os.Handler
+import android.os.Looper
+import android.view.PixelCopy
+import android.view.View
+import android.view.ViewGroup
+import androidx.lifecycle.Lifecycle
+import androidx.test.core.app.ActivityScenario
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
+import com.tatsu.homehub.MainActivity
+import com.tatsu.homehub.voice.VoicePhase
+import java.io.File
+import java.io.FileInputStream
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import org.junit.Assert.*
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class MascotNativeRenderTest {
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+    private fun findRenderer(view: View): NativeMascotView? {
+        if (view is NativeMascotView) return view
+        if (view is ViewGroup) for (i in 0 until view.childCount) findRenderer(view.getChildAt(i))?.let { return it }
+        return null
+    }
+    private fun assertPixels(bitmap: Bitmap) {
+        var visible = 0; var blue = 0; var white = 0
+        for (y in 0 until bitmap.height step 2) for (x in 0 until bitmap.width step 2) {
+            val c = bitmap.getPixel(x, y)
+            val a = android.graphics.Color.alpha(c)
+            val r = android.graphics.Color.red(c); val g = android.graphics.Color.green(c); val b = android.graphics.Color.blue(c)
+            if (a > 128) {
+                visible++
+                if (b > r * 1.15 && g > r * 1.05 && r < 230) blue++
+                if (r > 140 && g > 140 && b > 140 && kotlin.math.abs(r - b) < 60) white++
+            }
+        }
+        val samples = bitmap.width * bitmap.height / 4
+        assertTrue("Empty native texture: visible=$visible / $samples", visible > samples / 10)
+        assertTrue("3D blue eyes absent: blue=$blue", blue > 20)
+        assertTrue("3D white plush absent: white=$white", white > samples / 12)
+    }
+    @Test fun aNativePhasesPauseAndResume() {
+        ActivityScenario.launch(MascotPreviewActivity::class.java).use { scenario ->
+            var renderer: NativeMascotView? = null
+            val deadline = System.currentTimeMillis() + 30_000
+            while (renderer?.frames ?: 0 < 4 && System.currentTimeMillis() < deadline) {
+                scenario.onActivity { renderer = findRenderer(it.window.decorView) }
+                Thread.sleep(100)
+            }
+            assertNotNull("Native renderer unavailable", renderer)
+            assertTrue("No native GL frames", renderer!!.frames >= 4)
+            for (phase in VoicePhase.entries) {
+                scenario.onActivity { it.phase = phase }
+                Thread.sleep(200)
+                scenario.onActivity { assertEquals(phase, renderer!!.phase); assertTrue(renderer!!.running) }
+            }
+            scenario.moveToState(Lifecycle.State.CREATED)
+            Thread.sleep(200)
+            instrumentation.runOnMainSync { assertFalse("Not paused", renderer!!.running) }
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            Thread.sleep(200)
+            var before = 0L
+            scenario.onActivity { before = renderer!!.frames }
+            Thread.sleep(500)
+            scenario.onActivity {
+                assertTrue("No animation frames after resume", renderer!!.frames > before)
+                val bitmap = renderer!!.bitmap
+                assertNotNull("Texture readback unavailable", bitmap)
+                assertPixels(bitmap!!)
+                bitmap.recycle()
+            }
+        }
+    }
+    @Test fun bActualAiPageContainsVisible3dPixels() {
+        instrumentation.uiAutomation.executeShellCommand("pm grant com.tatsu.homehub android.permission.RECORD_AUDIO").use { fd ->
+            FileInputStream(fd.fileDescriptor).use { it.readBytes() }
+        }
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val device = UiDevice.getInstance(instrumentation)
+            val aiTab = device.wait(Until.findObject(By.text("AI")), 15_000)
+            assertNotNull("Actual AI navigation not found", aiTab)
+            aiTab.click()
+            var renderer: NativeMascotView? = null
+            val deadline = System.currentTimeMillis() + 30_000
+            while (renderer?.frames ?: 0 < 5 && System.currentTimeMillis() < deadline) {
+                scenario.onActivity { renderer = findRenderer(it.window.decorView) }
+                Thread.sleep(100)
+            }
+            assertNotNull("AI page has no native renderer", renderer)
+            assertTrue("AI page has no rendered frames", renderer!!.frames >= 5)
+            val latch = CountDownLatch(1)
+            var result = -1
+            lateinit var windowImage: Bitmap
+            lateinit var destination: File
+            scenario.onActivity { activity ->
+                val texture = renderer!!.bitmap
+                assertNotNull("AI native texture readback unavailable", texture)
+                assertPixels(texture!!)
+                File(activity.filesDir, "mascot-native.png").outputStream().use { texture.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                texture.recycle()
+                windowImage = Bitmap.createBitmap(activity.window.decorView.width, activity.window.decorView.height, Bitmap.Config.ARGB_8888)
+                destination = File(activity.filesDir, "mascot-ai-window.png")
+                PixelCopy.request(activity.window, windowImage, { result = it; latch.countDown() }, Handler(Looper.getMainLooper()))
+            }
+            assertTrue("Actual AI screenshot timed out", latch.await(10, TimeUnit.SECONDS))
+            assertEquals("Actual AI screenshot failed", PixelCopy.SUCCESS, result)
+            destination.outputStream().use { windowImage.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            windowImage.recycle()
+        }
+    }
+}

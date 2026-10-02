@@ -111,7 +111,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Verify production mascot in Android WebView
+      - name: Verify native 3D pixels on the actual AI page
         if: steps.release_check.outputs.exists != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -121,7 +121,7 @@ jobs:
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            bash -c 'gradle :app:connectedDebugAndroidTest --stacktrace; mascot_test_status=$?; mkdir -p mascot-evidence; adb pull /sdcard/Android/data/com.tatsu.homehub/files/tatsu-mascot.png mascot-evidence/ || true; adb logcat -d > mascot-evidence/logcat.txt || true; exit "$mascot_test_status"'
+            bash -c 'gradle :app:connectedDebugAndroidTest --stacktrace; mascot_test_status=$?; mkdir -p mascot-evidence; adb exec-out run-as com.tatsu.homehub cat files/mascot-native.png > mascot-evidence/mascot-native.png || true; adb exec-out run-as com.tatsu.homehub cat files/mascot-ai-window.png > mascot-evidence/mascot-ai-window.png || true; adb logcat -d > mascot-evidence/logcat.txt || true; exit "$mascot_test_status"'
 
       - name: Save Android renderer evidence
         if: always() && steps.release_check.outputs.exists != 'true'
@@ -144,4 +144,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
-        run: gh release create "v$VERSION" "tatsu-home-$VERSION.apk" --title "Tatsu Home v$VERSION" --generate-notes
+        run: gh release create "v$VERSION" "tatsu-home-$VERSION.apk" "mascot-evidence/mascot-native.png" "mascot-evidence/mascot-ai-window.png" --title "Tatsu Home v$VERSION" --generate-notes

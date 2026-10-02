@@ -970,7 +970,7 @@ private fun TatsuMascot(phase: VoicePhase, recognizedText: String) {
     ) {
         TatsuMascot3D(
             phase = phase,
-            modifier = Modifier.size(224.dp).clip(RoundedCornerShape(44.dp))
+            modifier = Modifier.size(224.dp)
         )
         Surface(
             shape = RoundedCornerShape(100.dp),
