@@ -11,18 +11,15 @@ import android.webkit.WebViewClient
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -45,19 +42,12 @@ import kotlin.coroutines.resume
 
 private const val MASCOT_ORIGIN = "https://appassets.androidplatform.net"
 private const val MASCOT_PATH = "/assets/mascot3d/"
-private val MASCOT_FILES = setOf("index.html", "mascot.js", "mascot.css", "three.min.js")
+private val MASCOT_FILES = setOf("index.html", "mascot.js", "mascot.css", "three.module.min.js")
 
 /** The web renderer receives enums only. Audio, text, permissions and controls stay native. */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 internal fun TatsuMascot3D(phase: VoicePhase, modifier: Modifier = Modifier) {
-    var attempt by remember { mutableIntStateOf(0) }
-    key(attempt) { Mascot3DContent(phase, modifier) { attempt++ } }
-}
-
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun Mascot3DContent(phase: VoicePhase, modifier: Modifier, onRetry: () -> Unit) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val nativeRoot = LocalView.current
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -75,7 +65,7 @@ private fun Mascot3DContent(phase: VoicePhase, modifier: Modifier, onRetry: () -
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(webView, loaded, ready, running, phase, failed) {
+    LaunchedEffect(webView, loaded, running, phase, failed) {
         val view = webView ?: return@LaunchedEffect
         if (failed) return@LaunchedEffect
         if (running) view.onResume()
@@ -86,14 +76,14 @@ private fun Mascot3DContent(phase: VoicePhase, modifier: Modifier, onRetry: () -
                 null
             )
         }
-        if (loaded && !running) view.onPause()
+        if (!running) view.onPause()
     }
     LaunchedEffect(webView, loaded, running, failed) {
         val view = webView ?: return@LaunchedEffect
         if (!running || failed) return@LaunchedEffect
         val deadline = android.os.SystemClock.elapsedRealtime() + 10_000
         while (!failed) {
-            val result = withTimeoutOrNull(if (ready) 2_000 else 10_000) {
+            val result = withTimeoutOrNull(2_000) {
                 suspendCancellableCoroutine<String?> { continuation ->
                     view.evaluateJavascript(
                         "window.tatsuMascot?.failed ? 'failed' : window.tatsuMascot?.ready ? 'ready' : 'loading'"
@@ -125,9 +115,7 @@ private fun Mascot3DContent(phase: VoicePhase, modifier: Modifier, onRetry: () -
         )
         if (!failed) {
             AndroidView(
-                // A real visible hardware surface is required during WebGL bootstrap.
-                // The page stays transparent until its first successful frame.
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().alpha(if (ready) 1f else 0f),
                 factory = { context ->
                     val assetLoader = WebViewAssetLoader.Builder()
                         .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
@@ -160,20 +148,12 @@ private fun Mascot3DContent(phase: VoicePhase, modifier: Modifier, onRetry: () -
                                     uri.host == "appassets.androidplatform.net" && uri.port == -1 &&
                                     uri.path == "$MASCOT_PATH$file" && file in MASCOT_FILES &&
                                     uri.query == null && uri.fragment == null) {
-                                    assetLoader.shouldInterceptRequest(uri)?.let { response ->
-                                        response.mimeType = when (file) {
-                                            "index.html" -> "text/html"
-                                            "mascot.css" -> "text/css"
-                                            else -> "text/javascript"
-                                        }
-                                        response.encoding = "UTF-8"
-                                        return response
-                                    }
+                                    assetLoader.shouldInterceptRequest(uri)?.let { return it }
                                 }
                                 return WebResourceResponse("text/plain", "UTF-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
                             }
                             override fun onPageFinished(view: WebView, url: String) {
-                                if (webView === view && url == "$MASCOT_ORIGIN${MASCOT_PATH}index.html") loaded = true
+                                if (url == "$MASCOT_ORIGIN${MASCOT_PATH}index.html") loaded = true
                             }
                             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                                 failed = true
@@ -193,10 +173,6 @@ private fun Mascot3DContent(phase: VoicePhase, modifier: Modifier, onRetry: () -
                     if (webView === view) webView = null
                 }
             )
-        } else {
-            TextButton(onClick = onRetry, modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter)) {
-                Text("3D表示を再試行")
-            }
         }
     }
 }

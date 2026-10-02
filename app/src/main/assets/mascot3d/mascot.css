@@ -21,7 +21,3 @@ html[data-failed="true"],
 html[data-failed="true"] body {
   background: transparent;
 }
-
-/* Keep the native fallback visible during bootstrap without hiding the WebView itself. */
-html:not([data-ready="true"]), html:not([data-ready="true"]) body { background: transparent; }
-html:not([data-ready="true"]) canvas { opacity: 0; }

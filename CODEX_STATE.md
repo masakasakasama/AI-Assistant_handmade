@@ -18,7 +18,7 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - 未測定のGalaxy USBルーティング、wake割り込み、WebViewライフサイクル・fps・発熱は実機評価を待つ。実機なしで合格にしない。
 
 ## Blockers
-- このクラウド環境にはGradle/Android SDKがない。実Galaxy・USBマイクもない。
+- この巡回の後半でAndroid SDK/JDK/Gradleを環境へ準備済み。ただしこのrepoのAndroid再buildは今回未実施。Galaxy実機・USBマイクは未接続。
 - OpenAI/Jev認証は環境に設定されていない。実API計測は今回実施していない。
 - Git pushはHTTP 401。GitHub REST APIで非強制・親コミット付きの原子的commit/ref更新が成功したのでcheckpoint保存は可能。
 
@@ -29,4 +29,4 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - git diff --check: passed
 - 変更前v0.4.28 (08a1c27)のAndroid build/Release APK CIはsuccess。今回のAndroidビルド結果とは区別する。
 
-Updated at: 2026-10-02T10:28:57.572043+00:00
+Updated at: 2026-10-02T14:56:31.351403+00:00
