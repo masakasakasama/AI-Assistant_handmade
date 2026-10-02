@@ -13,8 +13,8 @@ android {
         applicationId = "com.tatsu.homehub"
         minSdk = 28
         targetSdk = 35
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 33
-        versionName = System.getenv("VERSION_NAME") ?: "0.4.27"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 34
+        versionName = System.getenv("VERSION_NAME") ?: "0.4.28"
         buildConfigField(
             "String",
             "DEFAULT_AI_BACKEND_URL",
@@ -58,6 +58,7 @@ android {
 dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")

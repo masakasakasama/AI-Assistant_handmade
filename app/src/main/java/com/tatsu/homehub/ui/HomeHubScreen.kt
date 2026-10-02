@@ -1,13 +1,6 @@
 package com.tatsu.homehub.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
@@ -61,10 +54,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -73,7 +62,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tatsu.homehub.BuildConfig
-import com.tatsu.homehub.R
 import com.tatsu.homehub.data.AiDispatchResult
 import com.tatsu.homehub.data.TemporaryRoomAssignments
 import com.tatsu.homehub.data.RouterCompareResult
@@ -963,45 +951,8 @@ private fun VoicePocCard(
 
 @Composable
 private fun TatsuMascot(phase: VoicePhase, recognizedText: String) {
-    val transition = rememberInfiniteTransition(label = "tatsu-mascot")
-    val active = phase == VoicePhase.LISTENING ||
-        phase == VoicePhase.THINKING ||
-        phase == VoicePhase.SPEAKING ||
-        phase == VoicePhase.PREPARING
-    val duration = when (phase) {
-        VoicePhase.SPEAKING -> 420
-        VoicePhase.LISTENING -> 650
-        VoicePhase.THINKING, VoicePhase.PREPARING -> 850
-        else -> 1_800
-    }
-    val motion by transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = duration, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "tatsu-motion"
-    )
-    val density = LocalDensity.current
-    val translationY = with(density) {
-        when (phase) {
-            VoicePhase.SPEAKING -> (motion * 8f).dp.toPx()
-            VoicePhase.LISTENING -> (motion * 4f).dp.toPx()
-            VoicePhase.THINKING, VoicePhase.PREPARING -> (motion * 3f).dp.toPx()
-            else -> (motion * 1.5f).dp.toPx()
-        }
-    }
-    val rotation = when (phase) {
-        VoicePhase.SPEAKING -> motion * 3.5f
-        VoicePhase.THINKING, VoicePhase.PREPARING -> motion * 2.5f
-        else -> 0f
-    }
-    val scale = when (phase) {
-        VoicePhase.SPEAKING -> 1f + (motion + 1f) * 0.025f
-        VoicePhase.LISTENING -> 1f + (motion + 1f) * 0.015f
-        else -> 1f + (motion + 1f) * 0.006f
-    }
+    val active = phase == VoicePhase.LISTENING || phase == VoicePhase.THINKING ||
+        phase == VoicePhase.SPEAKING || phase == VoicePhase.PREPARING
     val statusMessage = when (phase) {
         VoicePhase.PREPARING -> "じゅんび中…"
         VoicePhase.LISTENING -> "きいてるよ"
@@ -1017,29 +968,10 @@ private fun TatsuMascot(phase: VoicePhase, recognizedText: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (active) {
-                Surface(
-                    modifier = Modifier.size(if (phase == VoicePhase.SPEAKING) 184.dp else 172.dp),
-                    shape = RoundedCornerShape(48.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
-                ) {}
-            }
-            Image(
-                painter = painterResource(R.drawable.tatsu_mascot),
-                contentDescription = "Tatsu Homeのマスコット",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(164.dp)
-                    .graphicsLayer {
-                        this.translationY = translationY
-                        rotationZ = rotation
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .clip(RoundedCornerShape(44.dp))
-            )
-        }
+        TatsuMascot3D(
+            phase = phase,
+            modifier = Modifier.size(224.dp).clip(RoundedCornerShape(44.dp))
+        )
         Surface(
             shape = RoundedCornerShape(100.dp),
             color = if (active) {
