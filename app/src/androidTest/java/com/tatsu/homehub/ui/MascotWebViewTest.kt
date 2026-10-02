@@ -73,7 +73,7 @@ class MascotWebViewTest {
             assertTrue("Errors in production WebView: $logs", logs.none { it.startsWith("ERROR:") })
         } finally {
             instrumentation.uiAutomation.takeScreenshot()?.let { screenshot ->
-                File("/sdcard/Download/tatsu-mascot.png").outputStream().use { screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                File(instrumentation.targetContext.getExternalFilesDir(null), "tatsu-mascot.png").outputStream().use { screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
                 screenshot.recycle()
             }
             scenario.close()
