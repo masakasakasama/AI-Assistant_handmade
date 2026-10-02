@@ -1,0 +1,8 @@
+{
+  "name": "tatsu-mascot-asset-tools",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "three": "0.160.1"
+  }
+}

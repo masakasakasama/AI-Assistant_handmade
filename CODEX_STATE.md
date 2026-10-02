@@ -31,3 +31,10 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - 変更前v0.4.28 (08a1c27)のAndroid build/Release APK CIはsuccess。今回のAndroidビルド結果とは区別する。
 
 Updated at: 2026-10-02T14:56:31.351403+00:00
+
+## 3D表示修正完了（2026-10-02、v0.4.30）
+- ユーザー実画面でv0.4.28/v0.4.29が旧イラストだった問題を受け、AI画面のWebViewをネイティブFilament/TextureView＋自己完結GLBへ置き換えた。旧WebView資産は削除。旧イラストへ戻す処理もAI画面から外した。
+- 全7状態と停止／再開をAndroidエミュレーターで確認。実MainActivityのAIタブでTextureViewの白い本体・青い目のピクセルをassert。ウィンドウ全体のPixelCopy画像を取得し、3Dが見えることを目視確認した。
+- 成功CI: Release 37047641278、画像再取得 37048272248。v0.4.30公開APK内のGLBがソースと一致し、arm64 Filament JNIが入り、旧WebView資産がないことを確認。
+- GitHub Releaseに実際のAndroid画像 `mascot-ai-window.png` / `mascot-native.png` を添付。APK 141,838,635 bytes。今後の画像回収はテスト後にAPKをアンインストールせず、PNGシグネチャもassertする。
+- 再生成ソースはtools/mascot-export、経緯・現行契約はdocs/MASCOT_3D_HANDOFF.md末尾。Galaxy実機のfps・発熱は未測定。上記Backend作業とPhase 0の残課題は維持。
