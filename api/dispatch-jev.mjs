@@ -1,3 +1,4 @@
+import { parseRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "../ai-backend/src/request-body.mjs";
 import { apiError } from "../ai-backend/src/openai.mjs";
 import { dispatchJev } from "../ai-backend/src/dispatch-jev.mjs";
 
@@ -8,7 +9,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+    const body = parseRequestBody(req.body);
     if (typeof body.text !== "string" || !body.text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -24,7 +25,7 @@ export default async function handler(req, res) {
     res.status(200).json(result);
   } catch (error) {
     console.error(error);
-    const failure = apiError(error);
+    const failure = requestBodyError(error) || apiError(error);
     res.status(failure.status).json(failure.body);
   }
 }

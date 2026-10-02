@@ -1,3 +1,4 @@
+import { readRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "./request-body.mjs";
 import { DEFAULT_ANSWER_MODE } from "./answer-mode.mjs";
 import { apiError } from "./openai.mjs";
 import http from "node:http";
@@ -18,17 +19,6 @@ function json(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-async function readJson(req, limit = 64 * 1024) {
-  let body = "";
-  for await (const chunk of req) {
-    body += chunk;
-    if (body.length > limit) {
-      throw new Error("Request body too large");
-    }
-  }
-  return body ? JSON.parse(body) : {};
-}
-
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "GET" && ["/health", "/api/health"].includes(req.url)) {
@@ -43,7 +33,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/dispatch-jev") {
-      const body = await readJson(req);
+      const body = await readRequestBody(req);
       if (typeof body.text !== "string" || !body.text.trim()) {
         return json(res, 400, { error: "text is required" });
       }
@@ -58,15 +48,15 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/api/transcribe") {
       try {
-        return json(res, 200, await transcribe(await readJson(req, 1_300_000)));
+        return json(res, 200, await transcribe(await readRequestBody(req, AUDIO_BODY_LIMIT)));
       } catch (error) {
-        const failure = transcriptionError(error);
+        const failure = requestBodyError(error) || transcriptionError(error);
         return json(res, failure.status, failure.body);
       }
     }
 
     if (req.method === "POST" && req.url === "/api/router-compare") {
-      const body = await readJson(req);
+      const body = await readRequestBody(req);
       if (typeof body.text !== "string" || !body.text.trim()) {
         return json(res, 400, { error: "text is required" });
       }
@@ -78,7 +68,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/dispatch") {
-      const body = await readJson(req);
+      const body = await readRequestBody(req);
       if (typeof body.text !== "string" || !body.text.trim()) {
         return json(res, 400, { error: "text is required" });
       }
@@ -95,7 +85,7 @@ const server = http.createServer(async (req, res) => {
     return json(res, 404, { error: "not_found" });
   } catch (error) {
     console.error(error);
-    const failure = apiError(error);
+    const failure = requestBodyError(error) || apiError(error);
     return json(res, failure.status, failure.body);
   }
 });
