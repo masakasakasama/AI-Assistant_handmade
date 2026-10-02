@@ -21,6 +21,7 @@ import java.util.Locale
 class VoiceController(
     context: Context,
     private val listener: Listener,
+    private val audioInput: PreferredAudioInput,
     private val backendUrlProvider: () -> String = { "" }
 ) {
     interface Listener {
@@ -32,6 +33,7 @@ class VoiceController(
         fun onFinalText(sessionId: Long, text: String)
         fun onSpeakingChanged(sessionId: Long, speaking: Boolean)
         fun onSpeechEnded(sessionId: Long, elapsedRealtimeMs: Long)
+        fun onPlaybackText(sessionId: Long, text: String)
         fun onTtsLifecycle(sessionId: Long, event: String, elapsedRealtimeMs: Long)
         fun onError(sessionId: Long, message: String)
     }
@@ -47,7 +49,7 @@ class VoiceController(
     )
 
     private val appContext = context.applicationContext
-    private val multilingualSpeech = MultilingualSpeechController(appContext, listener)
+    private val multilingualSpeech = MultilingualSpeechController(appContext, listener, audioInput)
     private var cloudAutoMode = false
     private val mainHandler = Handler(Looper.getMainLooper())
     private var currentAttempt: Attempt? = null
@@ -163,6 +165,7 @@ class VoiceController(
             if (activeUtteranceId != null) stopSpeakingNow()
             activeUtteranceId = utteranceId
             utteranceSessions[utteranceId] = sessionId
+            listener.onPlaybackText(sessionId, text)
             listener.onTtsLifecycle(sessionId, "requested", android.os.SystemClock.elapsedRealtime())
             if (tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
                 finishUtterance(utteranceId, false)

@@ -20,6 +20,10 @@ class AppPrefs(context: Context) {
             .putString("wake_word_custom_phrase", value.customPhrase)
             .apply()
 
+    var wakeInterruptionEnabled: Boolean
+        get() = prefs.getBoolean("wake_interruption_enabled", true)
+        set(value) = prefs.edit().putBoolean("wake_interruption_enabled", value).apply()
+
     var weatherLabel: String
         get() = prefs.getString(KEY_WEATHER_LABEL, "元浅草") ?: "元浅草"
         set(value) = prefs.edit().putString(KEY_WEATHER_LABEL, value).apply()

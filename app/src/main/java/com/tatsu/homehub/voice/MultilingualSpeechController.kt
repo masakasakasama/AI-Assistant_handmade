@@ -1,11 +1,7 @@
 package com.tatsu.homehub.voice
 
 import android.content.Context
-import android.media.AudioDeviceInfo
-import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioRecord
-import android.media.MediaRecorder
 import android.os.SystemClock
 import android.util.Base64
 import kotlinx.coroutines.*
@@ -15,7 +11,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** One utterance → original-language transcription, independent of Android recognizer locale. */
-class MultilingualSpeechController(context: Context, private val listener: VoiceController.Listener) {
+class MultilingualSpeechController(context: Context, private val listener: VoiceController.Listener, private val audioInput: PreferredAudioInput) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var job: Job? = null
@@ -72,26 +68,13 @@ class MultilingualSpeechController(context: Context, private val listener: Voice
     private suspend fun capture(sessionId: Long, post: (() -> Unit) -> Unit): ByteArray {
         currentCoroutineContext().ensureActive()
         val frameSize = 1280 // 80 ms
-        val minimum = AudioRecord.getMinBufferSize(PcmWav.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        check(minimum > 0) { "マイクの録音形式を初期化できません" }
-        val audio = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, PcmWav.SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minimum, frameSize * 4))
+        val capture = audioInput.open()
+        val audio = capture.audio
         recorder = audio
         try {
             currentCoroutineContext().ensureActive()
-            check(audio.state == AudioRecord.STATE_INITIALIZED) { "マイクを初期化できません" }
-            val manager = appContext.getSystemService(AudioManager::class.java)
-            val usb = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).firstOrNull {
-                it.type == AudioDeviceInfo.TYPE_USB_DEVICE || it.type == AudioDeviceInfo.TYPE_USB_HEADSET
-            }
-            if (usb != null) audio.setPreferredDevice(usb)
-            audio.startRecording()
-            val deviceName = audio.routedDevice?.productName?.toString() ?: "default"
-            post {
-                listener.onDiagnostic(sessionId, "audio-input=$deviceName; auto-languages=ja,en,de; language-fixed=false")
-                listener.onStatus(sessionId, "話してください")
-                listener.onListeningChanged(sessionId, true)
-            }
+            capture.start()
+            var routeReported = false
             val output = ByteArrayOutputStream()
             val frame = ShortArray(frameSize)
             val boundary = UtteranceBoundary()
@@ -102,14 +85,23 @@ class MultilingualSpeechController(context: Context, private val listener: Voice
                     if (stopRequested) break
                     error("マイクの録音に失敗しました")
                 }
+                capture.verifyRoute()
+                if (!routeReported) {
+                    val diagnostic = capture.diagnostic()
+                    post {
+                        listener.onDiagnostic(sessionId, "stt; $diagnostic; auto-languages=ja,en,de")
+                        listener.onStatus(sessionId, "話してください")
+                        listener.onListeningChanged(sessionId, true)
+                    }
+                    routeReported = true
+                }
                 for (i in 0 until count) { output.write(frame[i].toInt() and 255); output.write((frame[i].toInt() shr 8) and 255) }
                 if (boundary.accept(frame, count)) break
             }
             check(boundary.heardSpeech) { "発話が検出されませんでした。もう一度話してください" }
             return PcmWav.encode(output.toByteArray())
         } finally {
-            runCatching { audio.stop() }
-            audio.release()
+            capture.close()
             if (recorder === audio) recorder = null
         }
     }

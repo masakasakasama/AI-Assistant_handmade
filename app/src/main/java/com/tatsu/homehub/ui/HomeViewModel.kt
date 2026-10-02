@@ -167,6 +167,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val conversationHistory = mutableListOf<String>()
     private val executedVoiceOperations = LinkedHashMap<String, Long>()
 
+    private val audioInput = com.tatsu.homehub.voice.PreferredAudioInput(application)
+    private val _wakeWordDiagnostic = MutableStateFlow("入力マイクは待受開始後に確認します")
+    val wakeWordDiagnostic = _wakeWordDiagnostic.asStateFlow()
+    private val _wakeInterruptionEnabled = MutableStateFlow(appPrefs.wakeInterruptionEnabled)
+    val wakeInterruptionEnabled = _wakeInterruptionEnabled.asStateFlow()
+
+    fun setWakeInterruptionEnabled(enabled: Boolean) {
+        appPrefs.wakeInterruptionEnabled = enabled
+        _wakeInterruptionEnabled.value = enabled
+        if (!enabled && wakeWordController.playbackActive) wakeWordController.stop()
+        resumeWakeWordIfRequested()
+    }
+
     private val wakeWordController = WakeWordController(application, object : WakeWordController.Listener {
         override fun onListeningChanged(listening: Boolean) {
             _wakeWordStatus.value = if (listening) {
@@ -180,11 +193,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             handleWakeWordDetected(score)
         }
 
+        override fun onDiagnostic(diagnostic: String) {
+            _wakeWordDiagnostic.value = diagnostic
+        }
+
         override fun onError(message: String) {
             _wakeWordStatus.value = "エラー: $message"
             _message.value = message
         }
-    })
+    }, audioInput)
 
     private val voiceController = VoiceController(application, object : VoiceController.Listener {
         override fun onListeningChanged(sessionId: Long, listening: Boolean) {
@@ -243,7 +260,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 current
             }
-            if (!speaking) resumeWakeWordIfRequested()
+            if (!speaking) wakeWordController.setPlayback(false)
+            resumeWakeWordIfRequested()
         }
 
         override fun onSpeechEnded(sessionId: Long, elapsedRealtimeMs: Long) {
@@ -251,6 +269,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             voiceSpeechEndedElapsedMs = elapsedRealtimeMs
             val timestamps = _voiceState.value.timings.timestamps + ("client_t0_speech_end" to elapsedRealtimeMs)
             _voiceState.value = _voiceState.value.copy(timings = _voiceState.value.timings.copy(timestamps = timestamps))
+        }
+
+        override fun onPlaybackText(sessionId: Long, text: String) {
+            if (sessionId != _voiceState.value.generationId) return
+            wakeWordController.setPlayback(true, text)
+            resumeWakeWordIfRequested()
         }
 
         override fun onTtsLifecycle(sessionId: Long, event: String, elapsedRealtimeMs: Long) {
@@ -295,10 +319,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val current = _voiceState.value
             if (sessionId != 0L && sessionId != current.generationId) return
             if (sessionId == 0L && current.generationId != 0L && current.phase != VoicePhase.SPEAKING) return
+            wakeWordController.setPlayback(false)
             _voiceState.value = _voiceState.value.copy(phase = VoicePhase.ERROR, error = message)
             resumeWakeWordIfRequested()
         }
-    }, backendUrlProvider = { appPrefs.aiBackendUrl })
+    }, audioInput = audioInput, backendUrlProvider = { appPrefs.aiBackendUrl })
 
     fun hasSwitchBotCredentials(): Boolean = _switchBotConfigured.value
 
@@ -921,12 +946,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun resumeWakeWordIfRequested() {
         if (!wakeWordRequested) return
         val phase = _voiceState.value.phase
-        val voiceBusy = phase == VoicePhase.PREPARING ||
-            phase == VoicePhase.LISTENING ||
-            phase == VoicePhase.THINKING ||
-            phase == VoicePhase.SPEAKING ||
-            phase == VoicePhase.ANSWER_READY
-        if (!voiceBusy) {
+        if (com.tatsu.homehub.voice.WakeListeningPolicy.shouldListen(wakeWordRequested, phase,
+                wakeWordController.playbackActive, _wakeInterruptionEnabled.value)) {
             wakeWordController.configure(_wakeWordSettings.value)
             wakeWordController.start()
         }
@@ -983,6 +1004,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun startVoiceSessionInternal(mode: VoiceMode) {
+        // Release wake capture before STT; new generation cancels playback/jobs and rejects stale results.
+        wakeWordController.setPlayback(false)
         wakeWordController.stop()
         val url = appPrefs.aiBackendUrl
         if (url.isBlank()) {
@@ -1023,6 +1046,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun cancelVoiceSession() {
+        wakeWordController.setPlayback(false)
         val previousGeneration = voiceGeneration
         voiceGeneration += 1
         comparisonGeneration += 1

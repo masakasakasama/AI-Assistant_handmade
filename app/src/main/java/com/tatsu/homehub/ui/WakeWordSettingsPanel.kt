@@ -14,6 +14,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -29,6 +30,8 @@ import com.tatsu.homehub.voice.WakeWordChoice
 @Composable
 fun WakeWordSettingsPanel(viewModel: HomeViewModel) {
     val settings by viewModel.wakeWordSettings.collectAsState()
+    val diagnostic by viewModel.wakeWordDiagnostic.collectAsState()
+    val interruptionEnabled by viewModel.wakeInterruptionEnabled.collectAsState()
     val status by viewModel.wakeWordStatus.collectAsState()
     val customAvailable by viewModel.customWakeWordAvailable.collectAsState()
     val importing by viewModel.wakeWordImporting.collectAsState()
@@ -42,6 +45,13 @@ fun WakeWordSettingsPanel(viewModel: HomeViewModel) {
         Text("ウェイクワード", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
         Text("変更はすぐに反映・保存されます。アプリを開いている間、端末内で検出します。",
+            style = MaterialTheme.typography.bodySmall)
+        Text(diagnostic, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("返答中も呼びかけで割り込む", modifier = Modifier.weight(1f))
+            Switch(checked = interruptionEnabled, onCheckedChange = viewModel::setWakeInterruptionEnabled)
+        }
+        Text("呼びかけで読み上げを止め、次の発話を受け付けます。返答に呼びかけの言葉が含まれる間は誤起動防止のため停止します。",
             style = MaterialTheme.typography.bodySmall)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             WakeWordChoice.entries.forEach { choice ->
