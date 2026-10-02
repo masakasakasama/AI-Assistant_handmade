@@ -29,6 +29,7 @@
 ## Phase 0C — 家電として壊れ方を確かめる
 
 - [ ] Backend認証・上限・トークン失効。公開はここまで待つ。
+  - v0.4.31: shared owner token認証・rotation拒否とKeystore保存を実装。隔離Backend回帰のみ合格。上限/rate limit・実デプロイ/実端末受入は未完了。
 - [ ] WAN断 / LAN断 / Backend停止 / SwitchBotタイムアウトを別試験。
 - [ ] Android再起動・初回ロック解除前・プロセス終了・Doze・Exact権限失効。
 - [ ] 同じalarmIdの更新、対象重複、日時変更、Berlin DST、端末内での鳴動。

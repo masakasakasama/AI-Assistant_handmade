@@ -1,3 +1,4 @@
+process.env.AI_BACKEND_TOKEN = "endpoint-fixture-token";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createResponse, apiError, ModelTimeoutError } from "../src/openai.mjs";
@@ -84,7 +85,7 @@ test("dispatch endpoint returns actionable 504 diagnostics for a router timeout"
   console.error = () => {};
   const res = { status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
   try {
-    await handler({ method: "POST", body: { text: "compare", modelProfile: "gpt-6.1" } }, res);
+    await handler({ method: "POST", headers: { authorization: "Bearer endpoint-fixture-token" }, body: { text: "compare", modelProfile: "gpt-6.1" } }, res);
     assert.equal(res.code, 504);
     assert.equal(res.body.model, "gpt-6-luna");
     assert.equal(res.body.stage, "routing");

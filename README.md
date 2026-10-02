@@ -4,6 +4,10 @@
 
 Google Home / Alexaの全機能コピーではなく、自然な会話、SwitchBot、正確なアラーム管理、天気、日・英・独を優先します。応答速度は最優先の品質条件です。
 
+## v0.4.31
+
+Backendの有料API経路へshared owner token認証を追加。端末設定で入力し、既存Keystore暗号化保存からHTTPへ送信する。未設定・誤token・失効後のtokenはprovider呼出し前に拒否する。設定とrotation手順は[AI_BACKEND_SETUP.md](AI_BACKEND_SETUP.md)。実デプロイ/実Galaxy受入、利用上限・rate limitは未完了。
+
 ## v0.4.22
 
 標準回答をmedium＋短い読み上げ向け要約へ変更し、設定で「速く答える／標準／じっくり考える」を選択可能にした。難しい比較質問のサーバー完了時間は各3回の中央値で46.1秒→15.5秒。単独のあいさつはAndroid内で返信する。測定条件と限界は[性能資料](docs/PERFORMANCE.md)参照。

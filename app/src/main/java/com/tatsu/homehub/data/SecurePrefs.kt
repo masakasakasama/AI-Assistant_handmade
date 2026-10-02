@@ -28,6 +28,8 @@ class SecurePrefs(context: Context) {
             .commit()
     }
 
+    fun remove(name: String): Boolean = prefs.edit().remove(name).commit()
+
     fun get(name: String): String? {
         val encoded = prefs.getString(name, null) ?: return null
         return runCatching {
@@ -85,6 +87,7 @@ class SecurePrefs(context: Context) {
 
     companion object {
         private const val FORMAT_MARKER: Byte = 0x54
+        const val KEY_AI_BACKEND_TOKEN = "ai_backend_token"
         const val KEY_SWITCHBOT_TOKEN = "switchbot_token"
         const val KEY_SWITCHBOT_SECRET = "switchbot_secret"
     }

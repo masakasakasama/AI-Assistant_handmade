@@ -1,3 +1,4 @@
+import { requestAuthError } from "./request-auth.mjs";
 import { readRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "./request-body.mjs";
 import { DEFAULT_ANSWER_MODE } from "./answer-mode.mjs";
 import { apiError } from "./openai.mjs";
@@ -30,6 +31,11 @@ const server = http.createServer(async (req, res) => {
         openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
         jevConfigured: Boolean(process.env.JEV_OPENROUTER_API_KEY)
       });
+    }
+
+    if (req.method === "POST" && ["/api/dispatch", "/api/dispatch-jev", "/api/router-compare", "/api/transcribe"].includes(req.url)) {
+      const auth = requestAuthError(req);
+      if (auth) return json(res, auth.status, auth.body);
     }
 
     if (req.method === "POST" && req.url === "/api/dispatch-jev") {

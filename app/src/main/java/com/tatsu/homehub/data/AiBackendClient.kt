@@ -100,7 +100,10 @@ data class AiPipelineTimings(
     val timingError: String? = null
 )
 
-class AiBackendClient(private val answerModeProvider: () -> String = { "balanced" }) {
+class AiBackendClient(
+    private val answerModeProvider: () -> String = { "balanced" },
+    private val tokenProvider: () -> String = { "" }
+) {
     suspend fun dispatch(
         baseUrl: String,
         text: String,
@@ -207,8 +210,16 @@ class AiBackendClient(private val answerModeProvider: () -> String = { "balanced
     ): Pair<JSONObject, Long> = withContext(Dispatchers.IO) {
             val started = android.os.SystemClock.elapsedRealtime()
             val endpoint = baseUrl.trim().trimEnd('/') + path
-            val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+            val token = tokenProvider().trim()
+            check(token.isNotEmpty() && token.none { it.isWhitespace() }) { "Backend認証トークンを設定してください" }
+            val target = URL(endpoint)
+            check(target.protocol == "https" || (target.protocol == "http" && target.host.removePrefix("[").removeSuffix("]") in setOf("localhost", "127.0.0.1", "::1", "10.0.2.2"))) {
+                "Backend認証にはHTTPS URLが必要です"
+            }
+            val connection = (target.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
+                instanceFollowRedirects = false
+                setRequestProperty("Authorization", "Bearer $token")
                 connectTimeout = 12_000
                 readTimeout = if (modelProfile != null) 150_000 else 60_000
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -233,6 +244,8 @@ class AiBackendClient(private val answerModeProvider: () -> String = { "balanced
                     if (failure?.optString("error") == "model_timeout") {
                         error(failure.optString("message").ifBlank { "AIの応答が待機上限に達しました" })
                     }
+                    if (code == 401 || code == 403) error("Backend認証が失効しています。設定でトークンを更新してください")
+                    if (code == 503 && raw.contains("backend_auth_not_configured")) error("Backendの認証設定が未完了です")
                     error("AI Backend HTTP $code: $raw")
                 }
                 JSONObject(raw) to started

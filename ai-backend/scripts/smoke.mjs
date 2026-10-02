@@ -4,10 +4,11 @@ const health = await fetch(base + "/api/health").then(r => r.json());
 console.log("health", health);
 
 if (!process.env.SMOKE_TEXT) process.exit(0);
+if (!process.env.AI_BACKEND_TOKEN) throw new Error("AI_BACKEND_TOKEN is required for authenticated smoke requests");
 
 const dispatch = await fetch(base + "/api/dispatch", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.AI_BACKEND_TOKEN}` },
   body: JSON.stringify({ text: process.env.SMOKE_TEXT })
 }).then(async r => ({ status: r.status, body: await r.json() }));
 

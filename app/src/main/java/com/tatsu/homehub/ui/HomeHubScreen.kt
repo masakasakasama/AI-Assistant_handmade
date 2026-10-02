@@ -311,6 +311,8 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
             initialLatitude = weatherSettings.latitude,
             initialLongitude = weatherSettings.longitude,
             initialAiBackendUrl = viewModel.aiBackendUrl(),
+            onSaveBackendToken = viewModel::saveAiBackendToken,
+            onClearBackendToken = viewModel::clearAiBackendToken,
             initialVoiceLanguageTag = viewModel.voiceLanguageTag,
             initialPreferOnDeviceRecognition = viewModel.preferOnDeviceRecognition,
             initialAnswerMode = viewModel.answerMode,
@@ -1602,6 +1604,8 @@ private fun SettingsDialog(
     initialLatitude: Double,
     initialLongitude: Double,
     initialAiBackendUrl: String,
+    onSaveBackendToken: (String) -> Boolean,
+    onClearBackendToken: () -> Unit,
     initialVoiceLanguageTag: String,
     initialPreferOnDeviceRecognition: Boolean,
     initialAnswerMode: String,
@@ -1615,6 +1619,7 @@ private fun SettingsDialog(
     var latitude by remember { mutableStateOf(initialLatitude.toString()) }
     var longitude by remember { mutableStateOf(initialLongitude.toString()) }
     var backendUrl by remember { mutableStateOf(initialAiBackendUrl) }
+    var backendToken by remember { mutableStateOf("") }
     var voiceLanguageTag by remember { mutableStateOf(initialVoiceLanguageTag) }
     var preferOnDevice by remember { mutableStateOf(initialPreferOnDeviceRecognition) }
     var answerMode by remember { mutableStateOf(initialAnswerMode) }
@@ -1667,6 +1672,15 @@ private fun SettingsDialog(
                     placeholder = { Text("https://...") },
                     singleLine = true
                 )
+                OutlinedTextField(
+                    value = backendToken,
+                    onValueChange = { backendToken = it },
+                    label = { Text("Backend認証トークン（空欄は保存済みを維持）") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
+                )
+                TextButton(onClick = { onClearBackendToken(); backendToken = "" }) { Text("保存済みBackendトークンを削除") }
+
 
                 Spacer(Modifier.height(20.dp))
                 Text("回答の考え方", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -1739,6 +1753,7 @@ private fun SettingsDialog(
         },
         confirmButton = {
             Button(onClick = {
+                if (!onSaveBackendToken(backendToken)) return@Button
                 onSave(
                     token,
                     secret,

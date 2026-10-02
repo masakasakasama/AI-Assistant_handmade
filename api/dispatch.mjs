@@ -1,3 +1,4 @@
+import { requestAuthError } from "../ai-backend/src/request-auth.mjs";
 import { parseRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "../ai-backend/src/request-body.mjs";
 import { apiError } from "../ai-backend/src/openai.mjs";
 import { dispatch } from "../ai-backend/src/dispatch.mjs";
@@ -8,6 +9,9 @@ export default async function handler(req, res) {
     res.status(405).json({ error: "method_not_allowed" });
     return;
   }
+
+  const auth = requestAuthError(req);
+  if (auth) return res.status(auth.status).json(auth.body);
 
   try {
     const body = parseRequestBody(req.body);

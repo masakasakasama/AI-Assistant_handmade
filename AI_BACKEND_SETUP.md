@@ -49,3 +49,26 @@ AI設定の保存にSwitchBotのToken/Secretは不要。
 ## v0.4.22
 
 Androidの「回答の考え方」は標準balancedが既定。速く答えるquick、じっくり考えるdeepも選べる。標準は短い読み上げ向け返答で、詳しい回答はdeepで取得できる。モデルIDだけでなく `/api/health` の `answerMode` と結果の `answer.effort` も確認する。測定条件は[性能資料](docs/PERFORMANCE.md)参照。
+
+## Backend access authentication (v0.4.31)
+
+Set `AI_BACKEND_TOKEN` in the local service environment or Vercel server secrets,
+then restart/redeploy the Backend. Generate a random access credential separately
+from OpenAI/OpenRouter provider keys. Never put provider keys or this credential
+in APK build variables. Missing server configuration returns 503; missing, wrong
+or revoked Bearer credentials return 401 before request parsing/provider calls.
+Health remains readable without a credential.
+
+On Android, enter the same access token in Settings → Backend認証トークン.
+It uses the existing Keystore-backed AES/GCM storage. Blank input preserves the
+saved value; the delete action removes it. After device restore, a credential
+whose Keystore key is unavailable must be entered again. Authenticated POSTs
+require HTTPS, except local loopback/Android emulator host addresses; redirects
+are not followed with credentials. 401/403 asks the owner to update the token.
+
+To revoke access, replace the server token and restart/redeploy. Old tokens then
+fail; update each authorized device. This is one shared owner token, not a user
+account/session service or per-device revocation. `AI_BACKEND_TOKEN` is also used
+by the HTTP smoke script. Local/Vercel rejection and rotation tests make no provider
+calls. Actual deployed configuration, Keystore persistence and Galaxy acceptance
+remain unverified. Rate limits and usage caps are separate unfinished work.

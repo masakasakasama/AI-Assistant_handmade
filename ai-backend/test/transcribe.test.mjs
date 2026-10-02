@@ -1,3 +1,4 @@
+process.env.AI_BACKEND_TOKEN = "endpoint-fixture-token";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { decodeAudio, transcribe, MAX_AUDIO_BYTES } from "../src/transcribe.mjs";
@@ -60,6 +61,6 @@ test("endpoint rejects non-POST and invalid audio", async () => {
   const response = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
   await handler({ method: "GET" }, response);
   assert.equal(response.code, 405);
-  await handler({ method: "POST", body: { audioBase64: "bad" } }, response);
+  await handler({ method: "POST", headers: { authorization: "Bearer endpoint-fixture-token" }, body: { audioBase64: "bad" } }, response);
   assert.equal(response.code, 400);
 });

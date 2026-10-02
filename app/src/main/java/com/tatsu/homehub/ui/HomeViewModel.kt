@@ -72,7 +72,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val appPrefs = AppPrefs(application)
     private val alarmRepo = AlarmRepository(application)
     private val weatherClient = WeatherClient()
-    private val aiBackendClient = AiBackendClient { appPrefs.answerMode }
+    private val aiBackendClient = AiBackendClient(
+        answerModeProvider = { appPrefs.answerMode },
+        tokenProvider = { securePrefs.get(SecurePrefs.KEY_AI_BACKEND_TOKEN).orEmpty() }
+    )
     private val actionResolver = ActionResolver()
     private val actionPolicyEngine = ActionPolicyEngine()
     private val updateManager = UpdateManager(application)
@@ -641,6 +644,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         appPrefs.weatherLatitude = latitude.coerceIn(-90.0, 90.0)
         appPrefs.weatherLongitude = longitude.coerceIn(-180.0, 180.0)
         refreshWeather()
+    }
+
+    fun saveAiBackendToken(value: String): Boolean {
+        if (value.isBlank()) return true // Blank input keeps the saved credential.
+        val saved = runCatching { securePrefs.put(SecurePrefs.KEY_AI_BACKEND_TOKEN, value.trim()) }.getOrDefault(false)
+        if (!saved) _message.value = "Backendトークンを保存できませんでした"
+        return saved
+    }
+
+    fun clearAiBackendToken() {
+        if (!securePrefs.remove(SecurePrefs.KEY_AI_BACKEND_TOKEN)) _message.value = "Backendトークンを削除できませんでした"
     }
 
     fun saveAiBackendUrl(url: String) {

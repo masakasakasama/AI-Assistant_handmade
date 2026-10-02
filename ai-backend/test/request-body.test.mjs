@@ -27,6 +27,7 @@ test("UTF-8 body limits count bytes and preserve characters split across chunks"
 for (const [name, handler] of Object.entries({ dispatch, jev, compare, transcribe })) {
   test(`${name} rejects invalid HTTP input before a provider request`, async () => {
     const previousFetch = globalThis.fetch;
+    const previousToken = process.env.AI_BACKEND_TOKEN;
     const previousLog = console.error;
     globalThis.fetch = () => { assert.fail("invalid input reached provider"); };
     console.error = () => {};
@@ -35,10 +36,13 @@ for (const [name, handler] of Object.entries({ dispatch, jev, compare, transcrib
         [JSON.stringify({ text: "あ".repeat(500_000) }), 413]]) {
         const res = { setHeader() {}, status(code) { this.code = code; return this; },
           json(value) { this.body = value; return this; } };
-        await handler({ method: "POST", body }, res);
+        process.env.AI_BACKEND_TOKEN = "input-fixture-token";
+        await handler({ method: "POST", headers: { authorization: "Bearer input-fixture-token" }, body }, res);
         assert.equal(res.code, expected);
       }
     } finally {
+      if (previousToken === undefined) delete process.env.AI_BACKEND_TOKEN;
+      else process.env.AI_BACKEND_TOKEN = previousToken;
       globalThis.fetch = previousFetch;
       console.error = previousLog;
     }
