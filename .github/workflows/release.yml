@@ -119,7 +119,7 @@ jobs:
           arch: x86_64
           target: default
           disable-animations: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swangle -noaudio -no-boot-anim -camera-back none
           script: |
             bash -c 'gradle :app:connectedDebugAndroidTest --stacktrace; mascot_test_status=$?; mkdir -p mascot-evidence; adb exec-out run-as com.tatsu.homehub cat files/mascot-native.png > mascot-evidence/mascot-native.png || true; adb exec-out run-as com.tatsu.homehub cat files/mascot-ai-window.png > mascot-evidence/mascot-ai-window.png || true; adb logcat -d > mascot-evidence/logcat.txt || true; if [ "$mascot_test_status" -ne 0 ]; then find app/build/outputs/androidTest-results -name "*.xml" -exec cat {} \; ; tail -n 1200 mascot-evidence/logcat.txt; fi; exit "$mascot_test_status"'
 
