@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.ConsoleMessage
 import android.webkit.WebView
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -64,6 +65,12 @@ class MascotWebViewTest {
                 assertEquals("State failed for $phase; console=$logs", "\"${phase.name}\"", evaluate(renderer, "window.tatsuMascot.diagnostics().phase"))
                 assertEquals("Renderer unexpectedly paused; console=$logs", "false", evaluate(renderer, "window.tatsuMascot.diagnostics().paused"))
             }
+            scenario.moveToState(Lifecycle.State.CREATED)
+            Thread.sleep(200)
+            assertEquals("Renderer did not pause with Activity", "true", evaluate(renderer, "window.tatsuMascot.diagnostics().paused"))
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            Thread.sleep(200)
+            assertEquals("Renderer did not resume", "false", evaluate(renderer, "window.tatsuMascot.diagnostics().paused"))
             val before = evaluate(renderer, "window.tatsuMascot.diagnostics().frames")!!.toInt()
             Thread.sleep(300)
             val after = evaluate(renderer, "window.tatsuMascot.diagnostics().frames")!!.toInt()

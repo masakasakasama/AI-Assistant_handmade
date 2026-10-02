@@ -1,4 +1,4 @@
-import * as T from "./three.module.min.js";
+const T = window.THREE;
 const api = (window.tatsuMascot = { ready: false, failed: false });
 let disposed = false,
   paused = true,
@@ -392,6 +392,7 @@ try {
   function render() {
     renderer.render(scene, camera);
     api.ready = true;
+    document.documentElement.dataset.ready = "true";
   }
   function frame(now) {
     raf = 0;
@@ -442,6 +443,7 @@ try {
     event.preventDefault();
     api.failed = true;
     api.ready = false;
+    delete document.documentElement.dataset.ready;
     cancelAnimationFrame(raf);
     raf = 0;
     document.documentElement.dataset.failed = "true";
@@ -505,6 +507,7 @@ try {
 } catch (error) {
   api.failed = true;
   api.ready = false;
+  delete document.documentElement.dataset.ready;
   document.documentElement.dataset.failed = "true";
   console.error("Mascot initialization failed", error);
   renderer?.dispose();
