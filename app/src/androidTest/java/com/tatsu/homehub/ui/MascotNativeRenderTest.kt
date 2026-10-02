@@ -52,7 +52,7 @@ class MascotNativeRenderTest {
         ActivityScenario.launch(MascotPreviewActivity::class.java).use { scenario ->
             var renderer: NativeMascotView? = null
             val deadline = System.currentTimeMillis() + 30_000
-            while (renderer?.frames ?: 0 < 4 && System.currentTimeMillis() < deadline) {
+            while ((renderer?.frames ?: 0L) < 4 && System.currentTimeMillis() < deadline) {
                 scenario.onActivity { renderer = findRenderer(it.window.decorView) }
                 Thread.sleep(100)
             }
@@ -88,10 +88,10 @@ class MascotNativeRenderTest {
             val device = UiDevice.getInstance(instrumentation)
             val aiTab = device.wait(Until.findObject(By.text("AI")), 15_000)
             assertNotNull("Actual AI navigation not found", aiTab)
-            aiTab.click()
+            aiTab!!.click()
             var renderer: NativeMascotView? = null
             val deadline = System.currentTimeMillis() + 30_000
-            while (renderer?.frames ?: 0 < 5 && System.currentTimeMillis() < deadline) {
+            while ((renderer?.frames ?: 0L) < 5 && System.currentTimeMillis() < deadline) {
                 scenario.onActivity { renderer = findRenderer(it.window.decorView) }
                 Thread.sleep(100)
             }
