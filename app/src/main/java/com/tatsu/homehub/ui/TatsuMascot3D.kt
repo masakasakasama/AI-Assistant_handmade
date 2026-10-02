@@ -75,7 +75,7 @@ private fun Mascot3DContent(phase: VoicePhase, modifier: Modifier, onRetry: () -
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(webView, loaded, running, phase, failed) {
+    LaunchedEffect(webView, loaded, ready, running, phase, failed) {
         val view = webView ?: return@LaunchedEffect
         if (failed) return@LaunchedEffect
         if (running) view.onResume()
