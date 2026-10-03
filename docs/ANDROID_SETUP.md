@@ -37,6 +37,14 @@ parameter形式
 
 `26,2,1,on`
 
+## K10シリーズの掃除操作
+
+K10+ / K10+ Proは電源コマンドでは動かない。v0.4.32から家電画面では「掃除開始／停止」を表示し、掃除開始は `start`、停止は `stop` を送る。parameterは `default`、commandTypeは `command`。音声経路のON/OFF操作にも同じ機種別変換を適用する。
+
+照明・ボット・赤外線エアコンのON/OFFは従来の `turnOn / turnOff` を維持する。停止は充電台に戻す操作ではない。
+
+仕様の参照: [SwitchBot公式 K10+ Pro API](https://github.com/OpenWonderLabs/SwitchBotAPI/blob/main/devices/robot-vacuum/mini-robot-vacuum-k10-pro.md)。コマンド変換は回帰テストで確認し、実機の掃除開始／停止は端末側で確認する。
+
 ## アラーム
 
 - Room DBに永続化

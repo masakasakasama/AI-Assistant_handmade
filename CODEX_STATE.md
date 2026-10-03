@@ -37,3 +37,9 @@ Updated at: 2026-10-02T23:21:58.608023+00:00
 - 成功CI: Release 37047641278、画像再取得 37048272248。v0.4.30公開APK内のGLBがソースと一致し、arm64 Filament JNIが入り、旧WebView資産がないことを確認。
 - GitHub Releaseに実際のAndroid画像 `mascot-ai-window.png` / `mascot-native.png` を添付。APK 141,838,635 bytes。今後の画像回収はテスト後にAPKをアンインストールせず、PNGシグネチャもassertする。
 - 再生成ソースはtools/mascot-export、経緯・現行契約はdocs/MASCOT_3D_HANDOFF.md末尾。Galaxy実機のfps・発熱は未測定。上記Backend作業とPhase 0の残課題は維持。
+
+## K10+ Pro操作修正（2026-10-03、v0.4.32）
+- 家電画面のONでunknown commandになる原因は、K10+ Proへ汎用turnOnを送っていたこと。公式APIに沿ってK10+ / K10+ Proをstart / stopへ振り分けた。UIは掃除開始／停止、成功表示はコマンド受付を示す。
+- 手動操作と音声のSwitchBotActionAdapterは同じSwitchBotClient.setPowerを使用。照明・Bot・赤外線ACのturnOn / turnOffを維持し、Hub拒否はResult失敗で返す。
+- SwitchBotPowerCommandTestの4テストと既存unit tests、署名APKビルド、Android実AI画面の描画チェックが成功。CI 37086681373、v0.4.32公開済み。実掃除機には接続しておらず、実機の掃除開始／停止は未確認。
+- edb910eのBackend owner-token対応をFF統合して保持。最新SDK/API/authの課題は上記記録を参照。
