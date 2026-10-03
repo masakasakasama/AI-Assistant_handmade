@@ -77,11 +77,14 @@ test("reasoning gets 90 seconds while preserving high effort and the selected mo
 });
 
 test("dispatch endpoint returns actionable 504 diagnostics for a router timeout", async () => {
+  const limits = ["AI_LIMIT_REDIS_URL","AI_LIMIT_REDIS_TOKEN","AI_DAILY_REQUEST_LIMIT","AI_RATE_REQUEST_LIMIT"];
+  const savedLimits = limits.map(key => process.env[key]);
+  ["https://limits.example.test","fixture-store-token","100","10"].forEach((value,i)=>process.env[limits[i]]=value);
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.OPENAI_API_KEY;
   const previousLog = console.error;
   process.env.OPENAI_API_KEY = "test-key";
-  globalThis.fetch = async () => { throw new DOMException("test timeout", "TimeoutError"); };
+  globalThis.fetch = async url => { if(String(url)==="https://limits.example.test/")return Response.json({result:[1,0]}); throw new DOMException("test timeout", "TimeoutError"); };
   console.error = () => {};
   const res = { status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
   try {
@@ -92,6 +95,7 @@ test("dispatch endpoint returns actionable 504 diagnostics for a router timeout"
     assert.equal(res.body.timeoutMs, 45_000);
     assert.equal(apiError(new Error("network error")).status, 500);
   } finally {
+    limits.forEach((key,i)=>{if(savedLimits[i]===undefined)delete process.env[key];else process.env[key]=savedLimits[i];});
     globalThis.fetch = previousFetch;
     console.error = previousLog;
     if (previousKey === undefined) delete process.env.OPENAI_API_KEY;

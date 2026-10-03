@@ -1,3 +1,5 @@
+import { claimRequest } from "../ai-backend/src/request-limits.mjs";
+import { logRequestFailure } from "../ai-backend/src/safe-logging.mjs";
 import { requestAuthError } from "../ai-backend/src/request-auth.mjs";
 import { parseRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "../ai-backend/src/request-body.mjs";
 import { apiError } from "../ai-backend/src/openai.mjs";
@@ -19,6 +21,7 @@ export default async function handler(req, res) {
       return;
     }
 
+    await claimRequest();
     const result = await compareRouters({
       text: body.text.trim(),
       context: typeof body.context === "string" ? body.context : ""
@@ -26,7 +29,7 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     res.status(200).json(result);
   } catch (error) {
-    console.error(error);
+    logRequestFailure();
     const failure = requestBodyError(error) || apiError(error);
     res.status(failure.status).json(failure.body);
   }

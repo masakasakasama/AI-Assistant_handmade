@@ -99,6 +99,6 @@ test("router comparison reports one provider failure without hiding the other", 
   });
   assert.equal(result.luna.ok, true);
   assert.equal(result.jev.ok, false);
-  assert.match(result.jev.error, /JEV_OPENROUTER_API_KEY/);
+  assert.equal(result.jev.error, "provider_request_failed");
   assert.equal(result.deltaMs, null);
 });

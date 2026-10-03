@@ -25,3 +25,15 @@ test('local HTTP paid routes enforce the same gate as serverless handlers',async
     }finally{await fixture.close();}
   }
 });
+test('local HTTP fails closed for valid paid requests without shared limit configuration',async()=>{
+  const saved=process.env.AI_LIMIT_REDIS_URL;delete process.env.AI_LIMIT_REDIS_URL;
+  const fixture=await server('limits-local-fixture');
+  try{
+    const audio=Buffer.alloc(48);audio.write('RIFF');audio.writeUInt32LE(40,4);audio.write('WAVEfmt ',8);audio.writeUInt32LE(16,16);audio.writeUInt16LE(1,20);audio.writeUInt16LE(1,22);audio.writeUInt32LE(16000,24);audio.writeUInt16LE(16,34);audio.write('data',36);audio.writeUInt32LE(4,40);
+    for(const route of routes){
+      const response=await fetch(fixture.base+'/api/'+route,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer limits-local-fixture'},body:JSON.stringify({text:'Synthetic private text',audioBase64:audio.toString('base64')}),signal:AbortSignal.timeout(3000)});
+      assert.equal(response.status,503);assert.equal((await response.json()).error,'usage_limits_not_configured');
+    }
+    assert.equal((await fetch(fixture.base+'/api/health')).status,200);
+  }finally{await fixture.close();if(saved===undefined)delete process.env.AI_LIMIT_REDIS_URL;else process.env.AI_LIMIT_REDIS_URL=saved;}
+});

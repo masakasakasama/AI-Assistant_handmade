@@ -1,3 +1,5 @@
+import { claimRequest } from "./request-limits.mjs";
+import { logRequestFailure } from "./safe-logging.mjs";
 import { requestAuthError } from "./request-auth.mjs";
 import { readRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "./request-body.mjs";
 import { DEFAULT_ANSWER_MODE } from "./answer-mode.mjs";
@@ -8,7 +10,7 @@ import { compareRouters } from "./router-compare.mjs";
 import { dispatchJev } from "./dispatch-jev.mjs";
 import { ROUTER_MODEL } from "./router.mjs";
 import { REASONING_MODEL } from "./reasoner.mjs";
-import { transcribe, transcriptionError } from "./transcribe.mjs";
+import { transcribe, transcriptionError, decodeAudio } from "./transcribe.mjs";
 
 const port = Number(process.env.PORT || 8787);
 
@@ -43,6 +45,7 @@ const server = http.createServer(async (req, res) => {
       if (typeof body.text !== "string" || !body.text.trim()) {
         return json(res, 400, { error: "text is required" });
       }
+      await claimRequest();
       const result = await dispatchJev({
         text: body.text.trim(),
         context: typeof body.context === "string" ? body.context : "",
@@ -54,7 +57,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/api/transcribe") {
       try {
-        return json(res, 200, await transcribe(await readRequestBody(req, AUDIO_BODY_LIMIT)));
+        const body = await readRequestBody(req, AUDIO_BODY_LIMIT);
+        decodeAudio(body.audioBase64);
+        await claimRequest();
+        return json(res, 200, await transcribe(body));
       } catch (error) {
         const failure = requestBodyError(error) || transcriptionError(error);
         return json(res, failure.status, failure.body);
@@ -66,6 +72,7 @@ const server = http.createServer(async (req, res) => {
       if (typeof body.text !== "string" || !body.text.trim()) {
         return json(res, 400, { error: "text is required" });
       }
+      await claimRequest();
       const result = await compareRouters({
         text: body.text.trim(),
         context: typeof body.context === "string" ? body.context : ""
@@ -79,6 +86,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { error: "text is required" });
       }
 
+      await claimRequest();
       const result = await dispatch({
         text: body.text.trim(),
         context: typeof body.context === "string" ? body.context : "",
@@ -90,7 +98,7 @@ const server = http.createServer(async (req, res) => {
 
     return json(res, 404, { error: "not_found" });
   } catch (error) {
-    console.error(error);
+    logRequestFailure();
     const failure = requestBodyError(error) || apiError(error);
     return json(res, failure.status, failure.body);
   }

@@ -1,3 +1,4 @@
+import { requestLimitFailure } from "./request-limits.mjs";
 import { performance } from "node:perf_hooks";
 import { validateTranscriptionLanguage } from "./transcription-language.mjs";
 
@@ -67,7 +68,9 @@ export async function transcribe({ audioBase64 }, dependencies = {}) {
 }
 
 export function transcriptionError(error) {
+  const limit = requestLimitFailure(error);
+  if (limit) return limit;
   return { status: error?.code === "invalid_audio" ? 400 : error?.code === "empty_transcript" ? 422 :
     error?.code === "transcription_timeout" ? 504 : 502,
-    body: { error: error?.code || "transcription_error", message: error.message || "音声認識に失敗しました" } };
+    body: { error: ["invalid_audio", "empty_transcript", "transcription_timeout"].includes(error?.code) ? error.code : "transcription_error", message: "音声認識に失敗しました" } };
 }

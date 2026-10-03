@@ -21,7 +21,7 @@ async function measured(name, model, fn) {
       ok: false,
       provider: name,
       model,
-      error: error instanceof Error ? error.message : String(error),
+      error: "provider_request_failed",
       latencyMs: Math.round(performance.now() - started)
     };
   }

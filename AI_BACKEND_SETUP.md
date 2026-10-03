@@ -33,7 +33,7 @@ Androidの設定にプロジェクトのベースURLだけを入力する。末�
 以前のAndroidの/health呼び出しは/api/healthへ修正済み。
 AI設定の保存にSwitchBotのToken/Secretは不要。
 
-**公開前の必須作業：端末認証・失効・上限・入力制限・秘匿ログ。現実装では未完了。**
+**公開前の必須条件：端末認証・失効・上限・入力制限・秘匿ログの実環境受入。コードと隔離fixtureは実装済みだが、本番/実端末受入は未完了。**
 この変更は自動で本番デプロイしない。公開環境へキーを追加する前に上記を完成させる。
 
 ## 試験順序
@@ -72,3 +72,30 @@ account/session service or per-device revocation. `AI_BACKEND_TOKEN` is also use
 by the HTTP smoke script. Local/Vercel rejection and rotation tests make no provider
 calls. Actual deployed configuration, Keystore persistence and Galaxy acceptance
 remain unverified. Rate limits and usage caps are separate unfinished work.
+
+
+## 共通の利用件数・レート制限
+
+全4 POST経路で、owner認証と入力検査後、provider呼出し前に共有Redis RESTへ
+atomic EVALを送る。Redis REST互換endpointと以下をDeployment環境へ設定する。
+
+- `AI_LIMIT_REDIS_URL`: HTTPSのRedis REST endpoint
+- `AI_LIMIT_REDIS_TOKEN`: Redis REST用secret（Androidへ入れない）
+- `AI_DAILY_REQUEST_LIMIT`: UTC日単位の正整数の受付上限
+- `AI_RATE_REQUEST_LIMIT`: UTC固定1分窓の正整数の受付上限
+
+値はOwnerの許容使用量に合わせて決める。process memoryやVercelの一時fileへの
+fallbackは設けない。設定欠落/不正は503、共有storeの障害・不明応答も503で呼出しを
+止める。日/分の上限到達は429と`retryAfterSeconds`を返す。拒否時は件数を増やさない。
+受付したリクエストはprovider失敗でも減算しない。auth tokenのrotation・process再起動・
+別Functionでカウンタを初期化しない。日キーは2日、分キーは120秒でTTL削除する。
+health GETは制限対象外。設定変更後はredeployし、実Redisの共有・期限境界・障害を検証する。
+
+これはrequest件数の上限で、tokens/円の請求上限ではない。dispatchや比較は複数の
+provider呼出しを含む。固定1分窓の境界では隣接する2窓分のburstが可能。
+Provider側の課金制限も設定し、実際の費用は利用明細で確認する。
+
+例外・cause・provider本文・入力・headerをログ出力しない。運用ログは固定eventだけ。
+予期しないエラーと比較経路のprovider失敗は固定の公開文言を返す。既存のtimeoutでは
+model/stage/待機時間を維持する。成功時のtranscript/回答は機能上レスポンスへ返すが、
+ログへは保存しない。fixtureは模擬共有storeであり、本番Redis EVALの合格を意味しない。

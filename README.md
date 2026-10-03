@@ -6,7 +6,7 @@ Google Home / Alexaの全機能コピーではなく、自然な会話、SwitchB
 
 ## v0.4.31
 
-Backendの有料API経路へshared owner token認証を追加。端末設定で入力し、既存Keystore暗号化保存からHTTPへ送信する。未設定・誤token・失効後のtokenはprovider呼出し前に拒否する。設定とrotation手順は[AI_BACKEND_SETUP.md](AI_BACKEND_SETUP.md)。実デプロイ/実Galaxy受入、利用上限・rate limitは未完了。
+Backendの有料API経路へshared owner token認証を追加。端末設定で入力し、既存Keystore暗号化保存からHTTPへ送信する。未設定・誤token・失効後のtokenはprovider呼出し前に拒否する。設定とrotation手順は[AI_BACKEND_SETUP.md](AI_BACKEND_SETUP.md)。共有Redisの利用件数上限・rate limitと秘匿エラーログを追加。実Redis・実デプロイ/実Galaxy受入は未完了。
 
 ## v0.4.22
 

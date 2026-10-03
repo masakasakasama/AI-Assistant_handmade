@@ -1,6 +1,6 @@
 # CODEX_STATE
 
-Status: in_progress
+Status: blocked
 Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応答時間を確かめる。
 
 ## Done
@@ -11,25 +11,29 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - v0.4.31: local HTTP/Vercel 4 POST経路へshared owner Bearer gateを追加。未設定503・不正/旧token401を本文解析/provider呼出し前に拒否。healthはpublicのまま。
 - 端末設定のtokenは既存Keystore AES/GCMへ保存。空欄維持/明示削除/各requestで再読込。HTTPS＋loopbackのみ送信、redirect追従停止、401/403は再設定案内。provider keyをAPKへ入れていない。
 
+- 共有Redis RESTのatomic EVALでUTC日/固定1分窓の受付上限を追加。設定不足/不明/障害503、超過429+retryAfterSeconds。全4 local HTTP/serverless POSTへprovider前に適用。auth rotationではカウンタをresetしない。
+- 例外・cause・provider本文・入力/headerをログへ出さず固定eventのみ記録。未知API/音声エラー・比較provider失敗を固定文言へ秘匿。timeout工程/待機時間は維持。
+- 模擬共有storeで日/分境界・拒否非加算・並行claims・設定/障害拒否を検証。4 serverlessの超過時provider未呼出しとlocal HTTP未設定拒否を確認。
+- 最新mainのv0.4.32/v0.4.33家電対応・native3D更新を保持。今回Androidコード変更なし。
+
 ## Current
-- この司令塔の担当はBackend認証と端末設定/HTTP整合。native3D資産・描画実装は変更なし。
-- 隔離認証/rotation/本文解析前拒否、Android unit/debug APKが成功。実デプロイ/実Galaxyの認証受入は未検証。
+- Backend上限・rate limit・秘匿ログの隔離fixtureが成功。日/分request件数の制限で、tokens/円の請求上限ではない。Phase0C実環境受入は未完了。
 
 ## Next
-- 利用上限・レート制限・秘匿ログを実装し、Phase0Cの公開前条件を隔離fixtureで検証する。
-- BackendのAI_BACKEND_TOKENを設定/redeploy後、Galaxyで保存/再起動/失効/再入力を確認する。
+- 共有Redis RESTと日/分受付上限をDeployment環境へ設定/redeployできる接続が利用可能になったら、実EVAL・複数Function/process・期限境界・store障害のfail-closedを検証する。
+- Galaxyでowner token保存/再起動/失効/再入力と429/503表示を確認し、Phase0CのWAN/LAN断・Backend停止・72時間受入を進める。
 
 ## Blockers
-- Backend owner token/OpenAI/Jev設定と実デプロイ受入が未実施。実API測定なし。
-- Galaxy実機・USBマイクは未接続。端末Keystore persistence、USB/wake/fps/発熱は実機合格としない。
+- 実Redis/Deployment環境設定・provider側課金制限の実受入は未実施。模擬storeの並行claimsは本番Redis原子性の合格を意味しない。
+- Galaxy実機・USBマイクは未接続。端末Keystore persistenceと実API費用/応答測定、故障注入は未検証。
 
 ## Verification
-- npm test --workspace ai-backend: 61/61 passed; local HTTP/serverless auth/rotation tests use no provider calls
-- Gradle8.11.1/JDK17/SDK35 :app:testDebugUnitTest :app:assembleDebug passed; JUnit36/36, debug APK generated
-- MavenCentral HTTP429を環境専用GCS mirror/JitPack initで回避。repository依存設定は変更なし
-- git diff --check passed
+- npm test --workspace ai-backend: 67/67 passed; synthetic stores/gateways only
+- npm run benchmark:plan --workspace ai-backend: passed; no provider API called
+- git diff --check passed; Backendにbuild/lint scriptなし; Android変更なしのためGradle再実行なし
+- 実Redis EVAL、実デプロイ、実Galaxy、課金上限は未検証
 
-Updated at: 2026-10-02T23:21:58.608023+00:00
+Updated at: 2026-10-03T03:49:57.747124+00:00
 
 ## 3D表示修正完了（2026-10-02、v0.4.30）
 - ユーザー実画面でv0.4.28/v0.4.29が旧イラストだった問題を受け、AI画面のWebViewをネイティブFilament/TextureView＋自己完結GLBへ置き換えた。旧WebView資産は削除。旧イラストへ戻す処理もAI画面から外した。
@@ -43,9 +47,3 @@ Updated at: 2026-10-02T23:21:58.608023+00:00
 - 手動操作と音声のSwitchBotActionAdapterは同じSwitchBotClient.setPowerを使用。照明・Bot・赤外線ACのturnOn / turnOffを維持し、Hub拒否はResult失敗で返す。
 - SwitchBotPowerCommandTestの4テストと既存unit tests、署名APKビルド、Android実AI画面の描画チェックが成功。CI 37086681373、v0.4.32公開済み。実掃除機には接続しておらず、実機の掃除開始／停止は未確認。
 - edb910eのBackend owner-token対応をFF統合して保持。最新SDK/API/authの課題は上記記録を参照。
-
-## 全機種コマンド監査・キャラ動作（2026-10-03、v0.4.33）
-- SwitchBot公式84資料のControl CommandsとDevice Listを確認。docs/SWITCHBOT_COMMAND_AUDIT.mdに型・コマンド・パラメーター・未対応の扱いを記録。機器一覧とコマンド表の型名差（Curtain3/K11+/K20 Plus Pro）にも対応。
-- SwitchBotControlProfilesがUI・手動・音声の共通の根拠。掃除機の世代別start/stopとstartClean/pause、Blind Tilt、Botモードを分ける。startCleanのparameterは文字列ではなくJSONObjectとしてシリアライズする。センサー／鍵／Hub／未知機種／チャンネル未指定Relay 2PM／IR Othersは汎用ON/OFFを送らない。Bot pressはOFFなし、音声は押下の確認が必要。
-- キャラはOSアニメーション倍率0でも待機時に小さく揺れ、発話時は口・体を動かす。画面外停止は維持。IDLE/SPEAKINGの実画像3枚ずつで色差ピクセルをassertし、連続画像を目視確認済み。
-- unit tests、署名APK build、Android送信JSON実型2テスト、ネイティブ描画・停止復帰・実AI画面・待機発話画像差分テストがsuccess。CI 37093764878。v0.4.33公開、mascot-motion.png添付。実家電にはコマンドを送っていないため物理動作は未確認。

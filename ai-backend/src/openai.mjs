@@ -1,3 +1,4 @@
+import { requestLimitFailure } from "./request-limits.mjs";
 import { performance } from "node:perf_hooks";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
@@ -21,14 +22,16 @@ export class ModelTimeoutError extends Error {
 }
 
 export function apiError(error) {
+  const limit = requestLimitFailure(error);
+  if (limit) return limit;
   if (error?.code === "invalid_answer_mode") {
-    return { status: 400, body: { error: error.code, message: error.message } };
+    return { status: 400, body: { error: error.code, message: "回答モードが不正です" } };
   }
   if (error instanceof ModelTimeoutError) {
     return { status: 504, body: { error: "model_timeout", message: error.message,
       model: error.model, stage: error.stage, timeoutMs: error.timeoutMs, elapsedMs: error.elapsedMs } };
   }
-  return { status: 500, body: { error: "internal_error", message: error instanceof Error ? error.message : String(error) } };
+  return { status: 500, body: { error: "internal_error", message: "Backendの処理に失敗しました" } };
 }
 
 export async function createResponse(body, { timeoutMs = MODEL_TIMEOUT_MS, stage = "answer" } = {}) {
