@@ -266,12 +266,14 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
     }
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        if (!disposed && ::uiHelper.isInitialized) uiHelper.attachTo(this)
         configure(phase, desiredActive)
     }
     override fun onDetachedFromWindow() {
         running = false
         previousFrame = 0L
         choreographer.removeFrameCallback(this)
+        if (!disposed && ::uiHelper.isInitialized) uiHelper.detach()
         super.onDetachedFromWindow()
     }
 }
