@@ -43,3 +43,9 @@ Updated at: 2026-10-02T23:21:58.608023+00:00
 - 手動操作と音声のSwitchBotActionAdapterは同じSwitchBotClient.setPowerを使用。照明・Bot・赤外線ACのturnOn / turnOffを維持し、Hub拒否はResult失敗で返す。
 - SwitchBotPowerCommandTestの4テストと既存unit tests、署名APKビルド、Android実AI画面の描画チェックが成功。CI 37086681373、v0.4.32公開済み。実掃除機には接続しておらず、実機の掃除開始／停止は未確認。
 - edb910eのBackend owner-token対応をFF統合して保持。最新SDK/API/authの課題は上記記録を参照。
+
+## 全機種コマンド監査・キャラ動作（2026-10-03、v0.4.33）
+- SwitchBot公式84資料のControl CommandsとDevice Listを確認。docs/SWITCHBOT_COMMAND_AUDIT.mdに型・コマンド・パラメーター・未対応の扱いを記録。機器一覧とコマンド表の型名差（Curtain3/K11+/K20 Plus Pro）にも対応。
+- SwitchBotControlProfilesがUI・手動・音声の共通の根拠。掃除機の世代別start/stopとstartClean/pause、Blind Tilt、Botモードを分ける。startCleanのparameterは文字列ではなくJSONObjectとしてシリアライズする。センサー／鍵／Hub／未知機種／チャンネル未指定Relay 2PM／IR Othersは汎用ON/OFFを送らない。Bot pressはOFFなし、音声は押下の確認が必要。
+- キャラはOSアニメーション倍率0でも待機時に小さく揺れ、発話時は口・体を動かす。画面外停止は維持。IDLE/SPEAKINGの実画像3枚ずつで色差ピクセルをassertし、連続画像を目視確認済み。
+- unit tests、署名APK build、Android送信JSON実型2テスト、ネイティブ描画・停止復帰・実AI画面・待機発話画像差分テストがsuccess。CI 37093764878。v0.4.33公開、mascot-motion.png添付。実家電にはコマンドを送っていないため物理動作は未確認。
