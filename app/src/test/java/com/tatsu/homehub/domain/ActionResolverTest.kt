@@ -8,7 +8,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ActionResolverTest {
-    private val ac = SwitchBotDevice("ac-bedroom", "寝室エアコン", "Air Conditioner", infrared = false)
+    private val ac = SwitchBotDevice("ac-bedroom", "寝室エアコン", "Air Conditioner", infrared = true)
     private val clock = object : () -> Long {
         var now = 100L
         override fun invoke(): Long = now++

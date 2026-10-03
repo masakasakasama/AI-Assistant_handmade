@@ -16,7 +16,7 @@ class SwitchBotPowerCommandTest {
 
     @Test fun lightsBotsAndInfraredAcKeepTheirExistingCommands() {
         for ((type, infrared) in listOf("Color Bulb" to false, "Bot" to false, "Air Conditioner" to true)) {
-            val device = SwitchBotDevice("device", "家電", type, infrared)
+            val device = SwitchBotDevice("device", "家電", type, infrared, botMode = "switchMode")
             assertEquals("turnOn", switchBotPowerCommand(device, true))
             assertEquals("turnOff", switchBotPowerCommand(device, false))
         }

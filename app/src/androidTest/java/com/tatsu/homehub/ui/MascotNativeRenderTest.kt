@@ -117,4 +117,65 @@ class MascotNativeRenderTest {
             windowImage.recycle()
         }
     }
+    @Test fun cIdleAndSpeakingChangeRenderedPixelsEvenWhenSystemAnimationsAreOff() {
+        val fd = instrumentation.uiAutomation.executeShellCommand("settings get global animator_duration_scale")
+        val oldScale = fd.use { FileInputStream(it.fileDescriptor).use { stream -> String(stream.readBytes()).trim() } }
+        fun setScale(value: String) {
+            instrumentation.uiAutomation.executeShellCommand("settings put global animator_duration_scale $value").use {
+                FileInputStream(it.fileDescriptor).use { stream -> stream.readBytes() }
+            }
+        }
+        setScale("0")
+        try {
+            ActivityScenario.launch(MascotPreviewActivity::class.java).use { scenario ->
+                var renderer: NativeMascotView? = null
+                val deadline = System.currentTimeMillis() + 30_000
+                while ((renderer?.frames ?: 0L) < 5 && System.currentTimeMillis() < deadline) {
+                    scenario.onActivity { renderer = findRenderer(it.window.decorView) }
+                    Thread.sleep(100)
+                }
+                assertNotNull(renderer)
+                val pictures = mutableListOf<Bitmap>()
+                for (phase in listOf(VoicePhase.IDLE, VoicePhase.SPEAKING)) {
+                    scenario.onActivity { it.phase = phase }
+                    Thread.sleep(400)
+                    repeat(3) {
+                        scenario.onActivity {
+                            val bitmap = renderer!!.bitmap!!
+                            assertPixels(bitmap)
+                            pictures.add(bitmap)
+                        }
+                        Thread.sleep(650)
+                    }
+                    val first = pictures[pictures.size-3]
+                    var mostChanged = 0
+                    for (second in pictures.takeLast(2)) {
+                        var changed = 0
+                        for (y in 0 until first.height step 2) for (x in 0 until first.width step 2) {
+                            val a = first.getPixel(x, y); val b = second.getPixel(x, y)
+                            if (android.graphics.Color.alpha(a) > 200 || android.graphics.Color.alpha(b) > 200) {
+                                val difference = kotlin.math.abs(android.graphics.Color.red(a)-android.graphics.Color.red(b)) +
+                                    kotlin.math.abs(android.graphics.Color.green(a)-android.graphics.Color.green(b)) +
+                                    kotlin.math.abs(android.graphics.Color.blue(a)-android.graphics.Color.blue(b))
+                                if (difference > 60) changed++
+                            }
+                        }
+                        mostChanged = maxOf(mostChanged, changed)
+                    }
+                    android.util.Log.i("MascotMotionTest", "$phase changedPixels=$mostChanged")
+                    assertTrue("$phase is visually static: changedPixels=$mostChanged", mostChanged > 80)
+                }
+                val width = pictures.first().width; val height = pictures.first().height
+                val evidence = Bitmap.createBitmap(width*3, height*2, Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(evidence)
+                canvas.drawColor(android.graphics.Color.rgb(245,240,255))
+                pictures.forEachIndexed { index, bitmap -> canvas.drawBitmap(bitmap, (index%3*width).toFloat(), (index/3*height).toFloat(), null) }
+                scenario.onActivity { activity ->
+                    File(activity.filesDir, "mascot-motion.png").outputStream().use { evidence.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                }
+                evidence.recycle(); pictures.forEach { it.recycle() }
+            }
+        } finally { setScale(if (oldScale == "null") "1" else oldScale) }
+    }
+
 }

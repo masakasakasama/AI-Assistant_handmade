@@ -93,14 +93,23 @@ class SwitchBotClient(
                 }
             }
 
-            devices.sortedBy { it.name.lowercase() }
+            devices.map { device ->
+                if (!device.infrared && device.type.equals("Bot", true)) {
+                    val mode = runCatching { request("GET", "/devices/${device.deviceId}/status", null)
+                        .getJSONObject("body").optString("deviceMode").takeIf { it.isNotBlank() } }.getOrNull()
+                    device.copy(botMode = mode)
+                } else device
+            }.sortedBy { it.name.lowercase() }
         }
     }
 
     suspend fun setPower(device: SwitchBotDevice, on: Boolean): Result<Unit> {
-        val command = runCatching { switchBotPowerCommand(device, on) }
+        val command = runCatching {
+            val profile = device.controlProfile ?: error("この機種の操作には対応していません")
+            if (on) profile.on else profile.off ?: error("この機種にはOFF操作がありません")
+        }
             .getOrElse { return Result.failure(it) }
-        return sendCommand(device.deviceId, command, "default")
+        return sendCommand(device.deviceId, command.name, command.parameter)
     }
 
     suspend fun setAirConditioner(
@@ -110,6 +119,9 @@ class SwitchBotClient(
         fanSpeed: Int,
         power: Boolean
     ): Result<Unit> {
+        if (temperature !in 16..30 || mode !in 1..5 || fanSpeed !in 1..4) {
+            return Result.failure(IllegalArgumentException("Invalid air conditioner settings"))
+        }
         val parameter = listOf(
             temperature.toString(),
             mode.toString(),
@@ -203,12 +215,8 @@ internal fun switchBotDisplayName(raw: String, _type: String): String {
 
 private val ROOM_SUFFIX = Regex("""^(.+?)\s*[（(]([^()（）]+)[）)]\s*$""")
 
-/** K10 family commands documented in SwitchBot OpenAPI; other vacuum families differ. */
+/** Kept for regression checks; payload parameters come from the same profile. */
 internal fun switchBotPowerCommand(device: SwitchBotDevice, on: Boolean): String {
-    require(device.supportsDirectPowerControl) { "Device does not support direct control" }
-    return if (device.isK10RobotVacuum) {
-        if (on) "start" else "stop"
-    } else {
-        if (on) "turnOn" else "turnOff"
-    }
+    val profile = requireNotNull(device.controlProfile) { "Unsupported device control" }
+    return (if (on) profile.on else requireNotNull(profile.off) { "Unsupported OFF operation" }).name
 }

@@ -488,11 +488,16 @@ private fun FavoriteDeviceTile(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            if (!device.supportsDirectPowerControl && !device.isHub) {
+                Text("この機種の操作は未対応です", style = MaterialTheme.typography.bodySmall)
+            }
             if (device.supportsDirectPowerControl) {
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Button(onClick = { onPower(true) }, modifier = Modifier.weight(1f)) { Text(if (device.isK10RobotVacuum) "掃除開始" else "ON") }
-                    OutlinedButton(onClick = { onPower(false) }, modifier = Modifier.weight(1f)) { Text(if (device.isK10RobotVacuum) "停止" else "OFF") }
+                    Button(onClick = { onPower(true) }, modifier = Modifier.weight(1f)) { Text(device.controlProfile!!.onLabel) }
+                    if (device.controlProfile!!.off != null) {
+                        OutlinedButton(onClick = { onPower(false) }, modifier = Modifier.weight(1f)) { Text(device.controlProfile!!.offLabel) }
+                    }
                 }
             }
         }

@@ -7,7 +7,9 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import android.view.ViewOutlineProvider
-import android.provider.Settings
+import android.opengl.Matrix
+import kotlin.math.sin
+import kotlin.math.sqrt
 import com.google.android.filament.*
 import com.google.android.filament.android.UiHelper
 import com.google.android.filament.gltfio.*
@@ -30,6 +32,12 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
     private var disposed = false
     private var previousFrame = 0L
     private var elapsed = 0f
+    private val rootPose = FloatArray(16)
+    private val mouthPose = FloatArray(16)
+    private val mouthBase = FloatArray(16)
+    private var mouthInstance = 0
+    internal var motionSeconds = 0f
+        private set
     private var animation = 0
     private var previousAnimation = -1
     private var previousTime = 0f
@@ -86,6 +94,7 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
             this.camera = this@NativeMascotView.camera
             blendMode = com.google.android.filament.View.BlendMode.TRANSLUCENT
             setShadowingEnabled(false)
+            setDithering(com.google.android.filament.View.Dithering.NONE)
             antiAliasing = com.google.android.filament.View.AntiAliasing.FXAA
         }
         val irradiance = FloatArray(27).apply { this[0] = .9f; this[1] = .94f; this[2] = 1f }
@@ -105,6 +114,15 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
         for (i in 0 until animator.animationCount) clips[animator.getAnimationName(i)] = i
         check(VoicePhase.entries.all { clips.containsKey(it.name) }) { "Missing voice animation" }
         animation = clips.getValue(phase.name)
+        mouthInstance = engine.transformManager.getInstance(asset!!.getFirstEntityByName("Opening"))
+        check(mouthInstance != 0) { "Missing animated mouth" }
+        engine.transformManager.getTransform(mouthInstance, mouthBase)
+        // Preserve the mouth's surface orientation but replace its tiny baked scale each frame.
+        for (column in 0..2) {
+            val offset = column * 4
+            val length = sqrt(mouthBase[offset]*mouthBase[offset] + mouthBase[offset+1]*mouthBase[offset+1] + mouthBase[offset+2]*mouthBase[offset+2])
+            for (row in 0..2) mouthBase[offset+row] /= length
+        }
         asset!!.releaseSourceData()
         modelLoaded = true
         uiHelper = UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK).apply {
@@ -166,15 +184,16 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
     override fun doFrame(frameTimeNanos: Long) {
         if (disposed || !running || swapChain == null) return
         if (previousFrame == 0L || frameTimeNanos - previousFrame >= 41_666_666L) {
-            val delta = if (previousFrame == 0L) 0f else ((frameTimeNanos - previousFrame) / 1_000_000_000f).coerceAtMost(.1f)
+            val delta = if (previousFrame == 0L) 0f else ((frameTimeNanos - previousFrame) / 1_000_000_000f).coerceAtMost(.25f)
             previousFrame = frameTimeNanos
-            val reduced = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-            if (!reduced) elapsed += delta
+            elapsed += delta
+            motionSeconds += delta
             transition = (transition + delta / .28f).coerceAtMost(1f)
             val animator = asset!!.instance.animator
-            animator.applyAnimation(animation, if (reduced) 0f else elapsed)
-            if (previousAnimation >= 0 && transition < 1f && !reduced) animator.applyCrossFade(previousAnimation, previousTime, transition)
+            animator.applyAnimation(animation, elapsed)
+            if (previousAnimation >= 0 && transition < 1f) animator.applyCrossFade(previousAnimation, previousTime, transition)
             animator.updateBoneMatrices()
+            applyVisibleMotion()
             runCatching {
                 if (renderer.beginFrame(swapChain!!, frameTimeNanos)) {
                     renderer.render(filamentView)
@@ -186,9 +205,22 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
                 running = false
                 onFailure?.invoke(error.message ?: "Native rendering failed")
             }
-            if (reduced && frames >= 3L) return
         }
         schedule()
+    }
+
+    private fun applyVisibleMotion() {
+        val speaking = phase == VoicePhase.SPEAKING
+        val t = motionSeconds
+        Matrix.setIdentityM(rootPose, 0)
+        Matrix.translateM(rootPose, 0, 0f, .035f * sin(t * 1.4f), 0f)
+        Matrix.rotateM(rootPose, 0, (if (speaking) 3.8f else 1.5f) * sin(t * (if (speaking) 3.2f else .85f)), 0f, 0f, 1f)
+        Matrix.rotateM(rootPose, 0, (if (speaking) 2.5f else 1.4f) * sin(t * 1.2f), 0f, 1f, 0f)
+        engine.transformManager.setTransform(engine.transformManager.getInstance(asset!!.root), rootPose)
+        mouthBase.copyInto(mouthPose)
+        Matrix.scaleM(mouthPose, 0, .055f,
+            if (speaking) .018f + .085f * (1f + sin(t * 9f)) / 2f else .001f, .016f)
+        engine.transformManager.setTransform(mouthInstance, mouthPose)
     }
 
     fun release() {

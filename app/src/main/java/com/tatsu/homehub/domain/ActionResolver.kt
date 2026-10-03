@@ -99,6 +99,18 @@ class ActionResolver(
         }
 
         if (action != null) {
+            val profile = device.controlProfile
+            if ((action.type == "power_on" || action.type == "power_off") &&
+                (profile == null || action.type == "power_off" && profile.off == null)) {
+                return plan(intent, device, currentState, null, ActionDecision.FALLBACK, ActionPolicy.BLOCKED,
+                    localized(intent.language, "この機種ではその操作に対応していません", "This operation is not supported for this device.", "Diese Aktion wird für dieses Gerät nicht unterstützt."),
+                    "unsupported device command", stateFetchMs, resolverStarted, policyStarted)
+            }
+            if (action.type == "power_on" && profile?.on?.name == "press") {
+                return plan(intent, device, currentState, action, ActionDecision.CONFIRM, ActionPolicy.CONFIRM_REQUIRED,
+                    localized(intent.language, "${device.name}のボタンを押しますか？", "Press the button on ${device.name}?", "Die Taste von ${device.name} drücken?"),
+                    "momentary button does not imply an absolute power state", stateFetchMs, resolverStarted, policyStarted)
+            }
             if (action.type == "set_temperature" && currentState?.temperature != null &&
                 kotlin.math.abs(action.temperatureC!! - currentState.temperature) > safety.confirmTemperatureDeltaC
             ) {

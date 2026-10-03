@@ -7,10 +7,11 @@ data class SwitchBotDevice(
     val infrared: Boolean,
     val hubDeviceId: String? = null,
     val room: String? = null,
-    val originalName: String? = null
+    val originalName: String? = null,
+    val botMode: String? = null
 ) {
     val isAirConditioner: Boolean
-        get() = type.equals("Air Conditioner", ignoreCase = true)
+        get() = infrared && type.equals("Air Conditioner", ignoreCase = true)
 
     val isK10RobotVacuum: Boolean
         get() = !infrared && type.trim().lowercase() in setOf(
@@ -20,8 +21,11 @@ data class SwitchBotDevice(
     val isHub: Boolean
         get() = type.contains("hub", ignoreCase = true)
 
+    val controlProfile: DeviceControlProfile?
+        get() = SwitchBotControlProfiles.forDevice(this)
+
     val supportsDirectPowerControl: Boolean
-        get() = !isHub
+        get() = controlProfile != null
 }
 
 data class AcControlState(

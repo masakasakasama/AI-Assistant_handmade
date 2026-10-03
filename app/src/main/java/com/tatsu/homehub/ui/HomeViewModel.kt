@@ -471,11 +471,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val result = client.setPower(device, on)
             result
                 .onSuccess {
-                    _message.value = device.name + ": " + if (device.isK10RobotVacuum) {
-                        if (on) "掃除開始コマンドを受け付けました" else "停止コマンドを受け付けました"
-                    } else {
-                        if (on) "ON" else "OFF"
-                    }
+                    val label = if (on) device.controlProfile!!.onLabel else device.controlProfile!!.offLabel
+                    _message.value = device.name + ": " + label + "コマンドを受け付けました"
                 }
                 .onFailure { error ->
                     _message.value = device.name + ": " + (error.message ?: "operation failed")
@@ -527,6 +524,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setAirConditioner(device: SwitchBotDevice, state: AcControlState) {
+        if (!device.isAirConditioner) {
+            _message.value = "この機種にはエアコン設定を送れません"
+            return
+        }
         val client = clientOrNull() ?: return
         // Temperature / mode / fan changes are sent as setAll and explicitly power the AC on.
         // This avoids the old bug where an unknown local default (power=false) sent "...off".

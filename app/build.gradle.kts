@@ -14,8 +14,8 @@ android {
         minSdk = 28
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         targetSdk = 35
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 38
-        versionName = System.getenv("VERSION_NAME") ?: "0.4.32"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 39
+        versionName = System.getenv("VERSION_NAME") ?: "0.4.33"
         buildConfigField(
             "String",
             "DEFAULT_AI_BACKEND_URL",
