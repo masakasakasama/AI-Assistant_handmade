@@ -5,8 +5,8 @@ All 84 official device documents were read. The app only exposes operations with
 | Family | Start / on | Stop / off | Parameter / handling |
 |---|---|---|---|
 | K10+, K10+ Pro, S1, S1 Plus | start | stop | default |
-| S10/S20 | startClean | pause | sweep, fanLevel 1, waterLevel 1, times 1; pause default |
-| K10+ Pro Combo, K11+, K20+ Pro | startClean | pause | sweep, fanLevel 1, times 1; pause default |
+| S10/S20 (Robot Vacuum Cleaner S10/S20) | startClean | pause | sweep, fanLevel 1, waterLevel 1, times 1; pause default |
+| K10+ Pro Combo, K11+, K20+ Pro (including Robot Vacuum Cleaner K20 Plus Pro) | startClean | pause | sweep, fanLevel 1, times 1; pause default |
 | Blind Tilt | fullyOpen | closeDown | default |
 | Bot switchMode | turnOn | turnOff | default |
 | Bot pressMode/customizeMode/unknown mode | press | unsupported | default; button labelled 押す, voice confirmation required |
@@ -53,3 +53,5 @@ Documented native standard-power devices:
 - `strip light 3`: [strip-light-3](https://github.com/OpenWonderLabs/SwitchBotAPI/blob/main/devices/lighting/strip-light-3.md)
 
 Manual UI and voice adapters use the same profiles. Unrecognized types and unavailable operations fail before HTTP. Tests verify commands, parameters, unsupported devices, and voice blocking. Documentation checks do not prove physical operation; no household commands were issued during verification.
+
+The startClean parameter is serialized as a JSON object (String/Object schema), not as an escaped string. Bot mode is read from device status during sync. Curtain3, K11+ and K20 Plus Pro list-type aliases are explicitly handled even where command-table type names differ.

@@ -47,7 +47,7 @@ object SwitchBotControlProfiles {
     private val simpleVacuumTypes = setOf("k10+", "k10+ pro", "mini robot vacuum k10+", "mini robot vacuum k10+ pro",
         "s1", "s1 plus", "robot vacuum cleaner s1", "robot vacuum cleaner s1 plus")
     private val wetVacuumTypes = setOf("s10", "s20", "floor cleaning robot s10", "floor cleaning robot s20", "robot vacuum cleaner s10", "robot vacuum cleaner s20")
-    private val advancedVacuumTypes = setOf("k10+ pro combo", "robot vacuum cleaner k10+ pro combo", "k11+", "robot vacuum k11+", "k20+ pro", "robot vacuum cleaner k20+ pro")
+    private val advancedVacuumTypes = setOf("k10+ pro combo", "robot vacuum cleaner k10+ pro combo", "k11+", "robot vacuum k11+", "robot vacuum cleaner k11+", "robot vacuum cleaner k20 plus pro", "k20+ pro", "robot vacuum cleaner k20+ pro")
 
     fun forDevice(device: SwitchBotDevice): DeviceControlProfile? {
         val type = device.type.trim().lowercase()

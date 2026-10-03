@@ -13,7 +13,7 @@ class SwitchBotControlProfilesTest {
             assertEquals(DeviceControlCommand("start"), p.on)
             assertEquals(DeviceControlCommand("stop"), p.off)
         }
-        for (type in listOf("Floor Cleaning Robot S10", "S20", "K10+ Pro Combo", "Robot Vacuum Cleaner K10+ Pro Combo", "K11+", "K20+ Pro")) {
+        for (type in listOf("Floor Cleaning Robot S10", "S20", "K10+ Pro Combo", "Robot Vacuum Cleaner K10+ Pro Combo", "K11+", "Robot Vacuum Cleaner K11+", "K20+ Pro", "Robot Vacuum Cleaner K20 Plus Pro")) {
             val p = device(type).controlProfile!!
             assertEquals("startClean", p.on.name)
             assertTrue(p.on.parameter.contains("\"action\":\"sweep\""))
