@@ -20,4 +20,6 @@ Vercel's existing main-branch Git integration builds `dist/` with `vercel.json`;
 
 Browser tests use synthetic HTTP/audio fixtures and verify real WebGL pixels, user confirmation, denial recovery, persistence, comparison non-execution and update prompts. They do not prove actual iPhone microphones/TTS, live provider accuracy or real device control.
 
+Webだけを更新した場合も、ブラウザー・本番version検査後に、既存の同じ番号のGitHub Releaseへ最新版Web ZIPとWebKit/Chromiumの画面画像を自動添付する。新しい番号のReleaseがまだなければAPK公開ジョブがZIPを添付する。
+
 Chromeのオフライン画面再読込と、両ブラウザーの旧キャッシュ削除・必要資産の保存を検証する。Playwright WebKitのオフライン指定はService Workerの前でナビゲーションが失敗するため、iPhone実機のオフライン再読込は未検証。オンラインでのWebKit画面・会話・音声PCM処理・設定・操作確認は別に検証する。

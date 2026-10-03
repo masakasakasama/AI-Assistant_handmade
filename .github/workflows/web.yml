@@ -18,7 +18,7 @@ on:
   pull_request:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: web-${{ github.ref }}
   cancel-in-progress: true
@@ -38,6 +38,30 @@ jobs:
       - name: Verify production version after the Git deployment
         if: github.event_name != 'pull_request'
         run: node tools/verify-web-release.mjs
+      - name: Attach verified Web to the matching app release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PYTHON'
+          import json,shutil
+          from pathlib import Path
+          from zipfile import ZipFile,ZIP_DEFLATED
+          root=Path('dist')
+          version=json.loads((root/'version.json').read_text())['version']
+          with ZipFile(f'tatsu-home-web-{version}.zip','w',ZIP_DEFLATED) as archive:
+              for path in sorted(root.rglob('*')):
+                  if path.is_file(): archive.write(path,path.relative_to(root))
+          for project,name in [('webkit-iphone','tatsu-web-iphone.png'),('chromium-android','tatsu-web-android.png')]:
+              path=next(path for path in Path('test-results').rglob('web-home.png') if project in str(path))
+              shutil.copy(path,name)
+          PYTHON
+          VERSION=$(node -e "const fs=require('fs');console.log(JSON.parse(fs.readFileSync('dist/version.json')).version)")
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            gh release upload "v$VERSION" "tatsu-home-web-$VERSION.zip" tatsu-web-iphone.png tatsu-web-android.png --clobber
+          else
+            echo 'The APK release job will attach Web when it creates this new version.'
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
