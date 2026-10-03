@@ -64,3 +64,13 @@ test('unexpected provider errors and logs expose no prompt/audio/token/cause',()
  try{logRequestFailure(error);}finally{console.error=old;}
  assert.deepEqual(logs,[[JSON.stringify({event:'backend_request_failed'})]]);
 });
+
+test('free database enforces the same rate/day failures and hides storage errors',async()=>{
+ const databaseEnv={AI_LIMIT_DATABASE_URL:'postgresql://user:fixture-secret@limits.neon.tech/neondb',AI_DAILY_REQUEST_LIMIT:'3',AI_RATE_REQUEST_LIMIT:'2'};
+ let seen;
+ await claimRequest({env:databaseEnv,now,databaseClaimImpl:async(...args)=>{seen=args;return [1,0];}});
+ assert.deepEqual(seen,[databaseEnv.AI_LIMIT_DATABASE_URL,'tatsu-home:requests:v1:day:2026-10-03','tatsu-home:requests:v1:minute:'+Math.floor(now/60000),3,2]);
+ for(const [result,code] of [[[0,1],'daily_request_limit'],[[0,2],'request_rate_limit']])await assert.rejects(claimRequest({env:databaseEnv,now,databaseClaimImpl:async()=>result}),e=>e.status===429&&e.code===code);
+ for(const databaseClaimImpl of [async()=>{throw Error('fixture-secret');},async()=>undefined,async()=>[1,1]])await assert.rejects(claimRequest({env:databaseEnv,now,databaseClaimImpl}),e=>e.status===503&&!JSON.stringify(apiError(e)).includes('fixture-secret'));
+ for(const patch of [{AI_LIMIT_DATABASE_URL:'https://limits.neon.tech'}, {AI_LIMIT_DATABASE_URL:'postgresql://u:s@untrusted.test/db'}, {AI_RATE_REQUEST_LIMIT:'0'}])await assert.rejects(claimRequest({env:{...databaseEnv,...patch},now,databaseClaimImpl:()=>assert.fail('Invalid configuration connected to store')}),e=>e.code==='usage_limits_not_configured');
+});

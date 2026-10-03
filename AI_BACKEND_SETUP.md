@@ -99,3 +99,9 @@ Provider側の課金制限も設定し、実際の費用は利用明細で確認
 予期しないエラーと比較経路のprovider失敗は固定の公開文言を返す。既存のtimeoutでは
 model/stage/待機時間を維持する。成功時のtranscript/回答は機能上レスポンスへ返すが、
 ログへは保存しない。fixtureは模擬共有storeであり、本番Redis EVALの合格を意味しない。
+
+## 無料Neonでの利用回数制限
+
+Redis RESTの代わりにNeonの無料プランを使える。専用DBで `ai-backend/sql/request-limits.sql` を実行し、接続文字列を本番の `AI_LIMIT_DATABASE_URL` に保存する。`AI_DAILY_REQUEST_LIMIT` / `AI_RATE_REQUEST_LIMIT` は共通。Redis設定がある場合はRedisを優先する。PostgreSQL関数内のトランザクションロックで、日次と分次をまとめて判定・加算する。拒否した要求ではカウンターを増やさない。
+
+本番用Neonで12件の同時要求に対し分次上限2件だけ受け付けること、日次上限、拒否時の非加算を実測した。実端末やprovider課金上限の検証とは区別する。認証キーやDB接続文字列は公開素材へ入れない。

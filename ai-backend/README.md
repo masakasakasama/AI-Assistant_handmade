@@ -34,8 +34,8 @@ confidenceは診断値であり実行許可に使わない。
 
 ## 公開前の制約
 
-owner認証・共有Redisの受付件数上限/レート制限・秘匿エラーログを実装済み。
-利用制限の環境変数を設定しないPOSTは503で停止する。実Redis/実端末受入とprovider側課金制限は未完了。
+owner認証・共有Redisまたは無料Neonの受付件数上限/レート制限・秘匿エラーログを実装済み。
+利用制限の環境変数を設定しないPOSTは503で停止する。実端末受入とprovider側課金制限は未完了。Neonは `sql/request-limits.sql` を初期化し、`AI_LIMIT_DATABASE_URL` を設定する。
 health成功はOpenAI疎通や音声品質合格を意味しない。
 詳しくは[セットアップ](../AI_BACKEND_SETUP.md)、[性能計画](../docs/PERFORMANCE.md)。
 

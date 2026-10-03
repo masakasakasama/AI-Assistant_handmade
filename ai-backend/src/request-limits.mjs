@@ -1,4 +1,5 @@
-// A shared atomic store is required: process memory and Vercel tmp files reset.
+import { claimPostgres } from './postgres-limits.mjs';
+// A shared atomic store is required: Redis or the free Neon database.
 export const CLAIM_SCRIPT = `
 local daily = tonumber(redis.call('GET', KEYS[1]) or '0')
 local minute = tonumber(redis.call('GET', KEYS[2]) or '0')
@@ -17,12 +18,15 @@ export function requestLimitFailure(error) {
   if (!(error instanceof RequestLimitError)) return null;
   return {status:error.status,body:{error:error.code,message:'Backendの利用制限により、このリクエストを実行できません。',...(error.retryAfterSeconds?{retryAfterSeconds:error.retryAfterSeconds}:{})}};
 }
-export async function claimRequest({env=process.env,fetchImpl=fetch,now=Date.now()}={}) {
+export async function claimRequest({env=process.env,fetchImpl=fetch,databaseClaimImpl=claimPostgres,now=Date.now()}={}) {
   const daily=Number(env.AI_DAILY_REQUEST_LIMIT), minute=Number(env.AI_RATE_REQUEST_LIMIT);
+  const useDatabase = !env.AI_LIMIT_REDIS_URL && !env.AI_LIMIT_REDIS_TOKEN && !!env.AI_LIMIT_DATABASE_URL;
   let endpoint;
-  try {endpoint=new URL(env.AI_LIMIT_REDIS_URL);} catch {}
-  if (!endpoint || endpoint.protocol!=='https:' || endpoint.username || endpoint.password || !env.AI_LIMIT_REDIS_TOKEN
-    || !Number.isSafeInteger(daily) || daily<1 || !Number.isSafeInteger(minute) || minute<1) {
+  try {endpoint=new URL(useDatabase ? env.AI_LIMIT_DATABASE_URL : env.AI_LIMIT_REDIS_URL);} catch {}
+  const validStore = useDatabase
+    ? endpoint && ["postgres:", "postgresql:"].includes(endpoint.protocol) && endpoint.hostname.endsWith(".neon.tech") && endpoint.username && endpoint.password && !endpoint.hash
+    : endpoint && endpoint.protocol==='https:' && !endpoint.username && !endpoint.password && env.AI_LIMIT_REDIS_TOKEN;
+  if (!validStore || !Number.isSafeInteger(daily) || daily<1 || !Number.isSafeInteger(minute) || minute<1) {
     throw new RequestLimitError('usage_limits_not_configured',503);
   }
   const date=new Date(now).toISOString().slice(0,10), bucket=Math.floor(now/60000);
@@ -30,10 +34,13 @@ export async function claimRequest({env=process.env,fetchImpl=fetch,now=Date.now
   const prefix='tatsu-home:requests:v1:';
   let result;
   try {
+    if (useDatabase) result = await databaseClaimImpl(env.AI_LIMIT_DATABASE_URL, prefix+'day:'+date, prefix+'minute:'+bucket, daily, minute);
+    else {
     const response=await fetchImpl(endpoint,{method:'POST',headers:{Authorization:`Bearer ${env.AI_LIMIT_REDIS_TOKEN}`,'Content-Type':'application/json'},
       body:JSON.stringify(['EVAL',CLAIM_SCRIPT,'2',prefix+'day:'+date,prefix+'minute:'+bucket,String(daily),String(minute)]),signal:AbortSignal.timeout(2000)});
     if(!response.ok)throw new Error('store unavailable');
     result=(await response.json()).result;
+    }
     if(!Array.isArray(result) || result.length!==2 || !((result[0]===1 && result[1]===0) || (result[0]===0 && [1,2].includes(result[1]))))throw new Error('invalid store result');
   } catch {throw new RequestLimitError('usage_limits_unavailable',503);}
   if(result[0]===0) {
