@@ -65,3 +65,11 @@ Androidエミュレーターの描画検証はGalaxy実機のfps・発熱・GPU�
 ユーザーから静止して見えるとの報告を受け、OSのANIMATOR_DURATION_SCALEが0だと連続描画を止めていた処理を外した。AI画面が表示されている間は待機でも描画を続け、ネイティブ側で小さな上下・左右の揺れを加える。発話では揺れを少し大きくし、GLBのOpeningノードの口を周期的に開閉する。音素リップシンクではない。画面外／バックグラウンドの停止は維持。
 
 Androidテストはシステム設定0の状態でIDLEとSPEAKINGを各3枚取得し、非透明部分で色差のあるピクセルが80点を超えることをassertする。描画回数だけを根拠にしない。実際の連続画像mascot-motion.png（上段待機、下段発話、左から時間順）をReleaseに保存し、目視で揺れと発話時の変化も確認。CI 37093764878はsuccess。
+
+### v0.4.34 — visibly stronger native motion
+
+Idle: body bob 0.10 scene units, roll ±5°, yaw ±4°, head yaw ±8° and nod ±5°, independent ears ±12°. Speaking: roll ±8°, head nod ±9°, ears ±16°, substantially larger mouth opening. Native transforms override clip joint poses without frame allocations. Temporary TextureView detach pauses; reattachment resumes without destroying Filament. Permanent release remains AndroidView.onRelease.
+
+Android release gate captures 12 real texture frames per state at 150ms intervals and publishes looping idle/speaking GIFs. Pixel change requirement scales with image area; temporary parent detach/reattach must resume frames. Existing phase, activity resume and actual AI page checks remain.
+
+Auto STT now sends the encrypted owner token just like chat. Public transcription probe returned `backend_auth_not_configured`: deployment requires AI_BACKEND_TOKEN and shared request-limit configuration; app motion changes do not resolve missing server environment variables.

@@ -30,6 +30,10 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
     var modelLoaded = false
         private set
     private var disposed = false
+    private var desiredActive = false
+    private val jointBases = Array(3) { FloatArray(16) }
+    private val jointPoses = Array(3) { FloatArray(16) }
+    private val jointInstances = IntArray(3)
     private var previousFrame = 0L
     private var elapsed = 0f
     private val rootPose = FloatArray(16)
@@ -123,6 +127,11 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
             val length = sqrt(mouthBase[offset]*mouthBase[offset] + mouthBase[offset+1]*mouthBase[offset+1] + mouthBase[offset+2]*mouthBase[offset+2])
             for (row in 0..2) mouthBase[offset+row] /= length
         }
+        listOf("Head", "EarL", "EarR").forEachIndexed { index, name ->
+            jointInstances[index] = engine.transformManager.getInstance(asset!!.getFirstEntityByName(name))
+            check(jointInstances[index] != 0) { "Missing mascot joint: $name" }
+            engine.transformManager.getTransform(jointInstances[index], jointBases[index])
+        }
         asset!!.releaseSourceData()
         modelLoaded = true
         uiHelper = UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK).apply {
@@ -168,7 +177,8 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
             transition = 0f
         }
         phase = nextPhase
-        running = active
+        desiredActive = active
+        running = active && isAttachedToWindow
         previousFrame = 0L
         choreographer.removeFrameCallback(this)
         schedule()
@@ -213,13 +223,24 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
         val speaking = phase == VoicePhase.SPEAKING
         val t = motionSeconds
         Matrix.setIdentityM(rootPose, 0)
-        Matrix.translateM(rootPose, 0, 0f, .035f * sin(t * 1.4f), 0f)
-        Matrix.rotateM(rootPose, 0, (if (speaking) 3.8f else 1.5f) * sin(t * (if (speaking) 3.2f else .85f)), 0f, 0f, 1f)
-        Matrix.rotateM(rootPose, 0, (if (speaking) 2.5f else 1.4f) * sin(t * 1.2f), 0f, 1f, 0f)
+        Matrix.translateM(rootPose, 0, 0f, .10f * sin(t * 1.8f), 0f)
+        Matrix.rotateM(rootPose, 0, (if (speaking) 8f else 5f) * sin(t * (if (speaking) 3.2f else 1.5f)), 0f, 0f, 1f)
+        Matrix.rotateM(rootPose, 0, (if (speaking) 6f else 4f) * sin(t * 1.5f), 0f, 1f, 0f)
         engine.transformManager.setTransform(engine.transformManager.getInstance(asset!!.root), rootPose)
+        for (index in jointInstances.indices) {
+            val pose = jointPoses[index]
+            jointBases[index].copyInto(pose)
+            if (index == 0) {
+                Matrix.rotateM(pose, 0, 8f * sin(t * 1.3f), 0f, 1f, 0f)
+                Matrix.rotateM(pose, 0, (if (speaking) 9f else 5f) * sin(t * (if (speaking) 4f else 1.6f)), 1f, 0f, 0f)
+            } else {
+                Matrix.rotateM(pose, 0, (if (speaking) 16f else 12f) * sin(t * 2.4f + index * 1.5f), 0f, 0f, 1f)
+            }
+            engine.transformManager.setTransform(jointInstances[index], pose)
+        }
         mouthBase.copyInto(mouthPose)
         Matrix.scaleM(mouthPose, 0, .055f,
-            if (speaking) .018f + .085f * (1f + sin(t * 9f)) / 2f else .001f, .016f)
+            if (speaking) .035f + .15f * (1f + sin(t * 9f)) / 2f else .001f, .016f)
         engine.transformManager.setTransform(mouthInstance, mouthPose)
     }
 
@@ -243,5 +264,14 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
         if (::renderer.isInitialized) engine.destroyRenderer(renderer)
         engine.destroy()
     }
-    override fun onDetachedFromWindow() { release(); super.onDetachedFromWindow() }
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        configure(phase, desiredActive)
+    }
+    override fun onDetachedFromWindow() {
+        running = false
+        previousFrame = 0L
+        choreographer.removeFrameCallback(this)
+        super.onDetachedFromWindow()
+    }
 }

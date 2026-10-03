@@ -1,6 +1,7 @@
 package com.tatsu.homehub.voice
 
 import android.content.Context
+import com.tatsu.homehub.data.SecurePrefs
 import android.media.AudioRecord
 import android.os.SystemClock
 import android.util.Base64
@@ -113,6 +114,9 @@ class MultilingualSpeechController(context: Context, private val listener: Voice
         connection.connectTimeout = 12_000
         connection.readTimeout = 60_000
         connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        val token = SecurePrefs(appContext).get(SecurePrefs.KEY_AI_BACKEND_TOKEN).orEmpty().trim()
+        check(token.isNotEmpty() && token.none { it.isWhitespace() }) { "設定からBackend認証トークンを入力してください" }
+        connection.setRequestProperty("Authorization", "Bearer $token")
         connection.doOutput = true
         val cancellation = currentCoroutineContext().job.invokeOnCompletion(onCancelling = true, invokeImmediately = true) {
             cause -> if (cause != null) connection.disconnect()
@@ -123,7 +127,14 @@ class MultilingualSpeechController(context: Context, private val listener: Voice
             val code = connection.responseCode
             val raw = (if (code in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
             val result = runCatching { JSONObject(raw) }.getOrNull()
-            check(code in 200..299) { result?.optString("message")?.takeIf { it.isNotBlank() } ?: "自動音声認識 HTTP $code" }
+            check(code in 200..299) {
+                when (result?.optString("error")) {
+                    "backend_auth_not_configured" -> "音声認識サーバーの認証設定が未完了です"
+                    "unauthorized" -> "Backend認証トークンを設定で確認してください"
+                    "usage_limits_not_configured" -> "音声認識サーバーの利用上限設定が未完了です"
+                    else -> result?.optString("message")?.takeIf { it.isNotBlank() } ?: "自動音声認識 HTTP $code"
+                }
+            }
             return requireNotNull(result) { "自動音声認識の応答を読めません" }
         } finally { cancellation.dispose(); connection.disconnect() }
     }

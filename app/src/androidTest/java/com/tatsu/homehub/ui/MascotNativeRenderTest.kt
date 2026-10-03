@@ -63,6 +63,25 @@ class MascotNativeRenderTest {
                 Thread.sleep(200)
                 scenario.onActivity { assertEquals(phase, renderer!!.phase); assertTrue(renderer!!.running) }
             }
+            // Compose may temporarily detach an AndroidView without releasing it.
+            var parent: ViewGroup? = null
+            var childIndex = 0
+            var layout: ViewGroup.LayoutParams? = null
+            scenario.onActivity {
+                parent = renderer!!.parent as ViewGroup
+                childIndex = parent!!.indexOfChild(renderer)
+                layout = renderer!!.layoutParams
+                parent!!.removeView(renderer)
+                assertFalse(renderer!!.running)
+            }
+            Thread.sleep(100)
+            val detachedFrames = renderer!!.frames
+            scenario.onActivity { parent!!.addView(renderer, childIndex, layout) }
+            Thread.sleep(650)
+            scenario.onActivity {
+                assertTrue("Temporary reattachment froze mascot", renderer!!.frames > detachedFrames)
+                assertTrue(renderer!!.running)
+            }
             scenario.moveToState(Lifecycle.State.CREATED)
             Thread.sleep(200)
             instrumentation.runOnMainSync { assertFalse("Not paused", renderer!!.running) }
@@ -139,17 +158,20 @@ class MascotNativeRenderTest {
                 for (phase in listOf(VoicePhase.IDLE, VoicePhase.SPEAKING)) {
                     scenario.onActivity { it.phase = phase }
                     Thread.sleep(400)
-                    repeat(3) {
+                    repeat(12) { frame ->
                         scenario.onActivity {
                             val bitmap = renderer!!.bitmap!!
                             assertPixels(bitmap)
                             pictures.add(bitmap)
+                            File(it.filesDir, "mascot-${phase.name.lowercase()}-$frame.png").outputStream().use { stream ->
+                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                            }
                         }
-                        Thread.sleep(650)
+                        Thread.sleep(150)
                     }
-                    val first = pictures[pictures.size-3]
+                    val first = pictures[pictures.size-12]
                     var mostChanged = 0
-                    for (second in pictures.takeLast(2)) {
+                    for (second in pictures.takeLast(11)) {
                         var changed = 0
                         for (y in 0 until first.height step 2) for (x in 0 until first.width step 2) {
                             val a = first.getPixel(x, y); val b = second.getPixel(x, y)
@@ -163,13 +185,13 @@ class MascotNativeRenderTest {
                         mostChanged = maxOf(mostChanged, changed)
                     }
                     android.util.Log.i("MascotMotionTest", "$phase changedPixels=$mostChanged")
-                    assertTrue("$phase is visually static: changedPixels=$mostChanged", mostChanged > 80)
+                    assertTrue("$phase is visually static: changedPixels=$mostChanged", mostChanged > first.width * first.height / 200)
                 }
                 val width = pictures.first().width; val height = pictures.first().height
                 val evidence = Bitmap.createBitmap(width*3, height*2, Bitmap.Config.ARGB_8888)
                 val canvas = android.graphics.Canvas(evidence)
                 canvas.drawColor(android.graphics.Color.rgb(245,240,255))
-                pictures.forEachIndexed { index, bitmap -> canvas.drawBitmap(bitmap, (index%3*width).toFloat(), (index/3*height).toFloat(), null) }
+                listOf(0, 5, 11, 12, 17, 23).forEachIndexed { index, frame -> canvas.drawBitmap(pictures[frame], (index%3*width).toFloat(), (index/3*height).toFloat(), null) }
                 scenario.onActivity { activity ->
                     File(activity.filesDir, "mascot-motion.png").outputStream().use { evidence.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 }
