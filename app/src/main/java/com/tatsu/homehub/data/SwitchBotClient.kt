@@ -98,7 +98,8 @@ class SwitchBotClient(
     }
 
     suspend fun setPower(device: SwitchBotDevice, on: Boolean): Result<Unit> {
-        val command = switchBotPowerCommand(device, on)
+        val command = runCatching { switchBotPowerCommand(device, on) }
+            .getOrElse { return Result.failure(it) }
         return sendCommand(device.deviceId, command, "default")
     }
 
