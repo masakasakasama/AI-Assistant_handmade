@@ -137,10 +137,7 @@ class SwitchBotClient(
         parameter: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            val payload = JSONObject()
-                .put("command", command)
-                .put("parameter", parameter)
-                .put("commandType", "command")
+            val payload = switchBotCommandPayload(com.tatsu.homehub.model.DeviceControlCommand(command, parameter))
             request("POST", "/devices/" + deviceId + "/commands", payload)
             Unit
         }
@@ -220,3 +217,9 @@ internal fun switchBotPowerCommand(device: SwitchBotDevice, on: Boolean): String
     val profile = requireNotNull(device.controlProfile) { "Unsupported device control" }
     return (if (on) profile.on else requireNotNull(profile.off) { "Unsupported OFF operation" }).name
 }
+
+/** Robot JSON parameters must be JSON objects, never strings containing escaped JSON. */
+internal fun switchBotCommandPayload(command: com.tatsu.homehub.model.DeviceControlCommand): JSONObject =
+    JSONObject().put("command", command.name)
+        .put("parameter", if (command.name == "startClean") JSONObject(command.parameter) else command.parameter)
+        .put("commandType", "command")

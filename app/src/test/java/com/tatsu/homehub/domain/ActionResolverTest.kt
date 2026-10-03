@@ -158,4 +158,20 @@ class ActionResolverTest {
         assertEquals("b", DeviceTargetResolver.resolve("b", "air_conditioner", devices).single().deviceId)
     }
 
+    @Test fun unsupportedPowerNeverProducesAnExecutableVoicePlan() {
+        for (type in listOf("Lock", "Hub 2", "Meter", "Relay Switch 2PM", "Unknown")) {
+            val device = SwitchBotDevice("target", "対象", type, false)
+            val request = DeviceIntent("device_action", "target", null, "turn_on", null, null, .99, "ja")
+            val plan = resolver.resolve(request, listOf(device), null)
+            assertEquals(type, ActionPolicy.BLOCKED, plan.policy)
+            assertNull(plan.action)
+        }
+    }
+    @Test fun momentaryBotRequiresConfirmationAndHasNoOffAction() {
+        val device = SwitchBotDevice("target", "対象", "Bot", false, botMode = "pressMode")
+        val request = DeviceIntent("device_action", "target", null, "turn_on", null, null, .99, "ja")
+        assertEquals(ActionDecision.CONFIRM, resolver.resolve(request, listOf(device), null).decision)
+        assertEquals(ActionPolicy.BLOCKED, resolver.resolve(request.copy(action="turn_off"), listOf(device), null).policy)
+    }
+
 }

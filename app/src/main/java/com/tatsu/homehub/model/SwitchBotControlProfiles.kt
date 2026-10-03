@@ -22,10 +22,10 @@ object SwitchBotControlProfiles {
         "color bulb",
         "curtain",
         "curtain 3",
+        "curtain3",
         "floor lamp",
         "garage door opener",
         "humidifier",
-        "humidifier2",
         "humidifier2",
         "permanent outdoor lights",
         "plug",
@@ -69,7 +69,7 @@ object SwitchBotControlProfiles {
             }
             type == "blind tilt" -> DeviceControlProfile(DeviceControlCommand("fullyOpen"), DeviceControlCommand("closeDown"), "開く", "閉じる（下向き）")
             type in standardPowerTypes -> DeviceControlProfile(DeviceControlCommand("turnOn"), DeviceControlCommand("turnOff"),
-                if (type in setOf("curtain", "curtain 3")) "開く" else "ON", if (type in setOf("curtain", "curtain 3")) "閉じる" else "OFF")
+                if (type in setOf("curtain", "curtain 3", "curtain3")) "開く" else "ON", if (type in setOf("curtain", "curtain 3", "curtain3")) "閉じる" else "OFF")
             else -> null // Sensors, hubs, locks, unspecified channels and unknown types are never guessed.
         }
     }

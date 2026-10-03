@@ -44,7 +44,7 @@ class SwitchBotControlProfilesTest {
         assertEquals("turnOn", device("Light", true).controlProfile!!.on.name)
     }
     @Test fun normalLightsPlugsAndCurtainsRetainDocumentedPower() {
-        for (type in listOf("Color Bulb", "Ceiling Light", "Plug Mini (JP)", "Plug Mini (US)", "Relay Switch 1PM", "Curtain", "Curtain 3", "Humidifier2")) {
+        for (type in listOf("Color Bulb", "Ceiling Light", "Plug Mini (JP)", "Plug Mini (US)", "Relay Switch 1PM", "Curtain", "Curtain 3", "Curtain3", "Humidifier2")) {
             val p = device(type).controlProfile!!
             assertEquals(DeviceControlCommand("turnOn"), p.on)
             assertEquals(DeviceControlCommand("turnOff"), p.off)
