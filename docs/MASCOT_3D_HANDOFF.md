@@ -73,3 +73,7 @@ Idle: body bob 0.10 scene units, roll ±5°, yaw ±4°, head yaw ±8° and nod �
 Android release gate captures 12 real texture frames per state at 150ms intervals and publishes looping idle/speaking GIFs. Pixel change requirement scales with image area; temporary parent detach/reattach must resume frames. Existing phase, activity resume and actual AI page checks remain.
 
 Auto STT now sends the encrypted owner token just like chat. Public transcription probe returned `backend_auth_not_configured`: deployment requires AI_BACKEND_TOKEN and shared request-limit configuration; app motion changes do not resolve missing server environment variables.
+
+## v0.4.35 タップ反応
+
+AndroidのComposeクリックとWebのタップ・Enter/Spaceから、同じ1.2秒の二段ジャンプ、耳振り、首傾げを重ねる。音声のVoicePhaseや録音・読み上げを変更せず、AI認証・通信は不要。連続タップは反応の開始時刻を更新し、変形は積み上げない。通常の待機・発話と画面外の停止・復帰を維持。Androidの実タッチと描画ピクセル検証からmascot-tap.gifを作り、リリースに添付する。WebKit/Chromiumでタップ、キーボード、無認証、終了・再タップを検証する。

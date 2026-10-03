@@ -29,6 +29,11 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
         private set
     var modelLoaded = false
         private set
+    var tapCount = 0L
+        private set
+    private var tapStarted = -10f
+    internal var tapLift = 0f
+        private set
     private var disposed = false
     private var desiredActive = false
     private val jointBases = Array(3) { FloatArray(16) }
@@ -184,6 +189,13 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
         schedule()
     }
 
+    fun reactToTap() {
+        if (disposed || !modelLoaded) return
+        tapCount++
+        tapStarted = motionSeconds
+        schedule()
+    }
+
     private fun schedule() {
         if (!disposed && running && modelLoaded && swapChain != null) {
             choreographer.removeFrameCallback(this)
@@ -222,18 +234,27 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
     private fun applyVisibleMotion() {
         val speaking = phase == VoicePhase.SPEAKING
         val t = motionSeconds
+        val progress = ((t - tapStarted) / 1.2f).coerceIn(0f, 1f)
+        val envelope = sin(Math.PI.toFloat() * progress)
+        val bounce = kotlin.math.abs(sin(Math.PI.toFloat() * 2f * progress))
+        tapLift = .42f * bounce * envelope
+        val flutter = envelope * sin(progress * Math.PI.toFloat() * 8f)
         Matrix.setIdentityM(rootPose, 0)
-        Matrix.translateM(rootPose, 0, 0f, .10f * sin(t * 1.8f), 0f)
+        Matrix.translateM(rootPose, 0, 0f, .10f * sin(t * 1.8f) + tapLift, 0f)
         Matrix.rotateM(rootPose, 0, (if (speaking) 8f else 5f) * sin(t * (if (speaking) 3.2f else 1.5f)), 0f, 0f, 1f)
         Matrix.rotateM(rootPose, 0, (if (speaking) 6f else 4f) * sin(t * 1.5f), 0f, 1f, 0f)
+        Matrix.rotateM(rootPose, 0, 10f * flutter, 0f, 0f, 1f)
+        Matrix.scaleM(rootPose, 0, 1f + .06f * envelope, 1f - .04f * envelope, 1f)
         engine.transformManager.setTransform(engine.transformManager.getInstance(asset!!.root), rootPose)
         for (index in jointInstances.indices) {
             val pose = jointPoses[index]
             jointBases[index].copyInto(pose)
             if (index == 0) {
+                Matrix.rotateM(pose, 0, 12f * envelope, 0f, 0f, 1f)
                 Matrix.rotateM(pose, 0, 8f * sin(t * 1.3f), 0f, 1f, 0f)
                 Matrix.rotateM(pose, 0, (if (speaking) 9f else 5f) * sin(t * (if (speaking) 4f else 1.6f)), 1f, 0f, 0f)
             } else {
+                Matrix.rotateM(pose, 0, (if (index == 1) 28f else -28f) * flutter, 0f, 0f, 1f)
                 Matrix.rotateM(pose, 0, (if (speaking) 16f else 12f) * sin(t * 2.4f + index * 1.5f), 0f, 0f, 1f)
             }
             engine.transformManager.setTransform(jointInstances[index], pose)

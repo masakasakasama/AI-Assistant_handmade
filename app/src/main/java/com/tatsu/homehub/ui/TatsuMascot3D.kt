@@ -1,6 +1,8 @@
 package com.tatsu.homehub.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,7 +51,9 @@ private fun NativeMascotContent(phase: VoicePhase, modifier: Modifier, onRetry: 
         onDispose { lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(renderer, phase, resumed, visible, failed) { renderer?.configure(phase, resumed && visible && !failed) }
-    Box(modifier.semantics { contentDescription = "Tatsu Homeの3Dマスコット" }
+    Box(modifier.clickable(role = Role.Button, onClickLabel = "なでる") {
+        if (failed) onRetry() else renderer?.reactToTap()
+    }.semantics { contentDescription = "Tatsu Homeの3Dマスコット" }
         .background(Brush.linearGradient(listOf(Color(0xFFFFF0F9), Color(0xFFE0F1FF))), RoundedCornerShape(44.dp))
         .onGloballyPositioned {
             val rect = it.boundsInWindow()

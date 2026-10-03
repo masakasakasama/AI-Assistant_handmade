@@ -201,4 +201,62 @@ class MascotNativeRenderTest {
         } finally { setScale(if (oldScale == "null") "1" else oldScale) }
     }
 
+    @Test fun dPettingByTouchWorksWithoutAiCredentials() {
+        ActivityScenario.launch(MascotPreviewActivity::class.java).use { scenario ->
+            var renderer: NativeMascotView? = null
+            val deadline = System.currentTimeMillis() + 30_000
+            while ((renderer?.frames ?: 0L) < 5 && System.currentTimeMillis() < deadline) {
+                scenario.onActivity { renderer = findRenderer(it.window.decorView) }
+                Thread.sleep(100)
+            }
+            assertNotNull(renderer)
+            scenario.onActivity { it.phase = VoicePhase.ERROR }
+            Thread.sleep(300)
+            lateinit var beforeTap: Bitmap
+            scenario.onActivity { beforeTap = renderer!!.bitmap!! }
+            var changedPixels = 0
+            val position = IntArray(2)
+            var x = 0; var y = 0
+            scenario.onActivity {
+                renderer!!.getLocationOnScreen(position)
+                x = position[0] + renderer!!.width / 2
+                y = position[1] + renderer!!.height / 2
+            }
+            UiDevice.getInstance(instrumentation).click(x, y)
+            var maxLift = 0f
+            repeat(12) { frame ->
+                Thread.sleep(100)
+                scenario.onActivity {
+                    assertEquals("Touch never arrived at mascot", 1L, renderer!!.tapCount)
+                    assertEquals("Petting changed voice status", VoicePhase.ERROR, renderer!!.phase)
+                    maxLift = maxOf(maxLift, renderer!!.tapLift)
+                    val bitmap = renderer!!.bitmap!!
+                    assertPixels(bitmap, requireOpenEyes = false)
+                    var changed = 0
+                    for (py in 0 until bitmap.height step 2) for (px in 0 until bitmap.width step 2) {
+                        val a = beforeTap.getPixel(px, py); val b = bitmap.getPixel(px, py)
+                        val difference = kotlin.math.abs(android.graphics.Color.alpha(a)-android.graphics.Color.alpha(b)) +
+                            kotlin.math.abs(android.graphics.Color.red(a)-android.graphics.Color.red(b)) +
+                            kotlin.math.abs(android.graphics.Color.green(a)-android.graphics.Color.green(b)) +
+                            kotlin.math.abs(android.graphics.Color.blue(a)-android.graphics.Color.blue(b))
+                        if (difference > 80) changed++
+                    }
+                    changedPixels = maxOf(changedPixels, changed)
+                    File(it.filesDir, "mascot-tap-$frame.png").outputStream().use { stream ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                    }
+                    bitmap.recycle()
+                }
+            }
+            assertTrue("Tap produced no visible movement", changedPixels > beforeTap.width * beforeTap.height / 100)
+            beforeTap.recycle()
+            assertTrue("Tap bounce is too small: $maxLift", maxLift > .15f)
+            Thread.sleep(200)
+            scenario.onActivity { assertTrue("Tap reaction never finishes", renderer!!.tapLift < .001f) }
+            UiDevice.getInstance(instrumentation).click(x, y)
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { assertEquals("Repeated taps stopped working", 2L, renderer!!.tapCount) }
+        }
+    }
+
 }

@@ -201,7 +201,9 @@ async function loadMascot(){mascot?.dispose();mascot=null;$('#mascot-fallback').
   try{const next=await createMascot($('#mascot-canvas'),()=>{$('#mascot-fallback').hidden=true;$('#mascot-retry').hidden=true;},()=>{$('#mascot-fallback').hidden=false;$('#mascot-retry').hidden=false;});mascot=next;next.setPhase(phase);next.setActive(tab==='home');window.tatsuMascotDiagnostics=()=>next.diagnostics();}
   catch{$('#mascot-retry').hidden=false;$('#diagnostics').textContent='3Dの読み込みに失敗しました。「3Dを再試行」でやり直せます。';}
 }
-$('#mascot-retry').onclick=()=>void loadMascot();
+$('#mascot-retry').onclick=event=>{event.stopPropagation();void loadMascot();};
+$('#mascot').onclick=()=>mascot?.reactToTap();
+$('#mascot').onkeydown=event=>{if(event.target===event.currentTarget&&['Enter',' '].includes(event.key)){event.preventDefault();mascot?.reactToTap();}};
 async function checkUpdate(){try{const response=await fetch('/version.json',{cache:'no-store'});if(!response.ok)return;const current=await response.json();if(current.version!==__APP_VERSION__||current.commit!==__APP_COMMIT__){updateReady=true;$('#update').hidden=false;}}catch{/* Offline keeps the current UI. */}}
 $('#update').onclick=async()=>{if(busy||recording||phase==='SPEAKING'){toast('会話が終わってから更新してください。');return;}if(registration?.waiting)registration.waiting.postMessage('activate');else location.reload();};
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'}).then(value=>{registration=value;value.addEventListener('updatefound',()=>{value.installing?.addEventListener('statechange',event=>{if(event.target.state==='installed'&&navigator.serviceWorker.controller){updateReady=true;$('#update').hidden=false;}});});}).catch(()=>{});navigator.serviceWorker.addEventListener('controllerchange',()=>{if(updateReady)location.reload();});}

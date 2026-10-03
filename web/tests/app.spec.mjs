@@ -88,3 +88,21 @@ test('microphone refusal leaves text chat usable',async({page})=>{
   await fixture(page);await page.addInitScript(()=>{Object.defineProperty(MediaDevices.prototype,'getUserMedia',{configurable:true,value:async()=>{throw new DOMException('Denied','NotAllowedError');}});});
   await page.goto('/');await page.locator('#listen').click();await expect(page.locator('#voice-error')).toContainText('マイクの使用を許可');await expect(page.locator('#listen')).toBeEnabled();await expect(page.getByRole('button',{name:'送信',exact:true})).toBeEnabled();
 });
+
+
+test('petting works without credentials and preserves the voice phase',async({page},testInfo)=>{
+  await page.goto('/');
+  await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics?.()?.frames||0),{timeout:25_000}).toBeGreaterThan(4);
+  const mascot=page.getByRole('button',{name:'Tatsu Homeの3Dマスコットをなでる'});
+  const before=await page.locator('#mascot-canvas').screenshot();
+  await mascot.click();
+  await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().tapCount)).toBe(1);
+  await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().tapLift),{intervals:[30]}).toBeGreaterThan(.15);
+  const jumped=await page.locator('#mascot-canvas').screenshot();expect(before.equals(jumped)).toBe(false);
+  await page.screenshot({path:testInfo.outputPath('web-tap.png')});
+  await mascot.focus();await page.keyboard.press('Enter');
+  expect(await page.evaluate(()=>window.tatsuMascotDiagnostics().tapCount)).toBe(2);
+  expect(await page.evaluate(()=>window.tatsuMascotDiagnostics().phase)).toBe('IDLE');
+  await expect(page.locator('#voice-error')).toBeHidden();
+  await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().tapLift),{timeout:3000}).toBeLessThan(.001);
+});
