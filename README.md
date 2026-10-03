@@ -4,6 +4,10 @@
 
 Google Home / Alexaの全機能コピーではなく、自然な会話、SwitchBot、正確なアラーム管理、天気、日・英・独を優先します。応答速度は最優先の品質条件です。
 
+## Web版（iPhone / Androidブラウザー）
+
+https://ai-assistant-handmade.vercel.app/ を開く。Web版もAndroidと同じバージョンで毎回公開する。3Dキャラ・会話・音声・家電操作を実装。iOSではボタンで音声を開始し、Webアラームは画面を開いている間だけ鳴る。設定・アラームはAndroidと共有しない。[使い方と公開手順](docs/WEB.md)。
+
 ## v0.4.31
 
 Backendの有料API経路へshared owner token認証を追加。端末設定で入力し、既存Keystore暗号化保存からHTTPへ送信する。未設定・誤token・失効後のtokenはprovider呼出し前に拒否する。設定とrotation手順は[AI_BACKEND_SETUP.md](AI_BACKEND_SETUP.md)。共有Redisの利用件数上限・rate limitと秘匿エラーログを追加。実Redis・実デプロイ/実Galaxy受入は未完了。

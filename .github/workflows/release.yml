@@ -58,6 +58,24 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: echo "v$VERSION already exists; skipping"
 
+      - uses: actions/setup-node@v4
+        if: steps.release_check.outputs.exists != 'true'
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Build and verify Web for the same release
+        if: steps.release_check.outputs.exists != 'true'
+        run: |
+          npm ci --ignore-scripts
+          npm test --workspace ai-backend
+          npx playwright install --with-deps webkit chromium
+          npm run test:web
+          node tools/verify-web-release.mjs
+          VERSION=$(node -e "const fs=require('fs');console.log(JSON.parse(fs.readFileSync('dist/version.json')).version)")
+          test "$VERSION" = "${{ steps.version.outputs.version }}"
+          (cd dist && zip -qr "../tatsu-home-web-$VERSION.zip" .)
+
       - uses: actions/setup-java@v5
         if: steps.release_check.outputs.exists != 'true'
         with:
@@ -160,4 +178,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
-        run: gh release create "v$VERSION" "tatsu-home-$VERSION.apk" "mascot-evidence/mascot-native.png" "mascot-evidence/mascot-ai-window.png" "mascot-evidence/mascot-motion.png" "mascot-evidence/mascot-idle.gif" "mascot-evidence/mascot-speaking.gif" --title "Tatsu Home v$VERSION" --generate-notes
+        run: gh release create "v$VERSION" "tatsu-home-$VERSION.apk" "mascot-evidence/mascot-native.png" "mascot-evidence/mascot-ai-window.png" "mascot-evidence/mascot-motion.png" "mascot-evidence/mascot-idle.gif" "mascot-evidence/mascot-speaking.gif" "tatsu-home-web-$VERSION.zip" --title "Tatsu Home v$VERSION" --generate-notes

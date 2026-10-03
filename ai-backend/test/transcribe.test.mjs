@@ -64,3 +64,15 @@ test("endpoint rejects non-POST and invalid audio", async () => {
   await handler({ method: "POST", headers: { authorization: "Bearer endpoint-fixture-token" }, body: { audioBase64: "bad" } }, response);
   assert.equal(response.code, 400);
 });
+
+
+test("fixed German input sends only the selected language; unsupported hints never call a provider", async () => {
+  const previous=process.env.OPENAI_API_KEY;process.env.OPENAI_API_KEY="fixture";
+  try {
+    await transcribe({audioBase64:wav().toString("base64"),language:"de"},{fetch:async(url,options)=>{
+      assert.equal(options.body.get("language"),"de");assert.deepEqual(options.body.getAll("languages[]"),[]);
+      return Response.json({text:"Guten Morgen!",languages:[{code:"de"}]});
+    }});
+    await assert.rejects(transcribe({audioBase64:wav().toString("base64"),language:"invented"},{fetch:()=>assert.fail("provider called")}),{code:"invalid_audio"});
+  } finally { if(previous===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous; }
+});

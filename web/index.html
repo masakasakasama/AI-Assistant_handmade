@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050c13">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Tatsu Home — 会話と、家の操作をひとつに。">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.png">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <title>Tatsu Home</title>
+  <link rel="stylesheet" href="__STYLE__">
+</head>
+<body>
+  <div id="app">
+    <header><div><p class="brand">TATSU HOME</p><h1>おかえりなさい</h1></div><div class="header-actions"><button id="refresh" class="icon-button" aria-label="更新">↻</button><button id="settings-open" class="icon-button" aria-label="設定">⚙</button></div></header>
+    <button id="update" hidden>新しいバージョンがあります · 更新する</button>
+    <main>
+      <section id="page-home" data-page="home">
+        <article class="card weather"><div><p id="date"></p><p id="clock" class="clock">--:--</p><p class="muted">今日も、心地よい一日を。</p></div><div class="weather-side"><p class="weather-icon">☁</p><p id="temperature" class="temperature">--°</p><p id="weather-place">元浅草</p><p id="weather-label" class="muted">天気を取得中</p></div></article>
+        <article id="assistant-card" class="card assistant"><div id="mascot" role="img" aria-label="動くTatsu Homeの3Dマスコット"><img id="mascot-fallback" src="/mascot-preview.png" alt=""><canvas id="mascot-canvas"></canvas><button id="mascot-retry" hidden>3Dを再試行</button></div><p id="mascot-caption" class="bubble" aria-live="polite">話しかけてね</p><div class="voice-heading"><span class="mic-icon">♩</span><div><h2>音声入力</h2><p id="voice-detail" class="muted">自動（日・英・独）</p></div><span id="voice-state">待機</span></div><div class="buttons"><button id="listen" class="primary">🎙 Lunaで話す</button><button id="listen-jev">Jevで話す</button><button id="stop-recording" hidden>聞き取り終了</button><button id="cancel" hidden>キャンセル</button></div><p id="voice-error" class="error" role="alert" hidden></p><div id="transcript" class="muted"></div><form id="chat-form"><label for="query" class="sr-only">メッセージ</label><textarea id="query" rows="2" maxlength="4000" placeholder="メッセージを入力しても話せるよ"></textarea><div class="buttons"><button class="primary" type="submit">送信</button><button id="stop-speaking" type="button" hidden>読み上げを止める</button></div></form><div id="conversation" aria-live="polite"></div><details><summary>診断情報</summary><pre id="diagnostics">Web版を準備しています</pre></details></article>
+      </section>
+      <section id="page-devices" data-page="devices" hidden><div class="section-heading"><h2>家電</h2><button id="sync-devices">同期</button></div><p class="muted">SwitchBotの操作結果はAPIの受付後に表示します。赤外線機器の実際の状態は取得できません。</p><div id="devices"></div></section>
+      <section id="page-alarms" data-page="alarms" hidden><h2>アラーム</h2><p class="notice">Web版はこの画面を開いている間だけ鳴ります。画面を閉じた後の確実なアラームにはAndroid版を使ってください。Androidとの設定共有はありません。</p><form id="alarm-form" class="card"><label>時刻<input id="alarm-time" type="time" required></label><label>名前<input id="alarm-name" maxlength="80" placeholder="おはよう"></label><label class="inline"><input id="alarm-daily" type="checkbox">毎日</label><button class="primary">追加して音を有効にする</button></form><div id="alarms"></div><button id="alarm-stop" hidden>アラームを止める</button></section>
+      <section id="page-ai" data-page="ai" hidden><h2>AI</h2><p class="muted">LunaとJevを同じ文章で比較できます。比較では家電・アラームを実行しません。</p><form id="compare-form" class="card"><label>質問<textarea id="compare-query" rows="3" maxlength="4000" required></textarea></label><button class="primary">回答を比較</button></form><div id="compare-results"></div><button id="go-talk">キャラと話す</button></section>
+    </main>
+    <nav aria-label="画面切替"><button data-tab="home" aria-current="page"><span>⌂</span>ホーム</button><button data-tab="devices"><span>♧</span>家電</button><button data-tab="alarms"><span>◷</span>アラーム</button><button data-tab="ai"><span>✦</span>AI</button></nav>
+    <footer>Web <span id="version">__VERSION__</span></footer>
+  </div>
+  <dialog id="settings"><form id="settings-form"><h2>Tatsu Home 設定</h2><label>回答の考え方<select name="answerMode"><option value="quick">速く答える</option><option value="balanced">標準</option><option value="deep">じっくり考える</option></select></label><label>音声入力<select name="language"><option value="auto">自動（日・英・独）</option><option value="ja">日本語</option><option value="en">English</option><option value="de">Deutsch</option></select></label><p class="muted">音声をBackendへ送り、発話ごとに言語を判定します。ブラウザー版はボタンで聞き取りを開始します。</p><label>Backend認証トークン<input name="ownerToken" type="password" autocomplete="off" maxlength="512"></label><p class="muted">認証情報はこのタブのセッション内にだけ保持します。タブを閉じると再入力が必要です。APIキーは入力しないでください。</p><details><summary>SwitchBot</summary><label>Token<input name="switchbotToken" type="password" autocomplete="off" maxlength="512"></label><label>Secret<input name="switchbotSecret" type="password" autocomplete="off" maxlength="512"></label></details><h3>天気</h3><label>表示名<input name="place" maxlength="80"></label><div class="columns"><label>緯度<input name="latitude" type="number" min="-90" max="90" step="any" required></label><label>経度<input name="longitude" type="number" min="-180" max="180" step="any" required></label></div><label class="inline"><input name="readAloud" type="checkbox">回答を読み上げる</label><p class="muted">iPhone：Safariの共有 →「ホーム画面に追加」で、アプリのように開けます。</p><p id="settings-error" class="error" hidden></p><div class="buttons"><button id="settings-close" type="button">閉じる</button><button id="clear-credentials" type="button">認証情報を消す</button><button class="primary">保存</button></div></form></dialog>
+  <dialog id="confirmation"><h2>確認</h2><p id="confirmation-text"></p><div class="buttons"><button id="confirmation-no">やめる</button><button id="confirmation-yes" class="primary">実行する</button></div></dialog>
+  <div id="toast" role="status" hidden></div>
+  <script type="module" src="__SCRIPT__"></script>
+</body>
+</html>

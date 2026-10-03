@@ -1,6 +1,23 @@
 {
   "name": "tatsu-home-workspace",
   "private": true,
-  "workspaces": ["ai-backend"],
-  "engines": { "node": ">=20" }
+  "workspaces": [
+    "ai-backend"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "three": "0.160.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "esbuild": "0.25.12"
+  },
+  "scripts": {
+    "build:web": "node tools/sync-switchbot-profiles.mjs && node tools/build-web.mjs",
+    "test:web": "node --test web/tests/*.unit.mjs && playwright test",
+    "dev:web": "node tools/serve-web.mjs"
+  },
+  "type": "module"
 }

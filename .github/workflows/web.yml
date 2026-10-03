@@ -1,0 +1,48 @@
+name: Web build and browser check
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'tools/*web*.mjs'
+      - 'tools/sync-switchbot-profiles.mjs'
+      - 'app/build.gradle.kts'
+      - 'app/src/main/assets/mascot-native/**'
+      - 'app/src/main/java/com/tatsu/homehub/model/SwitchBotControlProfiles.kt'
+      - 'ai-backend/**'
+      - 'api/**'
+      - 'package*.json'
+      - 'playwright.config.mjs'
+      - 'vercel.json'
+      - '.github/workflows/web.yml'
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test --workspace ai-backend
+      - run: npx playwright install --with-deps webkit chromium
+      - run: npm run test:web
+      - name: Verify production version after the Git deployment
+        if: github.event_name != 'pull_request'
+        run: node tools/verify-web-release.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-browser-evidence
+          path: |
+            test-results/
+            playwright-report/
+            dist/

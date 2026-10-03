@@ -12,3 +12,8 @@ benchmark-results/
 __pycache__/
 *.pyc
 node_modules/
+
+dist/
+playwright-report/
+test-results/
+.vercel/

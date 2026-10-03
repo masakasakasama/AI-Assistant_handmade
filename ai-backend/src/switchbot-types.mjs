@@ -1,0 +1,67 @@
+// Generated from Android SwitchBotControlProfiles.kt by tools/sync-switchbot-profiles.mjs.
+export default {
+  "standardPowerTypes": [
+    "air purifier pm2.5",
+    "air purifier table pm2.5",
+    "air purifier table voc",
+    "air purifier voc",
+    "battery circulator fan",
+    "battery circulator fan 2 pro",
+    "candle warmer lamp",
+    "ceiling light",
+    "ceiling light pro",
+    "circulator fan",
+    "color bulb",
+    "curtain",
+    "curtain 3",
+    "curtain3",
+    "floor lamp",
+    "garage door opener",
+    "humidifier",
+    "humidifier2",
+    "permanent outdoor lights",
+    "plug",
+    "plug mini (eu)",
+    "plug mini (jp)",
+    "plug mini (us)",
+    "relay switch 1",
+    "relay switch 1pm",
+    "rgbic neon rope light",
+    "rgbic neon wire rope light",
+    "rgbicww ceiling light",
+    "rgbicww floor lamp",
+    "rgbicww strip light",
+    "smart radiator thermostat",
+    "standing fan",
+    "strip light",
+    "strip light 3"
+  ],
+  "simpleVacuumTypes": [
+    "k10+",
+    "k10+ pro",
+    "mini robot vacuum k10+",
+    "mini robot vacuum k10+ pro",
+    "s1",
+    "s1 plus",
+    "robot vacuum cleaner s1",
+    "robot vacuum cleaner s1 plus"
+  ],
+  "wetVacuumTypes": [
+    "s10",
+    "s20",
+    "floor cleaning robot s10",
+    "floor cleaning robot s20",
+    "robot vacuum cleaner s10",
+    "robot vacuum cleaner s20"
+  ],
+  "advancedVacuumTypes": [
+    "k10+ pro combo",
+    "robot vacuum cleaner k10+ pro combo",
+    "k11+",
+    "robot vacuum k11+",
+    "robot vacuum cleaner k11+",
+    "robot vacuum cleaner k20 plus pro",
+    "k20+ pro",
+    "robot vacuum cleaner k20+ pro"
+  ]
+};

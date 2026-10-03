@@ -53,3 +53,12 @@ Updated at: 2026-10-03T03:49:57.747124+00:00
 - SwitchBotControlProfilesがUI・手動・音声の共通の根拠。掃除機の世代別start/stopとstartClean/pause、Blind Tilt、Botモードを分ける。startCleanのparameterは文字列ではなくJSONObjectとしてシリアライズする。センサー／鍵／Hub／未知機種／チャンネル未指定Relay 2PM／IR Othersは汎用ON/OFFを送らない。Bot pressはOFFなし、音声は押下の確認が必要。
 - キャラはOSアニメーション倍率0でも待機時に小さく揺れ、発話時は口・体を動かす。画面外停止は維持。IDLE/SPEAKINGの実画像3枚ずつで色差ピクセルをassertし、連続画像を目視確認済み。
 - unit tests、署名APK build、Android送信JSON実型2テスト、ネイティブ描画・停止復帰・実AI画面・待機発話画像差分テストがsuccess。CI 37093764878。v0.4.33公開、mascot-motion.png添付。実家電にはコマンドを送っていないため物理動作は未確認。
+
+## Web版・継続リリース（2026-10-03、v0.4.34）
+- 新規Web/PWAクライアントを実装。同じGLBと明確な待機/発話アニメーション、日英独PCM入力、Luna/Jev会話、比較、天気、設定、SwitchBot機種別操作と音声操作の確認、ブラウザー内アラーム。
+- Androidの機種別タイプ一覧からWebサーバー用リストを生成。SwitchBot proxyはowner認証・共有利用制限・fresh inventory検証・固定provider URL・署名・業務statusCode検査を行い、未知機種や不正対象を拒否する。比較は操作しない。
+- WebのversionはAndroid gradleから、commitはVercel Gitメタデータから生成。既存main Git連携を利用してVercelで公開。WebKit/Chromium CIと本番version/commit検査を追加し、今後のAPK releaseもWeb検証・ZIP添付を必須化した。AGENTS.mdにも両クライアントを同時に維持する要件を記載。
+- オーナー/SwitchBot認証はブラウザーsessionStorageのみ。永続設定・アラームはこのブラウザー内だけ。Webはボタンで録音開始、バックグラウンドalarm/常時wake/Android USB選択/端末間同期は非対応で画面に明示。
+- Backend fixture 74件、PCM単体2件成功。主要9シナリオはWebKit/Chromium両方で成功（実GLBピクセル変化、TTSイベント連動、認証失敗、設定保持、家電確認、比較非実行、音声経路、拒否後復帰、更新案内、アラーム保存）。旧cache削除/資産保存とChrome offline再読込は別途確認。WebKitのoffline模擬navigationはSWの前で失敗するため実iPhoneofflineは未合格。
+- 音声/HTTP fixtureはsyntheticで実iPhoneマイク・TTS・SwitchBot実機・provider品質の合格ではない。公開BackendのAI_BACKEND_TOKEN未設定503とRedis設定の実受入は残る。
+- アプリ内アップデーターはAPKをcacheDir/updatesに保存するのでMy Files検索に出ない。Galaxyのアプリ設定からキャッシュ削除で除去できる。Android自動cleanupはこのWeb変更に含めていない。

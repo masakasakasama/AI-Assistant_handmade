@@ -1,0 +1,22 @@
+import { build } from 'esbuild';
+import { readFile, mkdir, cp, writeFile, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+const gradle = await readFile('app/build.gradle.kts', 'utf8');
+export const version = /versionName\s*=.*?\?:\s*"([^"]+)"/.exec(gradle)?.[1];
+if (!version) throw new Error('Android versionName is missing');
+let commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA;
+if (!commit) { try { commit = execFileSync('git', ['rev-parse', 'HEAD'], {encoding:'utf8'}).trim(); } catch { commit = 'local'; } }
+await rm('dist', { recursive:true, force:true });
+await mkdir('dist/assets', {recursive:true});
+const output = await build({entryPoints:['web/app.js','web/style.css'],bundle:true,format:'esm',outdir:'dist/assets',entryNames:'[name]-[hash]',chunkNames:'chunk-[hash]',splitting:true,minify:true,metafile:true,target:['safari16.4','chrome109'],define:{__APP_VERSION__:JSON.stringify(version),__APP_COMMIT__:JSON.stringify(commit)}});
+const script = Object.keys(output.metafile.outputs).find(path => output.metafile.outputs[path].entryPoint === 'web/app.js');
+const style = Object.keys(output.metafile.outputs).find(path => output.metafile.outputs[path].entryPoint === 'web/style.css');
+await writeFile('dist/index.html',(await readFile('web/index.html','utf8')).replaceAll('__VERSION__',version).replace('__SCRIPT__','/'+script.slice(5)).replace('__STYLE__','/'+style.slice(5)));
+await cp('app/src/main/assets/mascot-native/tatsu.glb','dist/mascot.glb');
+await cp('app/src/main/res/drawable-nodpi/tatsu_mascot_3d.png','dist/mascot-preview.png');
+await cp('app/src/main/res/drawable-nodpi/tatsu_mascot_3d.png','dist/icon.png');
+await writeFile('dist/version.json', JSON.stringify({version,commit,builtAt:new Date().toISOString()}));
+await writeFile('dist/manifest.webmanifest', JSON.stringify({name:'Tatsu Home',short_name:'Tatsu',lang:'ja',start_url:'/',scope:'/',display:'standalone',background_color:'#050c13',theme_color:'#050c13',icons:[{src:'/icon.png',sizes:'640x640',type:'image/png',purpose:'any'}]}));
+const worker = await readFile('web/sw.js','utf8');
+await writeFile('dist/sw.js',worker.replace('__CACHE__',`tatsu-${version}-${commit}`).replace('__ASSETS__',JSON.stringify(Object.keys(output.metafile.outputs).map(path=>'/'+path.slice(5)))));
+console.log(`Web ${version} (${commit.slice(0,7)}) built with ${script}`);

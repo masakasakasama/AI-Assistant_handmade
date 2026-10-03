@@ -29,7 +29,8 @@ export function decodeAudio(audioBase64) {
   return audio;
 }
 
-export async function transcribe({ audioBase64 }, dependencies = {}) {
+export async function transcribe({ audioBase64, language }, dependencies = {}) {
+  if (language !== undefined && !["ja", "en", "de"].includes(language)) throw invalid("音声入力の言語が不正です");
   const audio = decodeAudio(audioBase64);
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is not configured");
@@ -38,7 +39,8 @@ export async function transcribe({ audioBase64 }, dependencies = {}) {
   form.append("file", new Blob([audio], { type: "audio/wav" }), "utterance.wav");
   form.append("response_format", "json");
   // All three are candidate languages. Do not set a singular language or a Japanese prompt.
-  for (const language of ["ja", "en", "de"]) form.append("languages[]", language);
+  if (language) form.append("language", language);
+  else for (const candidate of ["ja", "en", "de"]) form.append("languages[]", candidate);
   const started = performance.now();
   const signal = AbortSignal.timeout(TRANSCRIPTION_TIMEOUT_MS);
   let response;
