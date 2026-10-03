@@ -491,8 +491,8 @@ private fun FavoriteDeviceTile(
             if (device.supportsDirectPowerControl) {
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Button(onClick = { onPower(true) }, modifier = Modifier.weight(1f)) { Text("ON") }
-                    OutlinedButton(onClick = { onPower(false) }, modifier = Modifier.weight(1f)) { Text("OFF") }
+                    Button(onClick = { onPower(true) }, modifier = Modifier.weight(1f)) { Text(if (device.isK10RobotVacuum) "掃除開始" else "ON") }
+                    OutlinedButton(onClick = { onPower(false) }, modifier = Modifier.weight(1f)) { Text(if (device.isK10RobotVacuum) "停止" else "OFF") }
                 }
             }
         }

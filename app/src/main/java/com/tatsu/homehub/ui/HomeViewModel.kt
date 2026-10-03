@@ -468,10 +468,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         val client = clientOrNull() ?: return
         viewModelScope.launch {
-            val result = if (on) client.turnOn(device.deviceId) else client.turnOff(device.deviceId)
+            val result = client.setPower(device, on)
             result
                 .onSuccess {
-                    _message.value = device.name + ": " + if (on) "ON" else "OFF"
+                    _message.value = device.name + ": " + if (device.isK10RobotVacuum) {
+                        if (on) "掃除開始コマンドを受け付けました" else "停止コマンドを受け付けました"
+                    } else {
+                        if (on) "ON" else "OFF"
+                    }
                 }
                 .onFailure { error ->
                     _message.value = device.name + ": " + (error.message ?: "operation failed")
@@ -509,7 +513,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val next = (previous ?: AcControlState()).copy(power = on)
         setOptimisticAcState(device.deviceId, next)
         viewModelScope.launch {
-            val result = if (on) client.turnOn(device.deviceId) else client.turnOff(device.deviceId)
+            val result = client.setPower(device, on)
             result
                 .onSuccess {
                     saveKnownAcState(device.deviceId, next)

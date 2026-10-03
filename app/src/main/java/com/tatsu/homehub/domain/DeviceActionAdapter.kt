@@ -31,15 +31,15 @@ class SwitchBotActionAdapter(
                 val previous = getKnownAcState(device.deviceId)
                 val next = previous.copy(power = action.type == "power_on")
                 val result = if (next.power) {
-                    client.turnOn(device.deviceId)
+                    client.setPower(device, true)
                 } else {
-                    client.turnOff(device.deviceId)
+                    client.setPower(device, false)
                 }
                 result.onSuccess { saveKnownAcState(device.deviceId, next) }
             } else if (action.type == "power_on") {
-                client.turnOn(device.deviceId)
+                client.setPower(device, true)
             } else {
-                client.turnOff(device.deviceId)
+                client.setPower(device, false)
             }
             "set_temperature" -> {
                 require(device.isAirConditioner) { "This device has no temperature capability" }

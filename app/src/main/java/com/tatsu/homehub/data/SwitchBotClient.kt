@@ -97,11 +97,10 @@ class SwitchBotClient(
         }
     }
 
-    suspend fun turnOn(deviceId: String): Result<Unit> =
-        sendCommand(deviceId, "turnOn", "default")
-
-    suspend fun turnOff(deviceId: String): Result<Unit> =
-        sendCommand(deviceId, "turnOff", "default")
+    suspend fun setPower(device: SwitchBotDevice, on: Boolean): Result<Unit> {
+        val command = switchBotPowerCommand(device, on)
+        return sendCommand(device.deviceId, command, "default")
+    }
 
     suspend fun setAirConditioner(
         deviceId: String,
@@ -202,3 +201,13 @@ internal fun switchBotDisplayName(raw: String, _type: String): String {
 }
 
 private val ROOM_SUFFIX = Regex("""^(.+?)\s*[（(]([^()（）]+)[）)]\s*$""")
+
+/** K10 family commands documented in SwitchBot OpenAPI; other vacuum families differ. */
+internal fun switchBotPowerCommand(device: SwitchBotDevice, on: Boolean): String {
+    require(device.supportsDirectPowerControl) { "Device does not support direct control" }
+    return if (device.isK10RobotVacuum) {
+        if (on) "start" else "stop"
+    } else {
+        if (on) "turnOn" else "turnOff"
+    }
+}

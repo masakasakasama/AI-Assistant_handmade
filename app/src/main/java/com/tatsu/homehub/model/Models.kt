@@ -12,6 +12,11 @@ data class SwitchBotDevice(
     val isAirConditioner: Boolean
         get() = type.equals("Air Conditioner", ignoreCase = true)
 
+    val isK10RobotVacuum: Boolean
+        get() = !infrared && type.trim().lowercase() in setOf(
+            "k10+", "k10+ pro", "mini robot vacuum k10+", "mini robot vacuum k10+ pro"
+        )
+
     val isHub: Boolean
         get() = type.contains("hub", ignoreCase = true)
 
