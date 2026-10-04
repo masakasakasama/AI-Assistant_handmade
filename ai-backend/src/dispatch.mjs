@@ -11,11 +11,12 @@ export async function dispatch(input, dependencies = {}) {
   const answerMode = resolveAnswerMode(input.answerMode);
   const modelProfile = resolveModelProfile(input.modelProfile);
   if (!modelProfile) throw new Error("Unsupported modelProfile");
-  const started = performance.now();
+  const now = dependencies.now || (() => performance.now());
+  const started = now();
   const extracted = explicitDeviceCommand(input) || await (dependencies.routeIntent || routeIntent)({ ...input, model: modelProfile.routerModel });
   const routed = validateDeviceRoute(extracted,input);
-  const routingCompletedAt = performance.now();
-  const routerMs = Math.round(routingCompletedAt - started);
+  const routingCompletedAt = now();
+  const routerMs = Math.round(routingCompletedAt) - Math.round(started);
   const { _usage, _timings, ...route } = routed;
   let answer = null;
   let answerMs = 0;
@@ -30,11 +31,11 @@ export async function dispatch(input, dependencies = {}) {
     if (!route.replyText?.trim()) throw new Error("Missing router reply");
     answer = { model: modelProfile.routerModel, text: route.replyText };
   } else if (route.route === "deep_reasoning") {
-    const answerStarted = performance.now();
+    const answerStarted = now();
     answerStartedAt = answerStarted;
-    answerStartWaitMs = Math.round(answerStarted - routingCompletedAt);
+    answerStartWaitMs = Math.round(answerStarted) - Math.round(routingCompletedAt);
     const response = await (dependencies.reason || reason)({ ...input, language: route.language, model: modelProfile.reasoningModel, effort: answerMode.effort, concise: answerMode.concise });
-    answerMs = Math.round(performance.now() - answerStarted);
+    answerMs = Math.round(now()) - Math.round(answerStarted);
     answerTtftMs = response.timings?.ttftMs ?? null;
     answerGenerationMs = response.timings?.generationMs ?? answerMs;
     answerFirstTokenAt = response.timings?.firstTokenAtMs ?? null;
@@ -47,20 +48,20 @@ export async function dispatch(input, dependencies = {}) {
     answerFirstTokenAt = _timings?.firstTokenAtMs ?? null;
     answerCompletedAt = _timings?.completedAtMs ?? null;
   }
-  const responseAssemblyStarted = performance.now();
+  const responseAssemblyStarted = now();
   const answerGenerationExclusiveMs = answerGenerationMs == null || answerTtftMs == null
     ? null : answerGenerationMs - answerTtftMs;
   const result = { requestId: randomUUID(), routerModel: modelProfile.routerModel, reasoningModel: modelProfile.reasoningModel,
     route, answer, answerMode: answerMode.name, calls, timings: {}, latencyMs: null };
-  const finishedAt = performance.now();
+  const finishedAt = now();
   const responseAssemblyMs = Math.round(finishedAt - responseAssemblyStarted);
-  const totalMs = Math.round(finishedAt - started);
+  const totalMs = Math.round(finishedAt) - Math.round(started);
   const exclusiveParts = [routerMs, answerStartWaitMs, answerGenerationExclusiveMs, responseAssemblyMs].filter(value => value != null);
   const unaccountedMs = totalMs - exclusiveParts.reduce((sum, value) => sum + value, 0);
   result.timings = {
     routerMs, preRoutingWaitMs: null, answerStartWaitMs, answerTtftMs,
     answerGenerationMs: answerGenerationExclusiveMs, answerMs, responseAssemblyMs,
-    afterRoutingMs: Math.round(finishedAt - routingCompletedAt), unaccountedMs,
+    afterRoutingMs: Math.round(finishedAt) - Math.round(routingCompletedAt), unaccountedMs,
     timingError: answerGenerationExclusiveMs != null && answerGenerationExclusiveMs < 0
       ? "answer generation interval is shorter than TTFT" : unaccountedMs < 0 ? "exclusive intervals exceed totalMs" : null,
     timestamps: {

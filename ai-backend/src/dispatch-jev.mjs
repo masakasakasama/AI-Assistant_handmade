@@ -14,11 +14,12 @@ export async function dispatchJev(input, dependencies = {}) {
   const answerMode = resolveAnswerMode(input.answerMode);
   const modelProfile = resolveModelProfile(input.modelProfile);
   if (!modelProfile) throw new Error("Unsupported modelProfile");
-  const started = performance.now();
+  const now = dependencies.now || (() => performance.now());
+  const started = now();
   const extracted = explicitDeviceCommand(input) || await (dependencies.routeIntentJev || routeIntentJev)(input);
   const routed = validateDeviceRoute(extracted,input);
-  const routingCompletedAt = performance.now();
-  const routerMs = Math.round(routingCompletedAt - started);
+  const routingCompletedAt = now();
+  const routerMs = Math.round(routingCompletedAt) - Math.round(started);
   const { usage, model: jevModel, probabilities, ...route } = routed;
 
   let answer = null;
@@ -32,15 +33,15 @@ export async function dispatchJev(input, dependencies = {}) {
   const calls = [{ model: jevModel || JEV_MODEL, usage: usage ?? null }];
 
   if (route.route === "simple_chat") {
-    const answerStarted = performance.now();
+    const answerStarted = now();
     answerStartedAt = answerStarted;
-    answerStartWaitMs = Math.round(answerStarted - routingCompletedAt);
+    answerStartWaitMs = Math.round(answerStarted) - Math.round(routingCompletedAt);
     const response = await (dependencies.answerSimple || answerSimple)({
       ...input,
       language: route.language,
       model: modelProfile.routerModel
     });
-    answerMs = Math.round(performance.now() - answerStarted);
+    answerMs = Math.round(now()) - Math.round(answerStarted);
     answerTtftMs = response.timings?.ttftMs ?? null;
     answerGenerationMs = response.timings?.generationMs ?? answerMs;
     answerFirstTokenAt = response.timings?.firstTokenAtMs ?? null;
@@ -48,9 +49,9 @@ export async function dispatchJev(input, dependencies = {}) {
     calls.push({ model: response.model, usage: response.usage ?? null });
     answer = { model: response.model, text: response.text, effort: route.route === "deep_reasoning" ? answerMode.effort : "none" };
   } else if (route.route === "deep_reasoning") {
-    const answerStarted = performance.now();
+    const answerStarted = now();
     answerStartedAt = answerStarted;
-    answerStartWaitMs = Math.round(answerStarted - routingCompletedAt);
+    answerStartWaitMs = Math.round(answerStarted) - Math.round(routingCompletedAt);
     const response = await (dependencies.reason || reason)({
       ...input,
       language: route.language,
@@ -58,7 +59,7 @@ export async function dispatchJev(input, dependencies = {}) {
       concise: answerMode.concise,
       model: modelProfile.reasoningModel
     });
-    answerMs = Math.round(performance.now() - answerStarted);
+    answerMs = Math.round(now()) - Math.round(answerStarted);
     answerTtftMs = response.timings?.ttftMs ?? null;
     answerGenerationMs = response.timings?.generationMs ?? answerMs;
     answerFirstTokenAt = response.timings?.firstTokenAtMs ?? null;
@@ -69,12 +70,12 @@ export async function dispatchJev(input, dependencies = {}) {
     answer = { model: "local", text: route.replyText || deviceClarification(route,input.text) };
   }
 
-  const responseAssemblyStarted = performance.now();
-  const responseAssemblyMs = Math.round(performance.now() - responseAssemblyStarted);
+  const responseAssemblyStarted = now();
+  const responseAssemblyMs = Math.round(now()) - Math.round(responseAssemblyStarted);
   const answerGenerationExclusiveMs = answerGenerationMs == null || answerTtftMs == null
     ? null : answerGenerationMs - answerTtftMs;
-  const finishedAt = performance.now();
-  const totalMs = Math.round(finishedAt - started);
+  const finishedAt = now();
+  const totalMs = Math.round(finishedAt) - Math.round(started);
   const exclusiveParts = [routerMs, answerStartWaitMs, answerTtftMs, answerGenerationExclusiveMs, responseAssemblyMs]
     .filter(value => value != null);
   const unaccountedMs = totalMs - exclusiveParts.reduce((sum, value) => sum + value, 0);
@@ -109,7 +110,7 @@ export async function dispatchJev(input, dependencies = {}) {
       answerGenerationMs: answerGenerationExclusiveMs,
       answerMs,
       responseAssemblyMs,
-      afterRoutingMs: Math.round(finishedAt - routingCompletedAt),
+      afterRoutingMs: Math.round(finishedAt) - Math.round(routingCompletedAt),
       unaccountedMs,
       timingError,
       timestamps: {
@@ -122,10 +123,10 @@ export async function dispatchJev(input, dependencies = {}) {
         server_t13_backend_complete: Math.round(finishedAt)
       }
     },
-    latencyMs: Math.round(performance.now() - started),
+    latencyMs: Math.round(now() - started),
     routerProbabilities: probabilities ?? null
   };
-  const assembledAt = performance.now();
+  const assembledAt = now();
   const assembledTotalMs = Math.round(assembledAt - started);
   const measuredAssemblyMs = Math.round(assembledAt - responseAssemblyStarted);
   const exclusivePartsMeasured = [routerMs, answerStartWaitMs, answerTtftMs, answerGenerationExclusiveMs, measuredAssemblyMs]
