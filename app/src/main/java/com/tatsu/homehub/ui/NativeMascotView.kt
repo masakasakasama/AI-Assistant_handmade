@@ -67,6 +67,7 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
     private var asset: FilamentAsset? = null
     private var indirect: IndirectLight? = null
     private var swapChain: SwapChain? = null
+    internal val hasRenderSurface: Boolean get() = swapChain != null
     private val lightEntities = mutableListOf<Int>()
     private val clips = mutableMapOf<String, Int>()
     private var viewportWidth = 1
@@ -300,16 +301,23 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
     }
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (!disposed && ::uiHelper.isInitialized) uiHelper.attachTo(this)
-        configure(phase, desiredActive)
+        // Rebind after the attachment finishes, when TextureView can expose its
+        // replacement surface rather than the surface from the previous window.
+        post {
+            if (!disposed && isAttachedToWindow) {
+                if (::uiHelper.isInitialized) uiHelper.attachTo(this)
+                configure(phase, desiredActive)
+            }
+        }
     }
     override fun onDetachedFromWindow() {
         running = false
         previousFrame = 0L
         choreographer.removeFrameCallback(this)
-        // Keep the texture listener installed: TextureView destroys and recreates its
-        // surface across temporary detachments. Removing the listener here can bind
-        // a swap chain to the old surface before the replacement is available.
+        // Let TextureView destroy its surface with the listener still installed,
+        // then clear UiHelper's attachment. attachTo(sameView) otherwise does
+        // nothing and can leave the replacement surface without a live binding.
         super.onDetachedFromWindow()
+        if (!disposed && ::uiHelper.isInitialized) uiHelper.detach()
     }
 }

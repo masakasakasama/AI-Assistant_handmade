@@ -67,6 +67,7 @@ class MascotNativeRenderTest {
             var parent: ViewGroup? = null
             var childIndex = 0
             var layout: ViewGroup.LayoutParams? = null
+            repeat(3) {
             scenario.onActivity {
                 parent = renderer!!.parent as ViewGroup
                 childIndex = parent!!.indexOfChild(renderer)
@@ -80,8 +81,9 @@ class MascotNativeRenderTest {
             val reattachDeadline = System.currentTimeMillis() + 5_000
             while (renderer!!.frames <= detachedFrames && System.currentTimeMillis() < reattachDeadline) Thread.sleep(100)
             scenario.onActivity {
-                assertTrue("Temporary reattachment froze mascot: running=${renderer!!.running}, loaded=${renderer!!.modelLoaded}, attached=${renderer!!.isAttachedToWindow}", renderer!!.frames > detachedFrames)
+                assertTrue("Temporary reattachment froze mascot: running=${renderer!!.running}, loaded=${renderer!!.modelLoaded}, attached=${renderer!!.isAttachedToWindow}, texture=${renderer!!.isAvailable}, swapChain=${renderer!!.hasRenderSurface}", renderer!!.frames > detachedFrames)
                 assertTrue(renderer!!.running)
+            }
             }
             scenario.moveToState(Lifecycle.State.CREATED)
             Thread.sleep(200)
