@@ -54,7 +54,7 @@ export async function dispatch(input, dependencies = {}) {
   const result = { requestId: randomUUID(), routerModel: modelProfile.routerModel, reasoningModel: modelProfile.reasoningModel,
     route, answer, answerMode: answerMode.name, calls, timings: {}, latencyMs: null };
   const finishedAt = now();
-  const responseAssemblyMs = Math.round(finishedAt - responseAssemblyStarted);
+  const responseAssemblyMs = Math.round(finishedAt) - Math.round(responseAssemblyStarted);
   const totalMs = Math.round(finishedAt) - Math.round(started);
   const exclusiveParts = [routerMs, answerStartWaitMs, answerGenerationExclusiveMs, responseAssemblyMs].filter(value => value != null);
   const unaccountedMs = totalMs - exclusiveParts.reduce((sum, value) => sum + value, 0);

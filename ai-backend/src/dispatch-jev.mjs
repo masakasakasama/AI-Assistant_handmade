@@ -123,19 +123,19 @@ export async function dispatchJev(input, dependencies = {}) {
         server_t13_backend_complete: Math.round(finishedAt)
       }
     },
-    latencyMs: Math.round(now() - started),
+    latencyMs: Math.round(now()) - Math.round(started),
     routerProbabilities: probabilities ?? null
   };
   const assembledAt = now();
-  const assembledTotalMs = Math.round(assembledAt - started);
-  const measuredAssemblyMs = Math.round(assembledAt - responseAssemblyStarted);
+  const assembledTotalMs = Math.round(assembledAt) - Math.round(started);
+  const measuredAssemblyMs = Math.round(assembledAt) - Math.round(responseAssemblyStarted);
   const exclusivePartsMeasured = [routerMs, answerStartWaitMs, answerTtftMs, answerGenerationExclusiveMs, measuredAssemblyMs]
     .filter(value => value != null);
   const measuredUnaccountedMs = assembledTotalMs - exclusivePartsMeasured.reduce((sum, value) => sum + value, 0);
   result.timings.totalMs = assembledTotalMs;
   result.timings.latencyMs = assembledTotalMs;
   result.timings.responseAssemblyMs = measuredAssemblyMs;
-  result.timings.afterRoutingMs = Math.round(assembledAt - routingCompletedAt);
+  result.timings.afterRoutingMs = Math.round(assembledAt) - Math.round(routingCompletedAt);
   result.timings.unaccountedMs = measuredUnaccountedMs;
   result.timings.timingError = answerGenerationExclusiveMs != null && answerGenerationExclusiveMs < 0
     ? "answer generation interval is shorter than TTFT" : measuredUnaccountedMs < 0 ? "exclusive intervals exceed totalMs" : null;
