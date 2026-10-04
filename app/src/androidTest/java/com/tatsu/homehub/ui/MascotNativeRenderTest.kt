@@ -303,7 +303,9 @@ class MascotNativeRenderTest {
                 bitmap.recycle()
             }
             val device = UiDevice.getInstance(instrumentation)
-            assertNotNull("Home speech control absent", device.findObject(By.text("Lunaで話す")))
+            assertNotNull("Home speech control absent", device.findObject(By.text("話す")))
+            assertTrue("Home exposes model selection", device.findObject(By.text("Jevで話す")) == null &&
+                device.findObject(By.text("Lunaで話す")) == null)
             lateinit var destination: File
             scenario.onActivity { destination = File(it.filesDir, "mascot-home-window.png") }
             assertTrue("Home screen capture failed", device.takeScreenshot(destination))

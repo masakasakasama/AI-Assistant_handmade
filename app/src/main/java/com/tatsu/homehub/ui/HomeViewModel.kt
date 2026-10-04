@@ -965,7 +965,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             resumeWakeWordIfRequested()
             return
         }
-        startVoiceSessionInternal(VoiceMode.LUNA)
+        startVoiceSessionInternal(VoiceMode.JEV)
     }
 
     private fun resumeWakeWordIfRequested() {
@@ -1057,8 +1057,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             status = when {
                 mode == VoiceMode.ANSWER_COMPARE -> "同じ質問への回答を比較します。家電・アラームは実行しません"
                 mode == VoiceMode.ROUTER_COMPARE -> "Luna / Jevの判定を比較します"
-                mode == VoiceMode.JEV -> "Jev経路で音声入力を準備しています"
-                else -> "Luna経路で音声入力を準備しています"
+                else -> "音声入力を準備しています"
             },
             diagnostic = "app=${com.tatsu.homehub.BuildConfig.VERSION_NAME} (${com.tatsu.homehub.BuildConfig.VERSION_CODE})",
             detectedLanguageTag = null
@@ -1471,6 +1470,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val client = clientOrNull()
             ?: return localized(result.language, "SwitchBotの設定が必要です", "SwitchBot is not configured.", "SwitchBot ist nicht eingerichtet.")
         val candidates = resolveDeviceCandidates(result)
+        val offTargets = com.tatsu.homehub.domain.DeviceTargetResolver.powerOffTargets(
+            result.target, result.targetType, result.action, devicesWithRooms()
+        )
+        if (offTargets.size > 1) {
+            val responses = mutableListOf<String>()
+            for (target in offTargets) {
+                if (generation != voiceGeneration) return ""
+                // Resolve and validate each real device separately; deduplication uses its ID.
+                val response = try {
+                    resolveVoiceDeviceAction(result.copy(target = target.deviceId, targetType = null),
+                        generation, utterance, allowLunaFallback = false)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    localized(result.language, "${target.name}へのOFF指示の送信に失敗しました",
+                        "Failed to send OFF to ${target.name}.", "AUS konnte nicht an ${target.name} gesendet werden.")
+                }
+                responses += if (response.contains(target.name)) response else "${target.name}: $response"
+            }
+            return responses.joinToString("\n")
+        }
         val device = candidates.singleOrNull()
         val stateNeeded = result.goal in setOf("cooler", "warmer", "increase", "decrease", "brighter", "darker") ||
             result.action in setOf("turn_on", "turn_off")

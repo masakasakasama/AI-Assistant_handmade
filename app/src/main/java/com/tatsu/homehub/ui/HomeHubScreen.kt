@@ -179,7 +179,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                 when (tab) {
                     DashboardTab.HOME -> {
                         item {
-                            HomeMascotCard(voiceState, viewModel::startVoiceSession,
+                            HomeMascotCard(voiceState, viewModel::startVoiceSessionJev,
                                 viewModel::stopVoiceListening, viewModel::cancelVoiceSession)
                         }
                         item { DashboardWeather(weather, tablet) }
@@ -1002,10 +1002,13 @@ private fun HomeMascotCard(state: VoiceSessionState, onStart: () -> Unit, onStop
                     else -> Button(onClick = onStart) {
                         Icon(Icons.Outlined.Mic, null, Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Lunaで話す")
+                        Text("話す")
                     }
                 }
             }
+            val heard = state.partialText.ifBlank { state.finalText }
+            if (heard.isNotBlank()) Text("認識: $heard", style = MaterialTheme.typography.bodyMedium)
+            if (state.responseText.isNotBlank()) Text(state.responseText, style = MaterialTheme.typography.bodyMedium)
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
     }

@@ -174,4 +174,34 @@ class ActionResolverTest {
         assertEquals(ActionPolicy.BLOCKED, resolver.resolve(request.copy(action="turn_off"), listOf(device), null).policy)
     }
 
+    @Test fun powerOffExpandsAllMatchingDevicesOnceAndKeepsRoomAndNameFilters() {
+        val living = ac.copy(deviceId = "living", name = "リビングのエアコン")
+        val bedroom = ac.copy(deviceId = "bedroom", name = "寝室のエアコン")
+        val lamp = SwitchBotDevice("lamp", "照明", "Color Bulb", false)
+        val devices = listOf(living, bedroom, living, lamp)
+        fun targets(name: String, action: String = "turn_off") =
+            DeviceTargetResolver.powerOffTargets(name, "air_conditioner", action, devices)
+        assertEquals(listOf("living", "bedroom"), targets("エアコン").map { it.deviceId })
+        assertEquals(listOf("bedroom"), targets("寝室のエアコン").map { it.deviceId })
+        assertEquals(listOf("living"), targets("living").map { it.deviceId })
+        assertEquals(emptyList<SwitchBotDevice>(), targets("書斎のエアコン"))
+        assertEquals(emptyList<SwitchBotDevice>(), targets("エアコン", "turn_on"))
+        for (device in targets("エアコン")) {
+            val plan = resolver.resolve(intent(null, "turn_off", device.deviceId), devices, null)
+            assertEquals(ActionDecision.EXECUTE, plan.decision)
+            assertEquals("power_off", plan.action?.type)
+        }
+    }
+
+    @Test fun batchPowerOffStillValidatesConfidenceAndDeviceCapabilitiesIndividually() {
+        val devices = listOf(ac.copy(deviceId="a"), ac.copy(deviceId="b"))
+        for (device in DeviceTargetResolver.powerOffTargets("エアコン", "air_conditioner", "turn_off", devices)) {
+            assertEquals(ActionDecision.FALLBACK,
+                resolver.resolve(intent(null,"turn_off",device.deviceId,.2),devices,null).decision)
+        }
+        val unknown = SwitchBotDevice("unknown", "照明", "Unknown", false)
+        assertEquals(ActionPolicy.BLOCKED,
+            resolver.resolve(DeviceIntent("device_action","unknown",null,"turn_off",null,null,.99,"ja"), listOf(unknown), null).policy)
+    }
+
 }

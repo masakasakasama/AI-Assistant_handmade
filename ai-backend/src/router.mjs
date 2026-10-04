@@ -84,6 +84,9 @@ Choose weather for direct weather requests.
 Choose simple_chat for lightweight conversational requests that do not require substantial reasoning.
 Choose deep_reasoning for requests that need nontrivial reasoning, planning, comparison, explanation, research-like synthesis, or a high-quality answer.
 Choose clarify when a physical action is ambiguous or unsafe to infer.
+Exception: an explicit OFF request naming a device type or room applies to ALL matching devices.
+For "エアコン消して" or "turn off the air conditioners", choose device_action/turn_off and preserve the generic type as target, without selecting one arbitrary device or asking which room.
+Preserve a supplied room or specific name; never expand an unknown individual name to other devices.
 
 For destructive or ambiguous physical actions, prefer clarify.
 For alarm_create, put the requested new time in timeLocal using 24-hour HH:mm.

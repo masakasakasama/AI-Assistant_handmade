@@ -18,7 +18,7 @@ test('mobile home renders and the actual GLB moves in idle and speaking',async({
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   const first=await page.locator('#mascot').screenshot();await page.waitForTimeout(950);const second=await page.locator('#mascot').screenshot();expect(first.equals(second)).toBe(false);
   await page.screenshot({path:testInfo.outputPath('web-home.png'),fullPage:true});
-  await page.route('**/api/dispatch',route=>route.fulfill({json:{route:{route:'simple_chat',language:'de'},answer:{model:'fixture',text:'Guten Morgen!'},timings:{totalMs:10}}}));
+  await page.route('**/api/dispatch-jev',route=>route.fulfill({json:{route:{route:'simple_chat',language:'de'},answer:{model:'fixture',text:'Guten Morgen!'},timings:{totalMs:10}}}));
   await page.evaluate(()=>{window.speechSynthesis.speak=speech=>{speech.onstart?.();};});
   await page.getByRole('button',{name:'設定',exact:true}).click();await page.locator('[name="readAloud"]').check();await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.locator('#settings')).toBeHidden();
   await page.locator('#query').fill('Guten Morgen');await page.getByRole('button',{name:'送信',exact:true}).click();
@@ -86,7 +86,7 @@ test('expired shared links remove the capability from the URL and explain how to
 });
 
 test('authentication failures are actionable and never say an operation succeeded',async({page})=>{
-  await fixture(page);await page.route('**/api/dispatch',route=>route.fulfill({status:503,json:{error:'backend_auth_not_configured'}}));await page.goto('/');
+  await fixture(page);await page.route('**/api/dispatch-jev',route=>route.fulfill({status:503,json:{error:'backend_auth_not_configured'}}));await page.goto('/');
   await page.locator('#query').fill('こんにちは');await page.getByRole('button',{name:'送信',exact:true}).click();await expect(page.locator('#voice-error')).toContainText('サーバーのBackend認証設定が未完了');await expect(page.locator('#listen')).toBeEnabled();
 });
 
@@ -102,9 +102,54 @@ test('manual vacuum controls use safe logical actions and comparison never execu
 test('voice action requires confirmation and cancellation does not send a command',async({page})=>{
   await fixture(page);let commands=0;
   await page.route('**/api/switchbot',route=>{const body=route.request().postDataJSON();if(body.operation==='command')commands++;return route.fulfill({json:{devices:[{deviceId:'lamp',name:'照明',type:'Color Bulb',profile:{on:{command:'turnOn'},off:{command:'turnOff'},onLabel:'ON',offLabel:'OFF'}}]}});});
-  await page.route('**/api/dispatch',route=>route.fulfill({json:{route:{route:'device_action',target:'照明',action:'turn_on',language:'ja'},routerModel:'fixture'}}));
+  await page.route('**/api/dispatch-jev',route=>route.fulfill({json:{route:{route:'device_action',target:'照明',action:'turn_on',language:'ja'},routerModel:'fixture'}}));
   await page.goto('/');await page.locator('[data-tab="devices"]').click();await page.getByRole('button',{name:'同期',exact:true}).click();await expect(page.locator('#devices')).toContainText('照明');await page.locator('[data-tab="home"]').click();
   await page.locator('#query').fill('照明つけて');await page.getByRole('button',{name:'送信',exact:true}).click();await expect(page.locator('#confirmation')).toBeVisible();await page.getByRole('button',{name:'やめる',exact:true}).click();await expect(page.locator('#conversation')).toContainText('取り消した');expect(commands).toBe(0);
+});
+
+test('home uses only the fast route without model names and generic OFF reaches both matching devices',async({page})=>{
+  await fixture(page);const commands=[];
+  const devices=[
+    {deviceId:'bed',name:'寝室のエアコン',type:'Air Conditioner',infrared:true,profile:{off:{command:'turnOff'}}},
+    {deviceId:'living',name:'リビングのエアコン',type:'Air Conditioner',infrared:true,profile:{off:{command:'turnOff'}}},
+    {deviceId:'lamp',name:'照明',type:'Color Bulb',profile:{off:{command:'turnOff'}}}
+  ];
+  await page.route('**/api/switchbot',route=>{
+    const body=route.request().postDataJSON();
+    if(body.operation==='command')commands.push(body);
+    return route.fulfill({json:body.operation==='list'?{devices:[...devices,devices[0]]}:{accepted:true}});
+  });
+  await page.route('**/api/dispatch-jev',route=>route.fulfill({json:{route:{route:'device_action',target:'エアコン',targetType:'air_conditioner',action:'turn_off',confidence:.99},routerModel:'typesafe/jev-1.13'}}));
+  await page.route('**/api/dispatch',()=>{throw new Error('Home must not call the Luna route');});
+  await page.goto('/');await expect(page.locator('#listen')).toHaveText('🎙 話す');await expect(page.locator('#page-home')).not.toContainText(/Jev|Luna|typesafe/);
+  await page.locator('[data-tab="devices"]').click();await page.getByRole('button',{name:'同期',exact:true}).click();await expect(page.locator('#devices')).toContainText('寝室のエアコン');await page.locator('[data-tab="home"]').click();
+  await page.locator('#query').fill('エアコン消して');await page.getByRole('button',{name:'送信',exact:true}).click();
+  await expect(page.locator('#conversation')).toContainText('リビングのエアコンへOFF指示を送信');
+  expect(commands.map(body=>body.deviceId)).toEqual(['bed','living']);expect(commands.every(body=>body.action==='off')).toBe(true);
+  await expect(page.locator('#confirmation')).toBeHidden();await expect(page.locator('#page-home')).not.toContainText(/Jev|Luna|typesafe/);
+});
+
+test('batch OFF retains scope, reports partial failure, and does not guess unknown names or low confidence',async({page})=>{
+  await fixture(page);const commands=[];
+  const devices=[
+    {deviceId:'bed-a',name:'寝室のエアコン',type:'Air Conditioner',infrared:true,profile:{off:{command:'turnOff'}}},
+    {deviceId:'bed-b',name:'寝室のエアコン',type:'Air Conditioner',infrared:true,profile:{off:{command:'turnOff'}}},
+    {deviceId:'living',name:'リビングのエアコン',type:'Air Conditioner',infrared:true,profile:{off:{command:'turnOff'}}}
+  ];
+  await page.route('**/api/switchbot',route=>{
+    const body=route.request().postDataJSON();if(body.operation==='command')commands.push(body);
+    if(body.deviceId==='bed-a')return route.fulfill({status:502,json:{error:'switchbot_unavailable'}});
+    return route.fulfill({json:body.operation==='list'?{devices}:{accepted:true}});
+  });
+  await page.route('**/api/dispatch-jev',route=>{
+    const text=route.request().postDataJSON().text;
+    return route.fulfill({json:{route:{route:'device_action',target:text==='unknown'?'書斎のエアコン':'寝室のエアコン',targetType:'air_conditioner',action:'turn_off',confidence:text==='uncertain'?.2:.99}}});
+  });
+  await page.goto('/');await page.locator('[data-tab="devices"]').click();await page.getByRole('button',{name:'同期',exact:true}).click();await expect(page.locator('#devices')).toContainText('リビング');await page.locator('[data-tab="home"]').click();
+  async function ask(text){await page.locator('#query').fill(text);await page.getByRole('button',{name:'送信',exact:true}).click();await expect(page.getByRole('button',{name:'送信',exact:true})).toBeEnabled();}
+  await ask('寝室のエアコン消して');await expect(page.locator('#conversation')).toContainText('OFF指示の送信に失敗');await expect(page.locator('#conversation')).toContainText('OFF指示を送信した');
+  expect(commands.map(body=>body.deviceId)).toEqual(['bed-a','bed-b']);
+  await ask('unknown');await ask('uncertain');expect(commands).toHaveLength(2);
 });
 
 test('alarm storage and screen-only limitation are visible',async({page})=>{
@@ -131,7 +176,7 @@ test('German automatic voice input sends PCM WAV and dispatches the original Ger
     const body=route.request().postDataJSON();expect(body.language).toBeUndefined();const audio=Buffer.from(body.audioBase64,'base64');expect(audio.toString('ascii',0,4)).toBe('RIFF');expect(audio.readUInt32LE(24)).toBe(16000);expect(audio.length).toBeGreaterThan(3000);heard=true;
     return route.fulfill({json:{text:'Wie ist das Wetter?',languages:['de']}});
   });
-  await page.route('**/api/dispatch',route=>{expect(route.request().postDataJSON().text).toBe('Wie ist das Wetter?');dispatched=true;return route.fulfill({json:{route:{route:'simple_chat',language:'de'},answer:{model:'fixture',text:'Heute ist es sonnig.'}}});});
+  await page.route('**/api/dispatch-jev',route=>{expect(route.request().postDataJSON().text).toBe('Wie ist das Wetter?');dispatched=true;return route.fulfill({json:{route:{route:'simple_chat',language:'de'},answer:{model:'fixture',text:'Heute ist es sonnig.'}}});});
   await page.goto('/');await page.locator('#listen').click();await expect(page.locator('#stop-recording')).toBeVisible();await page.waitForTimeout(1500);await page.locator('#stop-recording').click();await expect(page.locator('#conversation')).toContainText('Heute ist es sonnig.');expect(heard&&dispatched).toBe(true);await expect(page.locator('#listen')).toBeEnabled();
 });
 

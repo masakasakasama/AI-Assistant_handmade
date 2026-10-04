@@ -5,6 +5,10 @@ import com.tatsu.homehub.model.SwitchBotDevice
 
 /** The same target selection for status reads, voice execution and comparison. */
 object DeviceTargetResolver {
+    /** An explicit OFF request applies to every matching device, retaining room/name filtering. */
+    fun powerOffTargets(target: String?, targetType: String?, action: String?, devices: List<SwitchBotDevice>): List<SwitchBotDevice> =
+        if (action == "turn_off") resolve(target, targetType, devices) else emptyList()
+
     fun resolve(target: String?, targetType: String?, devices: List<SwitchBotDevice>): List<SwitchBotDevice> {
         val text = target.orEmpty().trim()
         val room = TemporaryRoomAssignments.explicitRoom(text)

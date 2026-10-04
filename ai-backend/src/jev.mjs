@@ -2,7 +2,7 @@ export const JEV_MODEL = process.env.JEV_MODEL || "typesafe/jev-1.13";
 export const JEV_ENDPOINT = process.env.JEV_ENDPOINT || "https://openrouter.ai/api/alpha/decisions";
 
 const ROUTE_CRITERIA = {
-  device_action: "An explicit device command OR an implied home-comfort goal (for example feeling hot/cold/dark) that a known device could satisfy.",
+  device_action: "An explicit device command OR an implied home-comfort goal (for example feeling hot/cold/dark) that a known device could satisfy. An explicit OFF command applies to all matching devices of the named type or room, even when more than one matches.",
   alarm_action: "A request to create, update, delete, enable, disable, or inspect an alarm.",
   weather: "A direct request for current or forecast weather.",
   simple_chat: "Lightweight conversation or a short factual request that does not require substantial reasoning.",
@@ -109,6 +109,28 @@ function timeCriteria(max, unit) {
   return criteria;
 }
 
+function addPowerOffGroups(candidates) {
+  const groups = new Map();
+  for (const device of candidates.map.values()) {
+    const label = ({air_conditioner:'エアコン',light:'照明'})[device.targetType];
+    if (!label) continue;
+    const source = `${device.name} ${device.description}`.toLowerCase();
+    const room = /寝室|bedroom|schlafzimmer/.test(source) ? '寝室'
+      : /リビング|living ?room|wohnzimmer/.test(source) ? 'リビング' : null;
+    for (const name of [label,...(room?[`${room}の${label}`]:[])]) {
+      const group = groups.get(name)||{name,targetType:device.targetType,count:0,group:true};
+      group.count++;groups.set(name,group);
+    }
+  }
+  let index=0;
+  for (const group of groups.values()) {
+    if (group.count<2||Object.keys(candidates.criteria).length>=255) continue;
+    const key=`off_group_${index++}`;
+    candidates.criteria[key]=`All known devices matching "${group.name}" (${group.count} devices). Choose ONLY for an explicit OFF request for that type/room without a specific individual name. Do not choose this for ON, temperature, or implied comfort goals.`;
+    candidates.map.set(key,group);
+  }
+}
+
 function parseChoice(payload, key) {
   const answer = payload?.answers?.[key];
   if (!answer || typeof answer.choice !== "string") {
@@ -164,7 +186,8 @@ export function parseJevRouteResponse(payload, metadata = {}) {
 
   if (route === "device_action") {
     action = deviceActionAnswer.choice !== "none" ? deviceActionAnswer.choice : null;
-    const device = metadata.deviceMap?.get(deviceTargetAnswer.choice) ?? null;
+    const selected = metadata.deviceMap?.get(deviceTargetAnswer.choice) ?? null;
+    const device = selected?.group && action !== "turn_off" ? null : selected;
     target = device?.name ?? null;
     targetType = device?.targetType ?? null;
     const numericTemperature = temperatureAnswer.choice?.startsWith("t")
@@ -223,6 +246,7 @@ export async function routeIntentJev({ text, context = "" }, dependencies = {}) 
     "device",
     item => `Known device named "${item.name}". ${item.description}`.trim()
   );
+  addPowerOffGroups(deviceCandidates);
   const alarmCandidates = candidateCriteria(
     alarms,
     "alarm",
@@ -271,7 +295,7 @@ export async function routeIntentJev({ text, context = "" }, dependencies = {}) 
         },
         device_target: {
           type: "choice",
-          instructions: "If the utterance refers to one known device, choose it. Otherwise choose none.",
+          instructions: "For an explicit OFF request naming a device type or room, choose the matching off_group when several devices match; multiple matches do not require clarification for OFF. If a specific individual name or ID is supplied, choose only that device. For other actions choose one known device, or none when unclear. Never expand an unknown individual name to a group.",
           criteria: deviceCandidates.criteria
         },
         temperature_c: {

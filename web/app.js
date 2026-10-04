@@ -1,5 +1,6 @@
 import { createMascot } from './mascot.js';
 import { startCapture,audioBase64 } from './audio.js';
+import { resolveDeviceTargets } from './device-targets.js';
 import { readCredentials,saveCredentials,clearCredentials,emptyCredentials } from './credentials.js';
 
 const $=selector=>document.querySelector(selector);
@@ -36,7 +37,7 @@ const labels={IDLE:['待機','話しかけてね'],LISTENING:['聞き取り中',
 function toast(text){$('#toast').textContent=text;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,6500);}
 function save(storage,key,value){try{storage.setItem(key,JSON.stringify(value));return true;}catch{toast('ブラウザーの保存容量が不足しています。この画面を閉じると設定が失われる場合があります。');return false;}}
 function setPhase(next){phase=next;mascot?.setPhase(next);const [status,caption]=labels[next];$('#voice-state').textContent=status;$('#mascot-caption').textContent=caption;}
-function setBusy(value){busy=value;$('#listen').disabled=value;$('#listen-jev').disabled=value;$('#chat-form button[type="submit"]').disabled=value;$('#compare-form button').disabled=value;$('#cancel').hidden=!value;$('#stop-recording').hidden=!recording;}
+function setBusy(value){busy=value;$('#listen').disabled=value;$('#chat-form button[type="submit"]').disabled=value;$('#compare-form button').disabled=value;$('#cancel').hidden=!value;$('#stop-recording').hidden=!recording;}
 function setError(error){const text=error?.name==='NotAllowedError'?'マイクの使用を許可してください。Safariのサイト設定から変更できます。':error?.message||String(error);$('#voice-error').textContent=text;$('#voice-error').hidden=false;setPhase('ERROR');}
 function showTab(name){tab=name;document.querySelectorAll('[data-page]').forEach(page=>page.hidden=page.dataset.page!==name);document.querySelectorAll('[data-tab]').forEach(button=>{if(button.dataset.tab===name)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});mascot?.setActive(name==='home');if(name==='alarms')renderAlarms();}
 document.querySelectorAll('[data-tab]').forEach(button=>button.addEventListener('click',()=>showTab(button.dataset.tab)));
@@ -71,7 +72,7 @@ function speak(text,language='ja',session=generation){
   speech.onend=end;speech.onerror=end;
   window.speechSynthesis.speak(speech);
 }
-async function ask(text,path='dispatch',session=++generation){
+async function ask(text,path='dispatch-jev',session=++generation){
   if(!text.trim())return;$('#voice-error').hidden=true;stopTts();setBusy(true);setPhase('THINKING');
   const controller=new AbortController();abort=controller;const timer=setTimeout(()=>controller.abort(),150_000);const started=performance.now();
   try{
@@ -79,7 +80,7 @@ async function ask(text,path='dispatch',session=++generation){
     if(session!==generation)return;
     message('user',text);$('#transcript').textContent='認識：'+text;
     const reply=await handleResult(result,session);if(session!==generation)return;
-    message('assistant',reply,`${result.answer?.model||result.routerModel||''} · ${Math.round(performance.now()-started)}ms`);
+    message('assistant',reply);
     $('#diagnostics').textContent=JSON.stringify({version:__APP_VERSION__,commit:__APP_COMMIT__,route:result.route,model:result.answer?.model,timings:result.timings},null,2);
     setPhase('IDLE');speak(reply,result.route?.language==='other'?(settings.language==='auto'?'ja':settings.language):result.route?.language,session);
   }catch(error){if(session===generation){if(error.name==='AbortError')setError(new Error('応答が待機時間を超えました。もう一度ためしてください。'));else setError(error);}}
@@ -94,9 +95,25 @@ async function handleResult(result,session){
   if(route.route==='weather'){await refreshWeather();if(!weather)return '天気を取得できませんでした。';return ({de:`In ${settings.place} sind es ${Math.round(weather.temperature_2m)} Grad.`,en:`It is ${Math.round(weather.temperature_2m)} degrees in ${settings.place}.`})[route.language]||`${settings.place}は${Math.round(weather.temperature_2m)}度、${weatherLabel(weather.weather_code)}だよ。`;}
   if(route.route==='device_action'){
     if(!devices.length)return '家電タブから機器を同期してね。';
-    const target=typeof route.target==='string'?route.target.trim():'';
-    const matches=devices.filter(device=>device.deviceId===target||device.name===target);
-    if(matches.length!==1)return '操作する家電を、機器一覧と同じ名前で指定してね。';
+    const matches=resolveDeviceTargets(route.target,route.targetType,devices);
+    if(matches.length>1&&route.action==='turn_off'){
+      if(!(route.confidence>=.72))return '消す対象をもう一度教えてね。';
+      setPhase('EXECUTING');const replies=[];
+      for(const device of matches){
+        if(session!==generation)return '';
+        if(!device.profile?.off){replies.push(`${device.name}はOFF操作に対応していないよ。`);continue;}
+        try{
+          const receipt=await deviceCommand(device,{action:'off'});
+          if(receipt.accepted!==true)throw new Error('not_accepted');
+          replies.push(`${device.name}へOFF指示を送信したよ。`);
+        }catch(error){
+          if(session!==generation||error.name==='AbortError')return '';
+          replies.push(`${device.name}へのOFF指示の送信に失敗したよ。`);
+        }
+      }
+      return replies.join('\n');
+    }
+    if(matches.length!==1)return '操作する家電の名前や部屋を教えてね。';
     const device=matches[0],action=route.action;
     if(!['turn_on','turn_off','set_ac'].includes(action))return 'その操作にはまだ対応していないよ。家電画面で指定してね。';
     const ac=action==='set_ac',command=action==='turn_on'?'on':'off';
@@ -143,7 +160,7 @@ async function listen(path){
     if(session!==generation){next.cancel();return;}capture=next;recording=true;setBusy(true);$('#voice-detail').textContent='話してください · 自動（日・英・独）';
   }catch(error){if(session===generation){setError(error);setBusy(false);releaseWakeLock();}}
 }
-$('#listen').onclick=()=>void listen('dispatch');$('#listen-jev').onclick=()=>void listen('dispatch-jev');
+$('#listen').onclick=()=>void listen('dispatch-jev');
 
 function openSettings(){const form=$('#settings-form');for(const [name,value] of Object.entries({...settings,...credentials})){const input=form.elements.namedItem(name);if(!input)continue;if(input.type==='checkbox')input.checked=value;else input.value=value;}$('#settings-error').hidden=true;$('#settings').showModal();}
 $('#settings-open').onclick=openSettings;$('#settings-close').onclick=()=>$('#settings').close();
