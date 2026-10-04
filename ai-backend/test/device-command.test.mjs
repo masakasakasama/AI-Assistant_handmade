@@ -62,3 +62,12 @@ for(const text of ['エアコン消していい？','Can I turn off the lights?'
  const result=await dispatchJev({text,context},{routeIntentJev:async()=>({route:'device_action',target:'エアコン',action:'turn_off',confidence:.99,language:'ja'})});
  assert.equal(result.route.route,'device_action');assert.ok(result.route.confidence<.72);assert.equal(result.route.evidence,'question_requires_confirmation');
 });
+
+test('original device names still resolve after a room alias is assigned',()=>{
+ const result=explicitDeviceCommand({text:'K10+ Proつけて',context:'Known devices:\n- その他の掃除機 | type=Robot Vacuum Cleaner | id=vacuum | actualName=K10+ Pro\nCurrent alarms:'});
+ assert.equal(result.target,'vacuum');assert.equal(result.action,'turn_on');
+});
+test('duplicate original names preserve the requested group instead of choosing one room alias',()=>{
+ const result=explicitDeviceCommand({text:'Air Conditioner消して',context:'Known devices:\n- 寝室のエアコン | type=Air Conditioner | id=bed | actualName=Air Conditioner\n- リビングのエアコン | type=Air Conditioner | id=living | actualName=Air Conditioner\nCurrent alarms:'});
+ assert.equal(result.target,'Air Conditioner');assert.equal(result.action,'turn_off');
+});

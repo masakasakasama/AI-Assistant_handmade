@@ -13,13 +13,14 @@ function known(context){
   return section.split('\n').filter(line=>line.trim().startsWith('- ')).map(line=>{
     const [name,...fields]=line.trim().slice(2).split('|').map(s=>s.trim());
     const values=Object.fromEntries(fields.map(field=>{const at=field.indexOf('=');return [field.slice(0,at),field.slice(at+1)];}));
-    return {name,id:values.id,type:values.type||''};
+    return {name,originalName:values.actualName||'',id:values.id,type:values.type||''};
   }).filter(d=>d.id&&d.name);
 }
 function targetFor(text,devices){
-  const cleaned=norm(text.replace(/^(?:the |die |den |das )/i,''));
-  const exact=devices.filter(d=>[norm(d.name),norm(d.id)].includes(cleaned));
-  if(exact.length)return {target:exact.length===1?exact[0].id:exact[0].name,targetType:null};
+  const display=text.replace(/^(?:the |die |den |das )/i,'').trim();
+  const cleaned=norm(display);
+  const exact=devices.filter(d=>[d.name,d.id,d.originalName].filter(Boolean).some(name=>norm(name)===cleaned));
+  if(exact.length)return {target:exact.length===1?exact[0].id:display,targetType:null};
   const rooms=[['寝室',/^(寝室|bedroom|schlafzimmer)/],['リビング',/^(リビング|livingroom|wohnzimmer)/]];
   for(const [type,pattern,aliases] of kinds){
     if(!devices.some(d=>pattern.test(d.type)))continue;
