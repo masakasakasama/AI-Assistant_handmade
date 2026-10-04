@@ -53,7 +53,7 @@ private fun NativeMascotContent(phase: VoicePhase, modifier: Modifier, onRetry: 
     LaunchedEffect(renderer, phase, resumed, visible, failed) { renderer?.configure(phase, resumed && visible && !failed) }
     Box(modifier.clickable(role = Role.Button, onClickLabel = "なでる") {
         if (failed) onRetry() else renderer?.reactToTap()
-    }.semantics { contentDescription = "Tatsu Homeの3Dマスコット" }
+    }.semantics { contentDescription = "luluちゃん" }
         .background(Brush.linearGradient(listOf(Color(0xFFFFF0F9), Color(0xFFE0F1FF))), RoundedCornerShape(44.dp))
         .onGloballyPositioned {
             val rect = it.boundsInWindow()

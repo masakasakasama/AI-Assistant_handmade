@@ -11,6 +11,7 @@ test('mobile home renders and the actual GLB moves in idle and speaking',async({
   await fixture(page);await page.goto('/');await expect(page.locator('#temperature')).toHaveText('23°');
   await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics?.()?.frames||0),{timeout:25_000}).toBeGreaterThan(4);
   await expect(page.locator('#mascot-fallback')).toBeHidden();
+  await expect(page.locator('.mascot-name')).toHaveText('luluちゃん');
   const hero=await page.locator('#mascot').boundingBox();
   expect(hero.width).toBeGreaterThan(page.viewportSize().width*.75);
   expect(hero.y).toBeLessThan(150);
@@ -99,7 +100,7 @@ test('microphone refusal leaves text chat usable',async({page})=>{
 test('petting works without credentials and preserves the voice phase',async({page},testInfo)=>{
   await page.goto('/');
   await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics?.()?.frames||0),{timeout:25_000}).toBeGreaterThan(4);
-  const mascot=page.getByRole('button',{name:'Tatsu Homeの3Dマスコットをなでる'});
+  const mascot=page.getByRole('button',{name:'luluちゃんをなでる'});
   const before=await page.locator('#mascot-canvas').screenshot();
   await mascot.click();
   await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().tapCount)).toBe(1);

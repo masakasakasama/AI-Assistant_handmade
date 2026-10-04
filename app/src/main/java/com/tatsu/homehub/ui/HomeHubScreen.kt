@@ -1018,6 +1018,11 @@ private fun TatsuMascot(phase: VoicePhase, recognizedText: String, mascotModifie
             phase = phase,
             modifier = mascotModifier
         )
+        Text(
+            text = "luluちゃん",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
         Surface(
             shape = RoundedCornerShape(100.dp),
             color = if (active) {
