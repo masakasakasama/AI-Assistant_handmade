@@ -166,7 +166,7 @@ class ActionResolver(
             val resolved = ResolvedAction("set_temperature", next, power = true)
             if (currentState.fromSavedSettings || !intent.confidence.isFinite() || intent.confidence < safety.minimumConfidence) {
                 return plan(intent, device, currentState, resolved, ActionDecision.CONFIRM, ActionPolicy.CONFIRM_REQUIRED,
-                    localized(intent.language, (if (currentState.fromSavedSettings) "実際の状態は取得できないため、最後に送った設定を基準にします。" else "") + "${device.name}を${currentState.temperature}℃から${next}℃に変更しますか？",
+                    localized(intent.language, (if (currentState.fromSavedSettings) "実際の状態は取得できないため、保存してある設定を基準にします。" else "") + "${device.name}を${currentState.temperature}℃から${next}℃に変更しますか？",
                         "Change ${device.name} from ${currentState.temperature}°C to ${next}°C?",
                         "${device.name} von ${currentState.temperature}°C auf ${next}°C ändern?"),
                     "state and bounded goal resolved; user confirmation required", stateFetchMs, resolverStarted, policyStarted)

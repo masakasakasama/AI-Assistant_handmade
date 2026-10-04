@@ -226,7 +226,7 @@ class ActionResolverTest {
         val plan = resolver.resolve(intent("cooler"), listOf(ac), previous)
         assertEquals(ActionDecision.CONFIRM, plan.decision)
         assertEquals(26, plan.action?.temperatureC)
-        org.junit.Assert.assertTrue(plan.response.contains("最後に送った設定"))
+        org.junit.Assert.assertTrue(plan.response.contains("保存してある設定"))
         assertEquals(2, plan.currentState?.mode)
     }
     @Test fun savedPowerStateCannotPretendToBeAnActualNoop() {

@@ -111,7 +111,9 @@ class AppPrefs(context: Context) {
                             mode = state.optInt("mode", 2).coerceIn(1, 5),
                             fanSpeed = state.optInt("fanSpeed", 1).coerceIn(1, 4),
                             power = state.optBoolean("power", false),
-                            settingsKnown = state.optBoolean("settingsKnown", false)
+                            settingsKnown = state.optBoolean("settingsKnown",
+                                state.has("temperature") && state.has("mode") && state.has("fanSpeed") &&
+                                    state.optInt("temperature") in 16..30 && state.optInt("mode") in 1..5 && state.optInt("fanSpeed") in 1..4)
                         )
                     )
                 }
