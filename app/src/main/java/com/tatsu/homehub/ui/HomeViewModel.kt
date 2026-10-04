@@ -543,6 +543,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             temperature = state.temperature.coerceIn(16, 30),
             mode = state.mode.coerceIn(1, 5),
             fanSpeed = state.fanSpeed.coerceIn(1, 4),
+            settingsKnown = true,
             power = true
         )
 
@@ -582,7 +583,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         temperature = temperature.coerceIn(16, 30),
                         mode = remote.mode ?: previous.mode,
                         fanSpeed = remote.fanSpeed ?: previous.fanSpeed,
-                        power = remote.power ?: previous.power
+                        power = remote.power ?: previous.power,
+                        settingsKnown = remote.mode != null && remote.fanSpeed != null
                     )
                 )
             }
@@ -1459,10 +1461,66 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             "simple_chat", "deep_reasoning", "clarify" ->
                 result.answerText ?: localized(result.language, "もう一度お願いします", "Please try again.", "Bitte noch einmal.")
             "weather" -> weatherVoiceResponse(result.language)
+            "device_batch" -> resolveCompoundDeviceActions(result, generation)
             "device_action" -> resolveVoiceDeviceAction(result, generation, utterance, allowLunaFallback = true)
             "alarm_action" -> executeVoiceAlarmAction(result, generation)
             else -> localized(result.language, "その操作にはまだ対応していません", "That action is not supported yet.", "Diese Aktion wird noch nicht unterstützt.")
         }
+    }
+
+    private fun validFutureAlarmDate(date: String?, hour: Int, minute: Int): Boolean = date == null || runCatching {
+        java.time.LocalDate.parse(date).atTime(hour, minute).isAfter(java.time.LocalDateTime.now())
+    }.getOrDefault(false)
+
+    private fun savedAcDeviceState(id: String): com.tatsu.homehub.model.SwitchBotDeviceState? {
+        val state = _acStates.value[id]?.takeIf { it.settingsKnown } ?: return null
+        return com.tatsu.homehub.model.SwitchBotDeviceState(state.power, state.temperature, state.mode, state.fanSpeed,
+            retrievedAtElapsedMs = android.os.SystemClock.elapsedRealtime(), rawJson = "{\"source\":\"last_sent_settings\"}", fromSavedSettings = true)
+    }
+
+    private suspend fun resolveCompoundDeviceActions(result: AiDispatchResult, generation: Long): String {
+        val client = clientOrNull() ?: return "SwitchBotの設定が必要です"
+        val steps = org.json.JSONArray(result.stepsJson ?: "[]")
+        if (steps.length() !in 2..6) return "指示を分けてもう一度教えてね。まだ操作していないよ。"
+        val plans = mutableListOf<ActionPlan>()
+        for (i in 0 until steps.length()) {
+            if (generation != voiceGeneration) return ""
+            val step = steps.getJSONObject(i)
+            val intent = DeviceIntent("device_action", step.optString("target"), step.optString("targetType").takeIf { it != "null" && it.isNotBlank() },
+                step.optString("action"), step.optString("goal"), if (step.isNull("temperatureC")) null else step.optDouble("temperatureC"),
+                step.optDouble("confidence", 0.0), step.optString("language", result.language))
+            val candidates = com.tatsu.homehub.domain.DeviceTargetResolver.resolve(intent.target, intent.targetType, devicesWithRooms())
+            if (candidates.isEmpty() || candidates.size > 1 && intent.action !in setOf("turn_on", "turn_off"))
+                return "${intent.target}の対象を確定できなかったよ。部屋か名前を教えてね。まだ操作していないよ。"
+            for (device in candidates) {
+                val current = if (device.infrared) savedAcDeviceState(device.deviceId) else client.getDeviceState(device).getOrNull()
+                val plan = actionPolicyEngine.evaluate(actionResolver.resolve(intent.copy(target = device.deviceId, targetType = null), devicesWithRooms(), current))
+                if (plan.decision == ActionDecision.FALLBACK || plan.action == null && plan.decision != ActionDecision.NOOP)
+                    return "${device.name}: ${plan.response}\nまだどの操作も実行していないよ。"
+                plans += plan
+            }
+        }
+        val batch = com.tatsu.homehub.domain.CompoundActionPolicy.evaluate(plans)
+        if (batch.decision == ActionDecision.FALLBACK) return batch.response.orEmpty()
+        val unique = batch.plans
+        val executable = unique.filter { it.decision != ActionDecision.NOOP }
+        if (batch.decision == ActionDecision.CONFIRM) {
+            pendingActionPlan = null
+            pendingBatchPlans = executable
+            pendingActionExpiresAt = android.os.SystemClock.elapsedRealtime() + PENDING_ACTION_TTL_MS
+            return unique.joinToString("\n") { it.response } + "\nこの操作をまとめて実行していいですか？"
+        }
+        if (!markVoiceOperationOnce(result.copy(action = "batch", target = result.stepsJson))) return "同じ操作は重複実行しませんでした"
+        val responses = mutableListOf<String>()
+        for (plan in unique) {
+            if (generation != voiceGeneration) return ""
+            val response = if (plan.decision == ActionDecision.NOOP) plan.response else try {
+                runPendingActionPlan(plan, generation)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+              catch (_: Exception) { "指示の送信に失敗しました" }
+            responses += "${plan.device?.name}: $response"
+        }
+        return responses.joinToString("\n")
     }
 
     private suspend fun resolveVoiceDeviceAction(
@@ -1515,7 +1573,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         val device = candidates.singleOrNull()
         val stateNeeded = result.goal in setOf("cooler", "warmer", "increase", "decrease", "brighter", "darker") ||
-            result.action in setOf("turn_on", "turn_off")
+            result.action in setOf("turn_on", "turn_off", "set_ac")
         var deviceState: com.tatsu.homehub.model.SwitchBotDeviceState? = null
         var stateFetchMs: Long? = null
         var stateStartedAt: Long? = null
@@ -1527,6 +1585,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             stateFetchMs = android.os.SystemClock.elapsedRealtime() - stateStarted
             stateCompletedAt = android.os.SystemClock.elapsedRealtime()
         }
+        if (deviceState == null && device?.isAirConditioner == true && (result.action == "set_ac" || result.goal in setOf("cooler", "warmer", "increase", "decrease"))) deviceState = savedAcDeviceState(device.deviceId)
         val resolvedAt = android.os.SystemClock.elapsedRealtime()
         val intent = DeviceIntent(
             route = result.route,
@@ -1566,6 +1625,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 return plan.response
             }
             ActionDecision.FALLBACK -> {
+                if (plan.reason == "required device state unavailable" && device?.infrared == true) return "${device.name}の保存された温度・モード・風量がまだないよ。家電画面で一度設定してね。その後は最後に送った設定を基準に温度変更を提案できるよ。"
                 if (plan.policy == com.tatsu.homehub.domain.ActionPolicy.BLOCKED) return plan.response
                 if (allowLunaFallback && utterance.isNotBlank() && appPrefs.aiBackendUrl.isNotBlank()) {
                     val luna = aiBackendClient.dispatch(appPrefs.aiBackendUrl, utterance, buildVoiceContext()).getOrNull()
@@ -1679,7 +1739,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     runPendingActionPlan(plan.copy(decision = ActionDecision.EXECUTE), generation)
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { "${plan.device?.name}: 指示の送信に失敗しました" }
-                responses += response
+                responses += if (response.contains(plan.device?.name.orEmpty())) response else "${plan.device?.name}: $response"
             }
             if (generation != voiceGeneration) return@launch
             val response = responses.joinToString("\n")
@@ -1756,7 +1816,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         val client = clientOrNull()
             ?: return localized(plan.intent.language, "SwitchBotの設定が必要です", "SwitchBot is not configured.", "SwitchBot ist nicht eingerichtet.")
-        if (plan.currentState != null && !device.infrared) {
+        if (plan.currentState?.fromSavedSettings == true) {
+            val latest = savedAcDeviceState(device.deviceId)
+            val original = plan.currentState
+            if (latest == null || latest.power != original.power || latest.temperature != original.temperature || latest.mode != original.mode || latest.fanSpeed != original.fanSpeed)
+                return "確認中に保存設定が変わったため操作しませんでした。もう一度指示してください"
+        }
+        if (plan.currentState != null && !device.infrared && !plan.currentState.fromSavedSettings) {
             val latest = client.getDeviceState(device).getOrElse {
                 return localized(plan.intent.language, "現在状態を再確認できなかったため実行しませんでした", "I couldn't recheck the device state, so I didn't execute the action.", "Ich konnte den Gerätezustand nicht erneut prüfen und habe nichts ausgeführt.")
             }
@@ -1789,7 +1855,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             "alarm_create" -> {
                 val time = parseClock(result.timeLocal)
                     ?: return localized(result.language, "何時に設定するか確認してください", "What time should I set it for?", "Für welche Uhrzeit soll ich den Wecker stellen?")
+                val date = result.dateLocal
+                if (!validFutureAlarmDate(date, time.first, time.second)) return "指定した日時は過去か不正な日付です。これからの日時を教えてね。"
                 val alarm = LocalAlarm(
+                    dateLocal = date,
                     id = UUID.randomUUID().toString(),
                     hour = time.first,
                     minute = time.second,
@@ -1799,7 +1868,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 alarmRepo.upsert(alarm)
                 AlarmScheduler.schedule(getApplication(), alarm)
-                localized(result.language, String.format("%02d:%02dにアラームを設定しました", alarm.hour, alarm.minute),
+                localized(result.language, (alarm.dateLocal?.let { "$it " } ?: "") + String.format("%02d:%02dにアラームを設定しました", alarm.hour, alarm.minute),
                     String.format("Alarm set for %02d:%02d.", alarm.hour, alarm.minute),
                     String.format("Wecker für %02d:%02d gestellt.", alarm.hour, alarm.minute))
             }
@@ -1823,10 +1892,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     val time = parseClock(result.timeLocal)
                         ?: return localized(result.language, "新しい時刻を確認してください", "What should the new time be?", "Wie lautet die neue Uhrzeit?")
-                    val updated = alarm.copy(hour = time.first, minute = time.second)
+                    val date = result.dateLocal ?: alarm.dateLocal
+                    if (!validFutureAlarmDate(date, time.first, time.second)) return "指定した日時は過去か不正な日付です。これからの日時を教えてね。"
+                    val updated = alarm.copy(hour = time.first, minute = time.second, dateLocal = date, repeatMask = if (date != null) 0 else alarm.repeatMask)
                     alarmRepo.upsert(updated)
                     AlarmScheduler.schedule(getApplication(), updated)
-                    localized(result.language, String.format("アラームを%02d:%02dに変更しました", updated.hour, updated.minute),
+                    localized(result.language, (updated.dateLocal?.let { "$it " } ?: "") + String.format("アラームを%02d:%02dに変更しました", updated.hour, updated.minute),
                         String.format("Alarm changed to %02d:%02d.", updated.hour, updated.minute),
                         String.format("Wecker auf %02d:%02d geändert.", updated.hour, updated.minute))
                 }
@@ -1864,7 +1935,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             result.goal.orEmpty(),
             result.temperatureC?.toString().orEmpty(),
             result.timeLocal.orEmpty(),
-            result.referenceTimeLocal.orEmpty()
+            result.referenceTimeLocal.orEmpty(),
+            result.dateLocal.orEmpty()
         ).joinToString("|")
         if (key in executedVoiceOperations) return false
         executedVoiceOperations[key] = now

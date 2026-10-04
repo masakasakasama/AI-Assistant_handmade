@@ -1609,7 +1609,7 @@ private fun AlarmList(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                alarm.label + " · " + repeatLabel(alarm.repeatMask),
+                                alarm.label + " · " + (alarm.dateLocal ?: repeatLabel(alarm.repeatMask)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1910,6 +1910,7 @@ private fun AlarmEditorDialog(
                     FilterChip(
                         selected = selected,
                         onClick = {
+                            dateLocal = null,
                             repeatMask = if (selected) {
                                 repeatMask and (1 shl index).inv()
                             } else {

@@ -49,7 +49,8 @@ class SwitchBotActionAdapter(
                     temperature = action.temperatureC ?: error("Missing temperature"),
                     mode = current?.mode ?: previous.mode,
                     fanSpeed = current?.fanSpeed ?: previous.fanSpeed,
-                    power = action.power ?: true
+                    power = action.power ?: current?.power ?: previous.power,
+                    settingsKnown = true
                 )
                 client.setAirConditioner(device.deviceId, next.temperature, next.mode, next.fanSpeed, next.power)
                     .onSuccess { saveKnownAcState(device.deviceId, next) }

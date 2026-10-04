@@ -75,7 +75,9 @@ data class AiDispatchResult(
     val parameters: Map<String, Double> = emptyMap(),
     val executionMode: String = "none",
     val rawIntentJson: String? = null,
-    val timings: AiPipelineTimings = AiPipelineTimings()
+    val timings: AiPipelineTimings = AiPipelineTimings(),
+    val dateLocal: String? = null,
+    val stepsJson: String? = null
 )
 
 data class AiPipelineTimings(
@@ -163,7 +165,9 @@ class AiBackendClient(
                 }.orEmpty(),
                 executionMode = route.optString("executionMode", "none"),
                 rawIntentJson = json.optJSONObject("rawIntent")?.toString(),
-                timings = parseTimings(json.optJSONObject("timings"))
+                timings = parseTimings(json.optJSONObject("timings")),
+                dateLocal = route.optString("dateLocal").takeIf { it.isNotBlank() && it != "null" },
+                stepsJson = route.optJSONArray("steps")?.toString()
             )
         )
     } catch (cancelled: CancellationException) {

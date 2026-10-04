@@ -117,7 +117,7 @@ class ActionResolver(
                     localized(intent.language, "${currentState.temperature}℃から${action.temperatureC}℃に変更しますか？", "Change from ${currentState.temperature}°C to ${action.temperatureC}°C?", "Von ${currentState.temperature}°C auf ${action.temperatureC}°C ändern?"),
                     "temperature delta exceeds auto policy", stateFetchMs, resolverStarted, policyStarted)
             }
-            if (action.type == "power_on" && currentState?.power == true || action.type == "power_off" && currentState?.power == false) {
+            if (currentState?.fromSavedSettings != true && (action.type == "power_on" && currentState?.power == true || action.type == "power_off" && currentState?.power == false)) {
                 return plan(intent, device, currentState, action, ActionDecision.NOOP, ActionPolicy.SAFE_AUTO,
                     localized(intent.language, "${device.name}はすでにその状態です", "${device.name} is already in that state.", "${device.name} ist bereits in diesem Zustand."),
                     "requested power state already matches", stateFetchMs, resolverStarted, policyStarted)
@@ -164,9 +164,9 @@ class ActionResolver(
                     "comfort bound reached", stateFetchMs, resolverStarted, policyStarted)
             }
             val resolved = ResolvedAction("set_temperature", next, power = true)
-            if (!intent.confidence.isFinite() || intent.confidence < safety.minimumConfidence) {
+            if (currentState.fromSavedSettings || !intent.confidence.isFinite() || intent.confidence < safety.minimumConfidence) {
                 return plan(intent, device, currentState, resolved, ActionDecision.CONFIRM, ActionPolicy.CONFIRM_REQUIRED,
-                    localized(intent.language, "${device.name}を${currentState.temperature}℃から${next}℃に変更しますか？",
+                    localized(intent.language, (if (currentState.fromSavedSettings) "実際の状態は取得できないため、最後に送った設定を基準にします。" else "") + "${device.name}を${currentState.temperature}℃から${next}℃に変更しますか？",
                         "Change ${device.name} from ${currentState.temperature}°C to ${next}°C?",
                         "${device.name} von ${currentState.temperature}°C auf ${next}°C ändern?"),
                     "state and bounded goal resolved; user confirmation required", stateFetchMs, resolverStarted, policyStarted)

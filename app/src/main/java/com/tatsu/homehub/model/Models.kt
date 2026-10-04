@@ -32,7 +32,8 @@ data class AcControlState(
     val temperature: Int = 26,
     val mode: Int = 2,
     val fanSpeed: Int = 1,
-    val power: Boolean = false
+    val power: Boolean = false,
+    val settingsKnown: Boolean = false
 )
 
 data class SwitchBotDeviceState(
@@ -42,7 +43,8 @@ data class SwitchBotDeviceState(
     val fanSpeed: Int? = null,
     val brightness: Int? = null,
     val retrievedAtElapsedMs: Long,
-    val rawJson: String
+    val rawJson: String,
+    val fromSavedSettings: Boolean = false
 )
 
 data class HubEnvironmentState(
@@ -58,7 +60,8 @@ data class LocalAlarm(
     val minute: Int,
     val label: String,
     val repeatMask: Int,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val dateLocal: String? = null
 ) {
     fun repeatsOn(dayIndexMondayZero: Int): Boolean =
         repeatMask and (1 shl dayIndexMondayZero) != 0

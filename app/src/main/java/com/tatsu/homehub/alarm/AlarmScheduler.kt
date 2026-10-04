@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import com.tatsu.homehub.model.LocalAlarm
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -19,6 +20,7 @@ object AlarmScheduler {
 
         val manager = context.getSystemService(AlarmManager::class.java)
         val triggerAt = nextTrigger(alarm)
+        if (triggerAt <= System.currentTimeMillis()) { cancel(context, alarm.id); return }
         val pending = pendingIntent(context, alarm.id)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !manager.canScheduleExactAlarms()) {
@@ -37,7 +39,8 @@ object AlarmScheduler {
         val base = now.withHour(alarm.hour).withMinute(alarm.minute).withSecond(0).withNano(0)
 
         val target = if (alarm.repeatMask == 0) {
-            if (base.isAfter(now)) base else base.plusDays(1)
+            alarm.dateLocal?.let { LocalDate.parse(it).atTime(alarm.hour, alarm.minute) }
+                ?: if (base.isAfter(now)) base else base.plusDays(1)
         } else {
             (0L..7L)
                 .map { offset -> now.toLocalDate().plusDays(offset).atTime(alarm.hour, alarm.minute) }

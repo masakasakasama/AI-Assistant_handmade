@@ -1,5 +1,6 @@
 package com.tatsu.homehub.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.tatsu.homehub.model.LocalAlarm
@@ -11,7 +12,8 @@ data class AlarmEntity(
     val minute: Int,
     val label: String,
     val repeatMask: Int,
-    val enabled: Boolean
+    val enabled: Boolean,
+    @ColumnInfo(defaultValue = "NULL") val dateLocal: String? = null
 )
 
 fun AlarmEntity.toModel(): LocalAlarm = LocalAlarm(
@@ -20,7 +22,8 @@ fun AlarmEntity.toModel(): LocalAlarm = LocalAlarm(
     minute = minute,
     label = label,
     repeatMask = repeatMask,
-    enabled = enabled
+    enabled = enabled,
+    dateLocal = dateLocal
 )
 
 fun LocalAlarm.toEntity(): AlarmEntity = AlarmEntity(
@@ -29,5 +32,6 @@ fun LocalAlarm.toEntity(): AlarmEntity = AlarmEntity(
     minute = minute,
     label = label,
     repeatMask = repeatMask,
-    enabled = enabled
+    enabled = enabled,
+    dateLocal = dateLocal
 )

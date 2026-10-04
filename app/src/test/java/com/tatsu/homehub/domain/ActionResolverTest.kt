@@ -221,4 +221,16 @@ class ActionResolverTest {
             resolver.resolve(request.copy(target="lock", targetType=null), listOf(unsupported), null).policy)
     }
 
+    @Test fun lastSentSettingsAllowRelativeChangeButAlwaysRequireConfirmation() {
+        val previous = state(true, 27).copy(fromSavedSettings = true)
+        val plan = resolver.resolve(intent("cooler"), listOf(ac), previous)
+        assertEquals(ActionDecision.CONFIRM, plan.decision)
+        assertEquals(26, plan.action?.temperatureC)
+        org.junit.Assert.assertTrue(plan.response.contains("最後に送った設定"))
+        assertEquals(2, plan.currentState?.mode)
+    }
+    @Test fun savedPowerStateCannotPretendToBeAnActualNoop() {
+        val plan = resolver.resolve(intent("off", action = "turn_off"), listOf(ac), state(false, 27).copy(fromSavedSettings = true))
+        assertEquals(ActionDecision.EXECUTE, plan.decision)
+    }
 }

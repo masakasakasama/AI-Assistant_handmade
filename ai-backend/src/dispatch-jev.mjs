@@ -1,4 +1,5 @@
-import { explicitDeviceCommand,deviceClarification,validateDeviceRoute } from './device-command.mjs';
+import {explicitCommands,alarmDate} from './command-context.mjs';
+import { deviceClarification,validateDeviceRoute } from './device-command.mjs';
 import { resolveAnswerMode } from "./answer-mode.mjs";
 import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
@@ -16,8 +17,8 @@ export async function dispatchJev(input, dependencies = {}) {
   if (!modelProfile) throw new Error("Unsupported modelProfile");
   const now = dependencies.now || (() => performance.now());
   const started = now();
-  const extracted = explicitDeviceCommand(input) || await (dependencies.routeIntentJev || routeIntentJev)(input);
-  const routed = validateDeviceRoute(extracted,input);
+  const extracted = explicitCommands(input) || await (dependencies.routeIntentJev || routeIntentJev)(input);
+  const routed = alarmDate(validateDeviceRoute(extracted,input),input);
   const routingCompletedAt = now();
   const routerMs = Math.round(routingCompletedAt) - Math.round(started);
   const { usage, model: jevModel, probabilities, ...route } = routed;

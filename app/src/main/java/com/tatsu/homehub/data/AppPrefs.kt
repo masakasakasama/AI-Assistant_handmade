@@ -110,7 +110,8 @@ class AppPrefs(context: Context) {
                             temperature = state.optInt("temperature", 26).coerceIn(16, 30),
                             mode = state.optInt("mode", 2).coerceIn(1, 5),
                             fanSpeed = state.optInt("fanSpeed", 1).coerceIn(1, 4),
-                            power = state.optBoolean("power", false)
+                            power = state.optBoolean("power", false),
+                            settingsKnown = state.optBoolean("settingsKnown", false)
                         )
                     )
                 }
@@ -128,6 +129,7 @@ class AppPrefs(context: Context) {
                     .put("mode", state.mode)
                     .put("fanSpeed", state.fanSpeed)
                     .put("power", state.power)
+                    .put("settingsKnown", state.settingsKnown)
             )
         }
         prefs.edit().putString(KEY_AC_CONTROL_STATES, json.toString()).apply()
