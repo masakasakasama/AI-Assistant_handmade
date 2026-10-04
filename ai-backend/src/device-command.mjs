@@ -76,5 +76,8 @@ export function validateDeviceRoute(route,{text=''}){
   }else if(/[「」“”"]|(?:もし|なければ|したら|\bif\b|\bunless\b|\bwenn\b)/i.test(text)){
     reply=route.language==='de'?'Soll ich die Aktion jetzt ausführen? Bedingungen oder zitierte Befehle werden nicht automatisch ausgeführt.':route.language==='en'?'Should I perform the action now? Conditional or quoted commands are not executed automatically.':'今その操作を実行したい？条件付きの指示や引用した指示は、そのまま実行しないよ。';
   }
+  if(!reply&&(/[?？]/.test(text)||/(?:して(?:も)?いい|ますか|ですか|かな)[。.!！]*$/.test(text.trim()))) {
+    return {...route,confidence:Math.min(Number.isFinite(route.confidence)?route.confidence:0,.5),evidence:'question_requires_confirmation'};
+  }
   return reply?{...route,route:'clarify',action:null,goal:null,replyText:reply,blockedReason:'non_executable_utterance'}:route;
 }

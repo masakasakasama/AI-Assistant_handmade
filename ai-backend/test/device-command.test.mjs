@@ -57,3 +57,8 @@ for(const execute of [dispatchJev,dispatch])test('unknown explicit target never 
  const result=await execute({text:'書斎のエアコン消して',context},{routeIntent:fail,routeIntentJev:fail});
  assert.equal(result.route.route,'clarify');assert.equal(result.route.action,null);assert.match(result.answer.text,/書斎のエアコン/);
 });
+
+for(const text of ['エアコン消していい？','Can I turn off the lights?','Kann ich das Licht ausschalten?'])test('questions cannot turn a confident model proposal into automatic execution: '+text,async()=>{
+ const result=await dispatchJev({text,context},{routeIntentJev:async()=>({route:'device_action',target:'エアコン',action:'turn_off',confidence:.99,language:'ja'})});
+ assert.equal(result.route.route,'device_action');assert.ok(result.route.confidence<.72);assert.equal(result.route.evidence,'question_requires_confirmation');
+});
