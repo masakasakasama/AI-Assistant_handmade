@@ -21,18 +21,17 @@ class AlarmMigrationTest {
             old.version = 1
         }
         fun open() = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_1_2).build()
+        var db = open()
         try {
-            open().use { db ->
-                val previous = db.alarmDao().get("old")!!
-                assertEquals("朝", previous.label)
-                assertEquals(7, previous.hour)
-                assertNull(previous.dateLocal)
-                db.alarmDao().upsert(previous.copy(id = "dated", dateLocal = "2026-10-05"))
-            }
-            open().use { db ->
-                assertEquals("2026-10-05", db.alarmDao().get("dated")!!.dateLocal)
-                assertEquals(2, db.alarmDao().all().size)
-            }
-        } finally { context.deleteDatabase(name) }
+            val previous = db.alarmDao().get("old")!!
+            assertEquals("朝", previous.label)
+            assertEquals(7, previous.hour)
+            assertNull(previous.dateLocal)
+            db.alarmDao().upsert(previous.copy(id = "dated", dateLocal = "2026-10-05"))
+            db.close()
+            db = open()
+            assertEquals("2026-10-05", db.alarmDao().get("dated")!!.dateLocal)
+            assertEquals(2, db.alarmDao().all().size)
+        } finally { db.close(); context.deleteDatabase(name) }
     }
 }
