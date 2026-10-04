@@ -34,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -77,6 +78,7 @@ import com.tatsu.homehub.model.AcControlState
 import com.tatsu.homehub.model.HubEnvironmentState
 import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
+import com.tatsu.homehub.update.DownloadProgress
 import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.voice.VoicePhase
 import com.tatsu.homehub.voice.VoiceSessionState
@@ -104,6 +106,9 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
     val hubEnvironmentStates by viewModel.hubEnvironmentStates.collectAsState()
     val weather by viewModel.weather.collectAsState()
     val updateInfo by viewModel.updateInfo.collectAsState()
+    val updateProgress by viewModel.updateProgress.collectAsState()
+    var showDownload by remember { mutableStateOf(true) }
+    LaunchedEffect(updateProgress != null) { if (updateProgress != null) showDownload = true }
     val loading by viewModel.loading.collectAsState()
     val message by viewModel.message.collectAsState()
     val switchBotConfigured by viewModel.switchBotConfigured.collectAsState()
@@ -222,6 +227,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                         item {
                             UpdateRow(
                                 updateInfo = updateInfo,
+                                progress = updateProgress,
                                 onCheck = { viewModel.checkForUpdate() },
                                 onInstall = viewModel::installUpdate
                             )
@@ -307,6 +313,15 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                 item { Spacer(Modifier.height(30.dp)) }
             }
         }
+    }
+
+    updateProgress?.let { progress ->
+        if (showDownload) AlertDialog(
+            onDismissRequest = { showDownload = false },
+            title = { Text("更新をダウンロード中") },
+            text = { DownloadStatus(progress) },
+            confirmButton = { TextButton(onClick = { showDownload = false }) { Text("閉じる（ダウンロードは続きます）") } }
+        )
     }
 
     if (showSettings) {
@@ -1605,14 +1620,28 @@ private fun AlarmList(
 }
 
 @Composable
-private fun UpdateRow(updateInfo: UpdateInfo?, onCheck: () -> Unit, onInstall: () -> Unit) {
+private fun DownloadStatus(progress: DownloadProgress) {
+    fun mb(bytes: Long) = String.format(java.util.Locale.JAPAN, "%.1f MB", bytes / 1_000_000.0)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(progress.percent?.let { "$it%" } ?: "ダウンロード中", fontWeight = FontWeight.SemiBold)
+        Text(mb(progress.downloadedBytes) + (progress.totalBytes?.let { " / " + mb(it) } ?: ""), style = MaterialTheme.typography.bodySmall)
+        val percent = progress.percent
+        if (percent != null) LinearProgressIndicator(progress = { percent / 100f }, modifier = Modifier.fillMaxWidth())
+        else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        if (percent == 100) Text("インストーラーを開いています…", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun UpdateRow(updateInfo: UpdateInfo?, progress: DownloadProgress?, onCheck: () -> Unit, onInstall: () -> Unit) {
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("✓", fontSize = 22.sp, color = MaterialTheme.colorScheme.secondary)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Tatsu Home v" + BuildConfig.VERSION_NAME, fontWeight = FontWeight.SemiBold)
-                Text(
+                if (progress != null) DownloadStatus(progress)
+                else Text(
                     updateInfo?.let { "v" + it.version + " が利用可能" } ?: "更新状態を確認できます",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1621,7 +1650,7 @@ private fun UpdateRow(updateInfo: UpdateInfo?, onCheck: () -> Unit, onInstall: (
             if (updateInfo == null) {
                 TextButton(onClick = onCheck) { Text("更新確認") }
             } else {
-                Button(onClick = onInstall) { Text("更新") }
+                Button(onClick = onInstall, enabled = progress == null) { Text("更新") }
             }
         }
     }

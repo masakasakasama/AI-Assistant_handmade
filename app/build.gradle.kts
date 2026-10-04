@@ -14,8 +14,8 @@ android {
         minSdk = 28
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         targetSdk = 35
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 43
-        versionName = System.getenv("VERSION_NAME") ?: "0.4.37"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 44
+        versionName = System.getenv("VERSION_NAME") ?: "0.4.38"
         buildConfigField(
             "String",
             "DEFAULT_AI_BACKEND_URL",
@@ -40,6 +40,12 @@ android {
             isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("release")
         }
+    }
+
+    // Compress the standalone APK while retaining every supported CPU architecture.
+    packaging {
+        jniLibs.useLegacyPackaging = true
+        dex.useLegacyPackaging = true
     }
 
     buildFeatures {

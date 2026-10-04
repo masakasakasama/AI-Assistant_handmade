@@ -9,6 +9,8 @@ import androidx.core.content.FileProvider
 import com.tatsu.homehub.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -17,7 +19,8 @@ import java.net.URL
 data class UpdateInfo(
     val version: String,
     val apkUrl: String,
-    val releaseUrl: String
+    val releaseUrl: String,
+    val sizeBytes: Long? = null
 )
 
 class UpdateManager(private val context: Context) {
@@ -43,10 +46,12 @@ class UpdateManager(private val context: Context) {
             val tag = json.optString("tag_name").removePrefix("v")
             val assets = json.optJSONArray("assets") ?: return@runCatching null
             var apkUrl: String? = null
+            var sizeBytes: Long? = null
             for (i in 0 until assets.length()) {
                 val asset = assets.getJSONObject(i)
                 if (asset.optString("name").endsWith(".apk", ignoreCase = true)) {
                     apkUrl = asset.optString("browser_download_url")
+                    sizeBytes = asset.optLong("size").takeIf { it > 0 }
                     break
                 }
             }
@@ -58,17 +63,22 @@ class UpdateManager(private val context: Context) {
                 UpdateInfo(
                     version = tag,
                     apkUrl = apkUrl,
-                    releaseUrl = json.optString("html_url")
+                    releaseUrl = json.optString("html_url"),
+                    sizeBytes = sizeBytes
                 )
             }
         }
     }
 
-    suspend fun downloadAndOpenInstaller(info: UpdateInfo): Result<Unit> =
+    suspend fun downloadAndOpenInstaller(info: UpdateInfo, onProgress: (DownloadProgress) -> Unit = {}): Result<Unit> =
         withContext(Dispatchers.IO) {
+            val downloadContext = coroutineContext
             runCatching {
                 val dir = File(context.cacheDir, "updates").apply { mkdirs() }
                 val apk = File(dir, "tatsu-home-" + info.version + ".apk")
+                val partial = File(dir, apk.name + ".part")
+                // Updates are serialized by the ViewModel; discard obsolete cached installers.
+                dir.listFiles()?.filter { it != apk }?.forEach { it.delete() }
 
                 val connection = (URL(info.apkUrl).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
@@ -78,16 +88,24 @@ class UpdateManager(private val context: Context) {
                     setRequestProperty("User-Agent", "TatsuHome/" + BuildConfig.VERSION_NAME)
                 }
 
-                val code = connection.responseCode
-                if (code !in 200..299) {
+                try {
+                    val code = connection.responseCode
+                    if (code != 200) error("APK download HTTP " + code)
+                    val headerSize = connection.contentLengthLong.takeIf { it > 0 }
+                    if (headerSize != null && info.sizeBytes != null && headerSize != info.sizeBytes) {
+                        error("APKのサイズが一致しません。もう一度更新確認してください")
+                    }
+                    val total = info.sizeBytes ?: headerSize
+                    connection.inputStream.use { input ->
+                        partial.outputStream().use { output ->
+                            copyDownload(input, output, total, onProgress) { downloadContext.ensureActive() }
+                        }
+                    }
+                    if (!partial.renameTo(apk)) error("更新ファイルを保存できませんでした")
+                } finally {
                     connection.disconnect()
-                    error("APK download HTTP " + code)
+                    partial.delete()
                 }
-
-                connection.inputStream.use { input ->
-                    apk.outputStream().use { output -> input.copyTo(output) }
-                }
-                connection.disconnect()
 
                 if (
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
@@ -114,7 +132,7 @@ class UpdateManager(private val context: Context) {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 context.startActivity(install)
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     private fun compareVersions(a: String, b: String): Int {

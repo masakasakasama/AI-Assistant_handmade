@@ -5,3 +5,5 @@
 #mascot{width:min(100%,480px)}#assistant-card{padding:16px}@media(min-width:800px){#mascot{width:min(100%,480px)}}
 
 .mascot-name{text-align:center;font-size:15px;font-weight:600;margin:12px 0 0}
+
+a{color:var(--blue)}

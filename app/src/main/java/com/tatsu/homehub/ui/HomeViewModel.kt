@@ -31,6 +31,7 @@ import com.tatsu.homehub.model.AcControlState
 import com.tatsu.homehub.model.HubEnvironmentState
 import com.tatsu.homehub.model.LocalAlarm
 import com.tatsu.homehub.model.SwitchBotDevice
+import com.tatsu.homehub.update.DownloadProgress
 import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.update.UpdateManager
 import com.tatsu.homehub.voice.LocalConversation
@@ -104,6 +105,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
     val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
+
+    private val _updateProgress = MutableStateFlow<DownloadProgress?>(null)
+    val updateProgress: StateFlow<DownloadProgress?> = _updateProgress.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
@@ -1889,20 +1893,21 @@ $history
     }
 
     fun installUpdate() {
+        if (_updateProgress.value != null) return
         val info = _updateInfo.value ?: run {
             _message.value = "利用可能な更新はありません"
             return
         }
 
+        _updateProgress.value = DownloadProgress(0, info.sizeBytes)
         viewModelScope.launch {
-            _message.value = "v" + info.version + " をダウンロード中"
-            updateManager.downloadAndOpenInstaller(info)
-                .onSuccess {
-                    _message.value = "インストーラーを開きました"
-                }
-                .onFailure { error ->
-                    _message.value = error.message ?: "更新に失敗しました"
-                }
+            try {
+                updateManager.downloadAndOpenInstaller(info) { _updateProgress.value = it }
+                    .onSuccess { _message.value = "インストーラーを開きました" }
+                    .onFailure { error -> _message.value = error.message ?: "更新に失敗しました" }
+            } finally {
+                _updateProgress.value = null
+            }
         }
     }
 

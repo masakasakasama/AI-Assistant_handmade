@@ -122,6 +122,10 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: gradle :app:testDebugUnitTest :app:assembleRelease --stacktrace
 
+      - name: Verify compressed APK download size
+        if: steps.release_check.outputs.exists != 'true'
+        run: python tools/check-apk-size.py app/build/outputs/apk/release/app-release.apk
+
       - name: Enable KVM for renderer verification
         if: steps.release_check.outputs.exists != 'true'
         run: |
