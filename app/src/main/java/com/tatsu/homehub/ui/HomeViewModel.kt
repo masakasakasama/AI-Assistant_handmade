@@ -170,6 +170,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var comparisonGeneration = 0L
     private var processedVoiceGeneration: Long? = null
     private var pendingActionPlan: ActionPlan? = null
+    private var pendingBatchPlans: List<ActionPlan> = emptyList()
     private var pendingActionExpiresAt: Long = 0L
     private val executedActionPlanIds = LinkedHashSet<String>()
     private var voiceSpeechEndedElapsedMs: Long? = null
@@ -445,6 +446,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setTemporaryRoom(device: SwitchBotDevice, room: String) {
         if (room !in TemporaryRoomAssignments.choices) return
         pendingActionPlan = null
+        pendingBatchPlans = emptyList()
         pendingActionExpiresAt = 0L
         val next = _temporaryRoomAssignments.value.toMutableMap()
         next[device.deviceId] = if (room == TemporaryRoomAssignments.UNASSIGNED) "" else room
@@ -1070,6 +1072,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun cancelVoiceSession() {
+        pendingActionPlan = null
+        pendingBatchPlans = emptyList()
+        pendingActionExpiresAt = 0L
         wakeWordController.setPlayback(false)
         val previousGeneration = voiceGeneration
         voiceGeneration += 1
@@ -1121,7 +1126,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             )
         )
 
-        if (consumePendingAction(text, generation)) return
+        if (mode in setOf(VoiceMode.LUNA, VoiceMode.JEV) && consumePendingAction(text, generation)) return
 
         if (mode == VoiceMode.ROUTER_COMPARE) {
             currentVoiceJob?.cancel()
@@ -1470,6 +1475,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val client = clientOrNull()
             ?: return localized(result.language, "SwitchBotの設定が必要です", "SwitchBot is not configured.", "SwitchBot ist nicht eingerichtet.")
         val candidates = resolveDeviceCandidates(result)
+        if (candidates.size > 1 && result.action in setOf("turn_on", "turn_off") &&
+            (result.action == "turn_on" || result.confidence < .72)) {
+            val plans = candidates.map { target ->
+                actionPolicyEngine.evaluate(actionResolver.resolve(DeviceIntent(result.route, target.deviceId, null,
+                    result.action, result.goal, result.temperatureC, result.confidence, result.language), devicesWithRooms(), null))
+            }
+            if (plans.any { it.action == null || it.decision == ActionDecision.FALLBACK }) {
+                return plans.joinToString("\n") { "${it.device?.name.orEmpty()}: ${it.response}" }
+            }
+            pendingActionPlan = null
+            pendingBatchPlans = plans
+            pendingActionExpiresAt = android.os.SystemClock.elapsedRealtime() + PENDING_ACTION_TTL_MS
+            val names = candidates.joinToString("、") { it.name + if (result.action == "turn_on" && it.controlProfile?.on?.name == "press") "（ボタンを押す）" else "" }
+            return localized(result.language, "${names}の${candidates.size}台を${if (result.action == "turn_off") "消す" else "つける"}操作でいいですか？",
+                "${if (result.action == "turn_off") "Turn off" else "Turn on"} all ${candidates.size} devices: $names?",
+                "Alle ${candidates.size} Geräte $names ${if (result.action == "turn_off") "ausschalten" else "einschalten"}?")
+        }
         val offTargets = com.tatsu.homehub.domain.DeviceTargetResolver.powerOffTargets(
             result.target, result.targetType, result.action, devicesWithRooms()
         )
@@ -1537,6 +1559,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         when (plan.decision) {
             ActionDecision.CONFIRM -> {
                 if (plan.device != null && plan.action != null) {
+                    pendingBatchPlans = emptyList()
                     pendingActionPlan = plan
                     pendingActionExpiresAt = android.os.SystemClock.elapsedRealtime() + PENDING_ACTION_TTL_MS
                 }
@@ -1636,7 +1659,39 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         } ?: org.json.JSONObject.NULL)
         .toString()
 
+    private fun consumePendingBatch(text: String, generation: Long): Boolean {
+        val plans = pendingBatchPlans
+        if (plans.isEmpty()) return false
+        pendingBatchPlans = emptyList()
+        if (android.os.SystemClock.elapsedRealtime() > pendingActionExpiresAt) return false
+        val answer = normalizeName(text)
+        val yes = answer in setOf("はい", "うん", "お願い", "いいよ", "そうして", "yes", "yeah", "ok", "okay", "ja", "bitte")
+        val no = answer in setOf("いいえ", "いや", "やめて", "やめる", "no", "nope", "nein", "nicht")
+        if (!yes && !no) return false
+        pendingActionExpiresAt = 0L
+        currentVoiceJob?.cancel()
+        currentVoiceJob = viewModelScope.launch {
+            val responses = mutableListOf<String>()
+            if (no) responses += localized(plans.first().intent.language, "わかったよ。操作は取り消したよ。", "Cancelled. Nothing was changed.", "Abgebrochen. Nichts wurde geändert.")
+            else for (plan in plans) {
+                if (generation != voiceGeneration) return@launch
+                val response = try {
+                    runPendingActionPlan(plan.copy(decision = ActionDecision.EXECUTE), generation)
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { "${plan.device?.name}: 指示の送信に失敗しました" }
+                responses += response
+            }
+            if (generation != voiceGeneration) return@launch
+            val response = responses.joinToString("\n")
+            rememberConversation(text, response)
+            _voiceState.value = _voiceState.value.copy(phase = VoicePhase.ANSWER_READY, responseText = response, status = "確認した操作の結果", error = null)
+            voiceController.speak(generation, response, plans.first().intent.language, "batch-$generation-${UUID.randomUUID()}")
+        }
+        return true
+    }
+
     private fun consumePendingAction(text: String, generation: Long): Boolean {
+        if (consumePendingBatch(text, generation)) return true
         val pending = pendingActionPlan ?: return false
         if (android.os.SystemClock.elapsedRealtime() > pendingActionExpiresAt) {
             pendingActionPlan = null
@@ -1655,6 +1710,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         pendingActionPlan = null
+        pendingBatchPlans = emptyList()
         pendingActionExpiresAt = 0L
         currentVoiceJob?.cancel()
         currentVoiceJob = viewModelScope.launch {

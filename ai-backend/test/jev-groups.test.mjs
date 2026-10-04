@@ -15,7 +15,7 @@ Recent conversation:
 for(const [name,action,expected] of [
   ['エアコン','turn_off','エアコン'],
   ['寝室のエアコン','turn_off','寝室のエアコン'],
-  ['エアコン','turn_on',null],
+  ['エアコン','turn_on','エアコン'],
   ['エアコン','set_ac',null]
 ])test(`Jev supplies scoped multi-device OFF choices: ${name}/${action}`,async()=>{
   const result=await routeIntentJev({text:`${name}を消して`,context},{apiKey:'fixture',fetchImpl:async(_url,options)=>{

@@ -74,12 +74,6 @@ class ActionResolver(
             )
         }
         val device = candidates.single()
-        if (intent.confidence < safety.minimumConfidence) {
-            return plan(intent, device, currentState, null, ActionDecision.FALLBACK, ActionPolicy.CONFIRM_REQUIRED,
-                localized(intent.language, "操作内容を確認したいです", "I need to clarify the requested action.", "Ich muss die gewünschte Aktion klären."),
-                "confidence below policy threshold", stateFetchMs, resolverStarted, policyStarted)
-        }
-
         val action = when (intent.action) {
             "turn_on" -> ResolvedAction("power_on", power = true)
             "turn_off" -> ResolvedAction("power_off", power = false)
@@ -105,6 +99,11 @@ class ActionResolver(
                 return plan(intent, device, currentState, null, ActionDecision.FALLBACK, ActionPolicy.BLOCKED,
                     localized(intent.language, "この機種ではその操作に対応していません", "This operation is not supported for this device.", "Diese Aktion wird für dieses Gerät nicht unterstützt."),
                     "unsupported device command", stateFetchMs, resolverStarted, policyStarted)
+            }
+            if ((!intent.confidence.isFinite() || intent.confidence < safety.minimumConfidence)) {
+                return plan(intent, device, currentState, action, ActionDecision.CONFIRM, ActionPolicy.CONFIRM_REQUIRED,
+                    actionResponse(intent.language, device.name, action) + localized(intent.language, "。この操作でいいですか？", " Is that correct?", " Ist das richtig?"),
+                    "target and action resolved; user confirmation required", stateFetchMs, resolverStarted, policyStarted)
             }
             if (action.type == "power_on" && profile?.on?.name == "press") {
                 return plan(intent, device, currentState, action, ActionDecision.CONFIRM, ActionPolicy.CONFIRM_REQUIRED,
@@ -165,6 +164,13 @@ class ActionResolver(
                     "comfort bound reached", stateFetchMs, resolverStarted, policyStarted)
             }
             val resolved = ResolvedAction("set_temperature", next, power = true)
+            if (!intent.confidence.isFinite() || intent.confidence < safety.minimumConfidence) {
+                return plan(intent, device, currentState, resolved, ActionDecision.CONFIRM, ActionPolicy.CONFIRM_REQUIRED,
+                    localized(intent.language, "${device.name}を${currentState.temperature}℃から${next}℃に変更しますか？",
+                        "Change ${device.name} from ${currentState.temperature}°C to ${next}°C?",
+                        "${device.name} von ${currentState.temperature}°C auf ${next}°C ändern?"),
+                    "state and bounded goal resolved; user confirmation required", stateFetchMs, resolverStarted, policyStarted)
+            }
             return plan(intent, device, currentState, resolved, ActionDecision.EXECUTE, ActionPolicy.SAFE_AUTO,
                 localized(intent.language, "${currentState.temperature}℃から${next}℃に下げます", "I will change ${currentState.temperature}°C to ${next}°C.", "Ich ändere von ${currentState.temperature}°C auf ${next}°C."),
                 "current state read; one-step relative temperature change", stateFetchMs, resolverStarted, policyStarted)

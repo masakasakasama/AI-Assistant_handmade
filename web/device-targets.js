@@ -10,11 +10,13 @@ const room=value=>{
 export function resolveDeviceTargets(target,targetType,devices){
   const text=String(target||'').trim(),normalized=normalize(text),explicitRoom=room(text);
   const declared=normalize(targetType);
-  const type=['エアコン','照明'].includes(declared)?declared:
-    normalized.includes('エアコン')?'エアコン':normalized.includes('照明')?'照明':null;
+  const labels=['エアコン','照明','プラグ','扇風機','加湿器'];
+  const types={air_conditioner:'エアコン',light:'照明',plug:'プラグ',fan:'扇風機',humidifier:'加湿器'};
+  const type=types[declared]|| (labels.includes(declared)?declared:
+    normalized.includes('エアコン')?'エアコン':normalized.includes('照明')?'照明':labels.find(label=>normalized.includes(label))||null);
   const unique=[...new Map(devices.map(device=>[device.deviceId,device])).values()];
   const candidates=unique.filter(device=>(!explicitRoom||(device.room||room(device.name))===explicitRoom)&&
-    (!type||(type==='エアコン'?normalize(device.type)==='エアコン':/light|bulb/i.test(device.type))));
+    (!type||(type==='エアコン'?normalize(device.type)==='エアコン':type==='照明'?/light|bulb/i.test(device.type):new RegExp(({プラグ:'plug',扇風機:'fan',加湿器:'humidifier'})[type],'i').test(device.type))));
   if(!text)return type?candidates:[];
   if(type&&[type,explicitRoom,`${explicitRoom||''}${type}`].includes(normalized))return candidates;
   return candidates.filter(device=>device.deviceId===text||normalize(device.name)===normalized||

@@ -1,3 +1,4 @@
+import { explicitDeviceCommand,deviceClarification,validateDeviceRoute } from './device-command.mjs';
 import { resolveAnswerMode } from "./answer-mode.mjs";
 import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
@@ -5,12 +6,6 @@ import { routeIntentJev, JEV_MODEL } from "./jev.mjs";
 import { answerSimple } from "./simple.mjs";
 import { reason } from "./reasoner.mjs";
 import { resolveModelProfile } from "./model-profiles.mjs";
-
-function clarification(language) {
-  if (language === "de") return "Bitte sag genauer, was ich tun soll.";
-  if (language === "en") return "Please be more specific about what you want me to do.";
-  return "もう少し具体的に指示してください";
-}
 
 // Jev is the first decision layer. It never generates prose.
 // simple_chat -> Luna, deep_reasoning -> Sol high.
@@ -20,7 +15,8 @@ export async function dispatchJev(input, dependencies = {}) {
   const modelProfile = resolveModelProfile(input.modelProfile);
   if (!modelProfile) throw new Error("Unsupported modelProfile");
   const started = performance.now();
-  const routed = await (dependencies.routeIntentJev || routeIntentJev)(input);
+  const extracted = explicitDeviceCommand(input) || await (dependencies.routeIntentJev || routeIntentJev)(input);
+  const routed = validateDeviceRoute(extracted,input);
   const routingCompletedAt = performance.now();
   const routerMs = Math.round(routingCompletedAt - started);
   const { usage, model: jevModel, probabilities, ...route } = routed;
@@ -70,7 +66,7 @@ export async function dispatchJev(input, dependencies = {}) {
     calls.push({ model: response.model, usage: response.usage ?? null });
     answer = { model: response.model, text: response.text, effort: route.route === "deep_reasoning" ? answerMode.effort : "none" };
   } else if (route.route === "clarify") {
-    answer = { model: "local", text: clarification(route.language) };
+    answer = { model: "local", text: route.replyText || deviceClarification(route,input.text) };
   }
 
   const responseAssemblyStarted = performance.now();
@@ -97,6 +93,8 @@ export async function dispatchJev(input, dependencies = {}) {
       parameters: route.parameters ?? {},
       executionMode: route.executionMode ?? "none",
       confidence: route.confidence ?? null,
+      evidence: route.evidence ?? null,
+      classificationConfidence: route.classificationConfidence ?? null,
       routerProbabilities: probabilities ?? null
     },
     answer,

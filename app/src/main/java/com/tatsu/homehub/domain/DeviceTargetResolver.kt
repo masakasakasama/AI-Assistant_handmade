@@ -16,9 +16,15 @@ object DeviceTargetResolver {
         val type = when (normalize(targetType.orEmpty())) {
             "エアコン" -> "ac"
             "照明" -> "light"
+            "plug", "プラグ" -> "plug"
+            "fan", "扇風機" -> "fan"
+            "humidifier", "加湿器" -> "humidifier"
             else -> when {
                 normalized.contains("エアコン") -> "ac"
                 normalized.contains("照明") -> "light"
+                normalized == "プラグ" -> "plug"
+                normalized.contains("扇風機") -> "fan"
+                normalized.contains("加湿器") -> "humidifier"
                 else -> null
             }
         }
@@ -27,11 +33,15 @@ object DeviceTargetResolver {
                 when (type) {
                     "ac" -> device.isAirConditioner
                     "light" -> device.type.contains("light", true) || device.type.contains("bulb", true)
+                    "plug" -> device.type.contains("plug", true)
+                    "fan" -> device.type.contains("fan", true)
+                    "humidifier" -> device.type.contains("humidifier", true)
                     else -> true
                 }
         }.distinctBy { it.deviceId }
         if (text.isBlank()) return if (type == null) emptyList() else candidates
-        val generic = setOf("エアコン", "照明", room.orEmpty(), room.orEmpty() + "エアコン", room.orEmpty() + "照明")
+        val labels = listOf("エアコン", "照明", "プラグ", "扇風機", "加湿器")
+        val generic = (labels + room.orEmpty() + labels.map { room.orEmpty() + it }).toSet()
         if (type != null && normalized in generic) return candidates
         val exact = candidates.filter { device ->
             device.deviceId == text || normalize(device.name) == normalized ||

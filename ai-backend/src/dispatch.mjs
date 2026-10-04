@@ -1,3 +1,4 @@
+import { explicitDeviceCommand,deviceClarification,validateDeviceRoute } from './device-command.mjs';
 import { resolveAnswerMode } from "./answer-mode.mjs";
 import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
@@ -11,7 +12,8 @@ export async function dispatch(input, dependencies = {}) {
   const modelProfile = resolveModelProfile(input.modelProfile);
   if (!modelProfile) throw new Error("Unsupported modelProfile");
   const started = performance.now();
-  const routed = await (dependencies.routeIntent || routeIntent)({ ...input, model: modelProfile.routerModel });
+  const extracted = explicitDeviceCommand(input) || await (dependencies.routeIntent || routeIntent)({ ...input, model: modelProfile.routerModel });
+  const routed = validateDeviceRoute(extracted,input);
   const routingCompletedAt = performance.now();
   const routerMs = Math.round(routingCompletedAt - started);
   const { _usage, _timings, ...route } = routed;
@@ -23,7 +25,7 @@ export async function dispatch(input, dependencies = {}) {
   let answerStartedAt = null;
   let answerFirstTokenAt = null;
   let answerCompletedAt = null;
-  const calls = [{ model: modelProfile.routerModel, usage: _usage ?? null }];
+  const calls = [{ model: routed.model || modelProfile.routerModel, usage: _usage ?? null }];
   if (["simple_chat", "clarify"].includes(route.route)) {
     if (!route.replyText?.trim()) throw new Error("Missing router reply");
     answer = { model: modelProfile.routerModel, text: route.replyText };

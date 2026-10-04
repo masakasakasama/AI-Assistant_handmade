@@ -93,5 +93,5 @@ test("Jev clarify uses a local fixed prompt", async () => {
     routeIntentJev: async () => routed("clarify")
   });
   assert.equal(result.answer.model, "local");
-  assert.match(result.answer.text, /具体的/);
+  assert.match(result.answer.text, /対象|家電/);
 });

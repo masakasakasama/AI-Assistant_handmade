@@ -149,11 +149,25 @@ test('batch OFF retains scope, reports partial failure, and does not guess unkno
   async function ask(text){await page.locator('#query').fill(text);await page.getByRole('button',{name:'送信',exact:true}).click();await expect(page.getByRole('button',{name:'送信',exact:true})).toBeEnabled();}
   await ask('寝室のエアコン消して');await expect(page.locator('#conversation')).toContainText('OFF指示の送信に失敗');await expect(page.locator('#conversation')).toContainText('OFF指示を送信した');
   expect(commands.map(body=>body.deviceId)).toEqual(['bed-a','bed-b']);
-  await ask('unknown');await ask('uncertain');expect(commands).toHaveLength(2);
+  await ask('unknown');
+  await page.locator('#query').fill('uncertain');await page.getByRole('button',{name:'送信',exact:true}).click();
+  await expect(page.locator('#confirmation')).toContainText('寝室のエアコン');
+  await page.getByRole('button',{name:'やめる',exact:true}).click();expect(commands).toHaveLength(2);
 });
 
 test('alarm storage and screen-only limitation are visible',async({page})=>{
   await fixture(page);await page.goto('/');await page.locator('[data-tab="alarms"]').click();await expect(page.locator('#page-alarms')).toContainText('この画面を開いている間だけ');await page.locator('#alarm-time').fill('07:30');await page.locator('#alarm-name').fill('おはよう');await page.getByRole('button',{name:'追加して音を有効にする'}).click();await expect(page.locator('#alarms')).toContainText('07:30');expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('tatsu-web-alarms'))[0].time)).toBe('07:30');await page.getByRole('button',{name:'削除',exact:true}).click();await expect(page.locator('#alarms')).toBeEmpty();
+});
+
+test('group ON asks one specific question, cancellation sends nothing, and confirmation reaches all targets',async({page})=>{
+  await fixture(page);const commands=[];
+  const devices=['寝室','リビング'].map((room,index)=>({deviceId:'ac-'+index,name:room+'のエアコン',type:'Air Conditioner',infrared:true,profile:{on:{command:'turnOn'},off:{command:'turnOff'}}}));
+  await page.route('**/api/switchbot',route=>{const body=route.request().postDataJSON();if(body.operation==='command')commands.push(body);return route.fulfill({json:body.operation==='list'?{devices}:{accepted:true}});});
+  await page.route('**/api/dispatch-jev',route=>route.fulfill({json:{route:{route:'device_action',action:'turn_on',target:'エアコン',targetType:'air_conditioner',confidence:1}}}));
+  await page.goto('/');await page.locator('[data-tab="devices"]').click();await page.getByRole('button',{name:'同期',exact:true}).click();await expect(page.locator('#devices')).toContainText('リビング');await page.locator('[data-tab="home"]').click();
+  async function request(){await page.locator('#query').fill('エアコンつけて');await page.getByRole('button',{name:'送信',exact:true}).click();await expect(page.locator('#confirmation')).toContainText('寝室のエアコン、リビングのエアコンの2台をつける');}
+  await request();await page.getByRole('button',{name:'やめる',exact:true}).click();await expect(page.getByRole('button',{name:'送信',exact:true})).toBeEnabled();expect(commands).toHaveLength(0);
+  await request();await page.getByRole('button',{name:'実行する',exact:true}).click();await expect(page.locator('#conversation')).toContainText('リビングのエアコンへON指示を送信');expect(commands.map(body=>body.deviceId)).toEqual(['ac-0','ac-1']);expect(commands.every(body=>body.action==='on')).toBe(true);
 });
 
 test('a newer deployed version prompts an update',async({page})=>{

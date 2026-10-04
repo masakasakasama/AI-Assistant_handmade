@@ -96,19 +96,23 @@ async function handleResult(result,session){
   if(route.route==='device_action'){
     if(!devices.length)return '家電タブから機器を同期してね。';
     const matches=resolveDeviceTargets(route.target,route.targetType,devices);
-    if(matches.length>1&&route.action==='turn_off'){
-      if(!(route.confidence>=.72))return '消す対象をもう一度教えてね。';
+    if(matches.length>1&&['turn_off','turn_on'].includes(route.action)){
+      const command=route.action==='turn_off'?'off':'on';
+      if(route.action==='turn_on'||!(route.confidence>=.72)){
+        const names=matches.map(device=>device.name+(command==='on'&&device.profile?.on?.command==='press'?'（ボタンを押す）':'')).join('、');
+        if(!await confirmAction(`${names}の${matches.length}台を${command==='off'?'消す':'つける'}操作でいいですか？`)||session!==generation)return '操作は取り消したよ。';
+      }
       setPhase('EXECUTING');const replies=[];
       for(const device of matches){
         if(session!==generation)return '';
-        if(!device.profile?.off){replies.push(`${device.name}はOFF操作に対応していないよ。`);continue;}
+        if(!device.profile?.[command]){replies.push(`${device.name}は${command.toUpperCase()}操作に対応していないよ。`);continue;}
         try{
-          const receipt=await deviceCommand(device,{action:'off'});
+          const receipt=await deviceCommand(device,{action:command});
           if(receipt.accepted!==true)throw new Error('not_accepted');
-          replies.push(`${device.name}へOFF指示を送信したよ。`);
+          replies.push(`${device.name}へ${command.toUpperCase()}指示を送信したよ。`);
         }catch(error){
           if(session!==generation||error.name==='AbortError')return '';
-          replies.push(`${device.name}へのOFF指示の送信に失敗したよ。`);
+          replies.push(`${device.name}への${command.toUpperCase()}指示の送信に失敗したよ。`);
         }
       }
       return replies.join('\n');

@@ -1,8 +1,9 @@
+import {isActionRequest} from './device-command.mjs';
 export const JEV_MODEL = process.env.JEV_MODEL || "typesafe/jev-1.13";
 export const JEV_ENDPOINT = process.env.JEV_ENDPOINT || "https://openrouter.ai/api/alpha/decisions";
 
 const ROUTE_CRITERIA = {
-  device_action: "An explicit device command OR an implied home-comfort goal (for example feeling hot/cold/dark) that a known device could satisfy. An explicit OFF command applies to all matching devices of the named type or room, even when more than one matches.",
+  device_action: "An explicit device command OR an implied home-comfort goal (for example feeling hot/cold/dark) that a known device could satisfy. An explicit ON or OFF command applies to all matching devices of the named type or room, even when more than one matches.",
   alarm_action: "A request to create, update, delete, enable, disable, or inspect an alarm.",
   weather: "A direct request for current or forecast weather.",
   simple_chat: "Lightweight conversation or a short factual request that does not require substantial reasoning.",
@@ -126,7 +127,7 @@ function addPowerOffGroups(candidates) {
   for (const group of groups.values()) {
     if (group.count<2||Object.keys(candidates.criteria).length>=255) continue;
     const key=`off_group_${index++}`;
-    candidates.criteria[key]=`All known devices matching "${group.name}" (${group.count} devices). Choose ONLY for an explicit OFF request for that type/room without a specific individual name. Do not choose this for ON, temperature, or implied comfort goals.`;
+    candidates.criteria[key]=`All known devices matching "${group.name}" (${group.count} devices). Choose ONLY for an explicit ON or OFF request for that type/room without a specific individual name. Do not choose this for temperature or implied comfort goals.`;
     candidates.map.set(key,group);
   }
 }
@@ -175,7 +176,13 @@ export function parseJevRouteResponse(payload, metadata = {}) {
   const referenceHourAnswer = parseChoice(payload, "reference_hour");
   const referenceMinuteAnswer = parseChoice(payload, "reference_minute");
 
-  const route = routeAnswer.choice;
+  const operation = deviceActionAnswer.choice !== "none" ? deviceActionAnswer :
+    deviceGoal !== "none" ? payload.answers.device_goal : null;
+  const score = value => Number.isFinite(value)&&value>=0&&value<=1 ? value : 0;
+  const extractionConfidence = Math.min(score(operation?.confidence), score(deviceTargetAnswer.confidence));
+  const extractedDevice = metadata.deviceMap?.get(deviceTargetAnswer.choice);
+  const recovered = metadata.allowRecovery && routeAnswer.choice === "clarify" && extractedDevice && operation;
+  const route = recovered ? "device_action" : routeAnswer.choice;
   let action = null;
   let target = null;
   let temperatureC = null;
@@ -187,7 +194,7 @@ export function parseJevRouteResponse(payload, metadata = {}) {
   if (route === "device_action") {
     action = deviceActionAnswer.choice !== "none" ? deviceActionAnswer.choice : null;
     const selected = metadata.deviceMap?.get(deviceTargetAnswer.choice) ?? null;
-    const device = selected?.group && action !== "turn_off" ? null : selected;
+    const device = selected?.group && !["turn_off", "turn_on"].includes(action) ? null : selected;
     target = device?.name ?? null;
     targetType = device?.targetType ?? null;
     const numericTemperature = temperatureAnswer.choice?.startsWith("t")
@@ -216,7 +223,9 @@ export function parseJevRouteResponse(payload, metadata = {}) {
     model: typeof payload.model === "string" ? payload.model : JEV_MODEL,
     language,
     route,
-    confidence: Number.isFinite(routeAnswer.confidence) ? routeAnswer.confidence : 0,
+    confidence: route === "device_action" ? extractionConfidence : Number.isFinite(routeAnswer.confidence) ? routeAnswer.confidence : 0,
+    classificationConfidence: routeAnswer.confidence ?? null,
+    recoveredFromClarify: !!recovered,
     action,
     target,
     targetType,
@@ -295,7 +304,7 @@ export async function routeIntentJev({ text, context = "" }, dependencies = {}) 
         },
         device_target: {
           type: "choice",
-          instructions: "For an explicit OFF request naming a device type or room, choose the matching off_group when several devices match; multiple matches do not require clarification for OFF. If a specific individual name or ID is supplied, choose only that device. For other actions choose one known device, or none when unclear. Never expand an unknown individual name to a group.",
+          instructions: "For an explicit ON or OFF request naming a device type or room, choose the matching off_group when several devices match; multiple matches are a known group for ON/OFF; the client confirms group ON. If a specific individual name or ID is supplied, choose only that device. For other actions choose one known device, or none when unclear. Never expand an unknown individual name to a group.",
           criteria: deviceCandidates.criteria
         },
         temperature_c: {
@@ -340,6 +349,7 @@ export async function routeIntentJev({ text, context = "" }, dependencies = {}) 
   if (!response.ok) throw new Error(`Jev HTTP ${response.status}`);
   return parseJevRouteResponse(await response.json(), {
     deviceMap: deviceCandidates.map,
+    allowRecovery: isActionRequest(text),
     alarmMap: alarmCandidates.map
   });
 }

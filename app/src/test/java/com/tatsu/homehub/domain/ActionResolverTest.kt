@@ -50,10 +50,10 @@ class ActionResolverTest {
         assertNull(plan.action)
     }
 
-    @Test fun lowConfidenceFallsBackBeforeAnyCommandIsCreated() {
+    @Test fun lowConfidenceGoalOffersAValidatedProposalInsteadOfExecuting() {
         val plan = resolver.resolve(intent("cooler", confidence = .3), listOf(ac), state(true, 27))
-        assertEquals(ActionDecision.FALLBACK, plan.decision)
-        assertNull(plan.action)
+        assertEquals(ActionDecision.CONFIRM, plan.decision)
+        assertEquals(26, plan.action?.temperatureC)
     }
 
     @Test fun explicitTemperatureIsValidatedAndNormalizedToActionPlan() {
@@ -196,12 +196,29 @@ class ActionResolverTest {
     @Test fun batchPowerOffStillValidatesConfidenceAndDeviceCapabilitiesIndividually() {
         val devices = listOf(ac.copy(deviceId="a"), ac.copy(deviceId="b"))
         for (device in DeviceTargetResolver.powerOffTargets("エアコン", "air_conditioner", "turn_off", devices)) {
-            assertEquals(ActionDecision.FALLBACK,
+            assertEquals(ActionDecision.CONFIRM,
                 resolver.resolve(intent(null,"turn_off",device.deviceId,.2),devices,null).decision)
         }
         val unknown = SwitchBotDevice("unknown", "照明", "Unknown", false)
         assertEquals(ActionPolicy.BLOCKED,
             resolver.resolve(DeviceIntent("device_action","unknown",null,"turn_off",null,null,.99,"ja"), listOf(unknown), null).policy)
+    }
+
+    @Test fun lowCategoryConfidenceHasAConcreteConfirmablePowerPlanInsteadOfAnUnanswerableRejection() {
+        for (action in listOf("turn_on", "turn_off")) {
+            for (confidence in listOf(.2, Double.NaN)) {
+                val plan = resolver.resolve(intent(null, action, ac.deviceId, confidence), listOf(ac), null)
+                assertEquals(ActionDecision.CONFIRM, plan.decision)
+                assertEquals(ac.deviceId, plan.device?.deviceId)
+                assertEquals(if (action == "turn_off") "power_off" else "power_on", plan.action?.type)
+            }
+        }
+        val lamp = SwitchBotDevice("desk", "デスク照明", "Color Bulb", false)
+        val request = DeviceIntent("device_action", "desk", "light", "turn_off", null, null, 1.0, "ja")
+        assertEquals(ActionDecision.EXECUTE, resolver.resolve(request, listOf(lamp), null).decision)
+        val unsupported = SwitchBotDevice("lock", "玄関", "Lock", false)
+        assertEquals(ActionPolicy.BLOCKED,
+            resolver.resolve(request.copy(target="lock", targetType=null), listOf(unsupported), null).policy)
     }
 
 }
