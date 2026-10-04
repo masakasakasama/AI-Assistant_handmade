@@ -619,6 +619,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val alarm = LocalAlarm(
             id = id ?: UUID.randomUUID().toString(),
+            dateLocal = if (repeatMask == 0) _alarms.value.firstOrNull { it.id == id }?.dateLocal else null,
             hour = hour.coerceIn(0, 23),
             minute = minute.coerceIn(0, 59),
             label = label.ifBlank { "Alarm" },
@@ -626,6 +627,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             enabled = enabled
         )
 
+        if (!validFutureAlarmDate(alarm.dateLocal, alarm.hour, alarm.minute)) {
+            _message.value = "そのアラームの日付は過去です。新しい日付を音声で指定してね。"
+            return
+        }
         viewModelScope.launch {
             alarmRepo.upsert(alarm)
             if (enabled) {

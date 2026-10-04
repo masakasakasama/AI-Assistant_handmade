@@ -1903,6 +1903,7 @@ private fun AlarmEditorDialog(
                     singleLine = true
                 )
                 Spacer(Modifier.height(12.dp))
+                initial?.dateLocal?.let { Text("日付: $it（繰り返しを選ぶと日付指定を解除）") }
                 Text("繰り返し")
                 val days = listOf("月", "火", "水", "木", "金", "土", "日")
                 days.forEachIndexed { index, day ->
@@ -1910,7 +1911,6 @@ private fun AlarmEditorDialog(
                     FilterChip(
                         selected = selected,
                         onClick = {
-                            dateLocal = null,
                             repeatMask = if (selected) {
                                 repeatMask and (1 shl index).inv()
                             } else {
