@@ -307,7 +307,9 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
         running = false
         previousFrame = 0L
         choreographer.removeFrameCallback(this)
-        if (!disposed && ::uiHelper.isInitialized) uiHelper.detach()
+        // Keep the texture listener installed: TextureView destroys and recreates its
+        // surface across temporary detachments. Removing the listener here can bind
+        // a swap chain to the old surface before the replacement is available.
         super.onDetachedFromWindow()
     }
 }
