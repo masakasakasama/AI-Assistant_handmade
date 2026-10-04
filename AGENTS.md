@@ -5,4 +5,4 @@
 - Use the shared self-contained `tatsu.glb` for the mascot. Android and Web idle/speaking motions must be clearly visible. Preserve lifecycle pause/resume and real rendering evidence.
 - Web command type lists are generated from the audited Android `SwitchBotControlProfiles.kt`. Update profiles and their browser/server tests together; never guess commands for unknown devices. AI comparisons must not execute devices.
 - Run relevant backend tests and WebKit/Chromium browser checks for Web changes. Fixtures do not establish physical SwitchBot or actual iPhone acceptance. Keep that distinction in release notes.
-- Never put provider keys or owner tokens in Web assets, APKs, release archives, logs, or committed files. Browser credentials are session-scoped; Android credentials use Keystore.
+- Never put provider keys or owner tokens in Web assets, APKs, release archives, logs, or committed files. Per the user's request, browser credentials persist in an encrypted IndexedDB vault with a non-exportable key and an explicit delete action. Migrate existing sessions and support one-use pairing from Android's saved settings. Android credentials use Keystore.

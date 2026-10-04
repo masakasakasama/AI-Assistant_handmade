@@ -335,6 +335,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
             initialAiBackendUrl = viewModel.aiBackendUrl(),
             onSaveBackendToken = viewModel::saveAiBackendToken,
             onClearBackendToken = viewModel::clearAiBackendToken,
+            onTransferToWeb = viewModel::transferToWeb,
             initialVoiceLanguageTag = viewModel.voiceLanguageTag,
             initialPreferOnDeviceRecognition = viewModel.preferOnDeviceRecognition,
             initialAnswerMode = viewModel.answerMode,
@@ -1684,6 +1685,7 @@ private fun SettingsDialog(
     initialAiBackendUrl: String,
     onSaveBackendToken: (String) -> Boolean,
     onClearBackendToken: () -> Unit,
+    onTransferToWeb: (Boolean) -> Unit,
     initialVoiceLanguageTag: String,
     initialPreferOnDeviceRecognition: Boolean,
     initialAnswerMode: String,
@@ -1758,6 +1760,13 @@ private fun SettingsDialog(
                     singleLine = true
                 )
                 TextButton(onClick = { onClearBackendToken(); backendToken = "" }) { Text("保存済みBackendトークンを削除") }
+                OutlinedButton(onClick = { onDismiss(); onTransferToWeb(false) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Web版に引き継いで開く")
+                }
+                OutlinedButton(onClick = { onDismiss(); onTransferToWeb(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("iPadへ引き継ぎリンクを共有")
+                }
+                Text("保存済みのBackend・SwitchBot設定を引き継ぎます。共有リンクは10分間、一度だけ使えます。", style = MaterialTheme.typography.bodySmall)
 
 
                 Spacer(Modifier.height(20.dp))

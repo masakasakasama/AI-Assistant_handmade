@@ -2,6 +2,7 @@ package com.tatsu.homehub.ui
 
 import android.app.Application
 import android.net.Uri
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
@@ -34,6 +35,7 @@ import com.tatsu.homehub.model.SwitchBotDevice
 import com.tatsu.homehub.update.DownloadProgress
 import com.tatsu.homehub.update.UpdateInfo
 import com.tatsu.homehub.update.UpdateManager
+import com.tatsu.homehub.update.WebPairingClient
 import com.tatsu.homehub.voice.LocalConversation
 import com.tatsu.homehub.voice.VoiceController
 import com.tatsu.homehub.voice.WakeWordController
@@ -1908,6 +1910,31 @@ $history
             } finally {
                 _updateProgress.value = null
             }
+        }
+    }
+
+    private var webPairingJob: Job? = null
+    fun transferToWeb(share: Boolean) {
+        if (webPairingJob?.isActive == true) return
+        webPairingJob = viewModelScope.launch {
+            _message.value = "Web版へ引き継ぐリンクを作成中…"
+            try {
+                val link = WebPairingClient.createLink(
+                    securePrefs.get(SecurePrefs.KEY_AI_BACKEND_TOKEN).orEmpty(),
+                    securePrefs.get(SecurePrefs.KEY_SWITCHBOT_TOKEN).orEmpty(),
+                    securePrefs.get(SecurePrefs.KEY_SWITCHBOT_SECRET).orEmpty()
+                )
+                val intent = if (share) Intent.createChooser(
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, link)
+                    }, "iPadへWeb版を引き継ぐ"
+                ) else Intent(Intent.ACTION_VIEW, Uri.parse(link))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                getApplication<Application>().startActivity(intent)
+                _message.value = null
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { _message.value = "Web版への引き継ぎに失敗しました。もう一度試してください" }
         }
     }
 

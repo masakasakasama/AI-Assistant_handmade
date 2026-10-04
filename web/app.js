@@ -1,11 +1,33 @@
 import { createMascot } from './mascot.js';
 import { startCapture,audioBase64 } from './audio.js';
+import { readCredentials,saveCredentials,clearCredentials,emptyCredentials } from './credentials.js';
 
 const $=selector=>document.querySelector(selector);
 const defaults={answerMode:'balanced',language:'auto',place:'元浅草',latitude:35.7126,longitude:139.78,readAloud:true};
 const load=(storage,key,fallback)=>{try{return JSON.parse(storage.getItem(key))??fallback;}catch{return fallback;}};
 let settings={...defaults,...load(localStorage,'tatsu-web-settings',{})};
-let credentials=load(sessionStorage,'tatsu-web-credentials',{ownerToken:'',switchbotToken:'',switchbotSecret:''});
+const pairingCode=new URLSearchParams(location.hash.slice(1)).get('pair');
+if(pairingCode)window.history.replaceState(null,'',location.pathname+location.search);
+let credentials=emptyCredentials(),credentialNotice='',importedCredentials=false,credentialChannel=null;
+try{
+  const stored=await readCredentials(),legacy=load(sessionStorage,'tatsu-web-credentials',null);
+  credentials=stored||legacy||emptyCredentials();
+  if(!stored&&legacy)credentials=await saveCredentials(legacy);
+  sessionStorage.removeItem('tatsu-web-credentials');
+}catch{credentialNotice='認証情報の保存先を開けませんでした。ブラウザーのサイト保存設定を確認してください。';}
+async function importPairing(code){
+  try{
+    $('#pairing-status').hidden=false;$('#pairing-status').textContent='Androidの設定を引き継いでいます…';
+    const response=await fetch('/api/web-pairing?operation=redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15_000)});
+    if(!response.ok)throw new Error('引き継ぎリンクを使えません。Androidの設定から、もう一度Web版を開いてください。');
+    credentials=await saveCredentials(await response.json());
+    importedCredentials=true;
+    credentialNotice='Androidの設定を引き継ぎました。次回も入力せず使えます。';
+  }catch{credentialNotice=credentials.ownerToken?'このブラウザーに保存済みの設定で使えます。':'引き継ぎを完了できませんでした。Androidの設定から、もう一度Web版を開いてください。';}
+  $('#pairing-status').textContent=credentialNotice;
+  credentialChannel?.postMessage('changed');
+}
+if(pairingCode)await importPairing(pairingCode);
 let alarms=load(localStorage,'tatsu-web-alarms',[]),devices=[],history=[],weather=null;
 let mascot=null,capture=null,busy=false,generation=0,phase='IDLE',tab='home',abort=null,toastTimer,confirmResolve=null;
 let recording=false,utterance=null,alarmAudio=null,alarmInterval=null,wakeLock=null,updateReady=false,registration=null;
@@ -125,13 +147,27 @@ $('#listen').onclick=()=>void listen('dispatch');$('#listen-jev').onclick=()=>vo
 
 function openSettings(){const form=$('#settings-form');for(const [name,value] of Object.entries({...settings,...credentials})){const input=form.elements.namedItem(name);if(!input)continue;if(input.type==='checkbox')input.checked=value;else input.value=value;}$('#settings-error').hidden=true;$('#settings').showModal();}
 $('#settings-open').onclick=openSettings;$('#settings-close').onclick=()=>$('#settings').close();
-$('#clear-credentials').onclick=()=>{credentials={ownerToken:'',switchbotToken:'',switchbotSecret:''};sessionStorage.removeItem('tatsu-web-credentials');for(const name of Object.keys(credentials))$('#settings-form').elements.namedItem(name).value='';toast('このタブの認証情報を削除しました。');};
-$('#settings-form').onsubmit=event=>{
+credentialChannel=typeof BroadcastChannel==='function'?new BroadcastChannel('tatsu-credentials'):null;
+credentialChannel?.addEventListener('message',async()=>{
+  try{credentials=await readCredentials()||emptyCredentials();}catch{credentials=emptyCredentials();}
+  if($('#settings').open)for(const name of Object.keys(credentials))$('#settings-form').elements.namedItem(name).value=credentials[name];
+});
+$('#clear-credentials').onclick=async()=>{
+  try{
+    await clearCredentials();credentials=emptyCredentials();sessionStorage.removeItem('tatsu-web-credentials');
+    credentialChannel?.postMessage('changed');
+    for(const name of Object.keys(credentials))$('#settings-form').elements.namedItem(name).value='';toast('保存済みの認証情報を削除しました。');
+  }catch{$('#settings-error').textContent='認証情報を削除できませんでした。もう一度試してください。';$('#settings-error').hidden=false;}
+};
+$('#settings-form').onsubmit=async event=>{
   event.preventDefault();const data=new FormData(event.target);const ownerToken=String(data.get('ownerToken')||'').trim();
   if(/\s/.test(ownerToken)){$('#settings-error').textContent='認証トークンに空白は入れられません。';$('#settings-error').hidden=false;return;}
   settings={answerMode:String(data.get('answerMode')),language:String(data.get('language')),place:String(data.get('place')).trim()||'元浅草',latitude:Number(data.get('latitude')),longitude:Number(data.get('longitude')),readAloud:data.has('readAloud')};
   credentials={ownerToken,switchbotToken:String(data.get('switchbotToken')||'').trim(),switchbotSecret:String(data.get('switchbotSecret')||'').trim()};
-  save(localStorage,'tatsu-web-settings',settings);save(sessionStorage,'tatsu-web-credentials',credentials);$('#settings').close();toast('保存しました');void refreshWeather();
+  try{credentials=await saveCredentials(credentials);sessionStorage.removeItem('tatsu-web-credentials');credentialChannel?.postMessage('changed');}
+  catch{$('#settings-error').textContent='認証情報を保存できません。ブラウザーのサイト保存設定を確認してください。';$('#settings-error').hidden=false;return;}
+  if(!save(localStorage,'tatsu-web-settings',settings))return;
+  $('#settings').close();toast('保存しました。次回も入力せず使えます。');void refreshWeather();
 };
 function weatherLabel(code){if(code===0)return '快晴';if(code===1)return '晴れ';if(code===2)return '一部くもり';if(code===3)return 'くもり';if([45,48].includes(code))return '霧';if(code>=51&&code<=57)return '霧雨';if(code>=61&&code<=67)return '雨';if(code>=71&&code<=77)return '雪';if(code>=80&&code<=82)return 'にわか雨';if(code>=85&&code<=86)return 'にわか雪';if(code>=95)return '雷雨';return '天気情報';}
 async function refreshWeather(){
@@ -211,3 +247,12 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){cancel();s
 window.addEventListener('pagehide',()=>{cancel();stopAlarm();});
 $('#version').textContent=__APP_VERSION__;$('#diagnostics').textContent=`Web ${__APP_VERSION__} · ${__APP_COMMIT__.slice(0,7)}`;
 renderDevices();renderAlarms();updateClock();setInterval(updateClock,1000);setInterval(checkAlarms,1000);setInterval(()=>void checkUpdate(),60_000);void refreshWeather();void loadMascot();
+
+if(credentialNotice){$('#pairing-status').hidden=false;$('#pairing-status').textContent=credentialNotice;}
+if(importedCredentials)credentialChannel?.postMessage('changed');
+function acceptSharedLink(){
+  const code=new URLSearchParams(location.hash.slice(1)).get('pair');if(!code)return;
+  window.history.replaceState(null,'',location.pathname+location.search);void importPairing(code);
+}
+window.addEventListener('hashchange',acceptSharedLink);
+acceptSharedLink();

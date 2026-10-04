@@ -13,14 +13,14 @@ test('mobile home renders and the actual GLB moves in idle and speaking',async({
   await expect(page.locator('#mascot-fallback')).toBeHidden();
   await expect(page.locator('.mascot-name')).toHaveText('luluちゃん');
   const hero=await page.locator('#mascot').boundingBox();
-  expect(hero.width).toBeGreaterThan(page.viewportSize().width*.75);
-  expect(hero.y).toBeLessThan(150);
+  expect(hero.width).toBeGreaterThan(Math.min(page.viewportSize().width*.75,470));
+  expect(hero.y).toBeLessThan(page.viewportSize().width>=800?170:150);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   const first=await page.locator('#mascot').screenshot();await page.waitForTimeout(950);const second=await page.locator('#mascot').screenshot();expect(first.equals(second)).toBe(false);
   await page.screenshot({path:testInfo.outputPath('web-home.png'),fullPage:true});
   await page.route('**/api/dispatch',route=>route.fulfill({json:{route:{route:'simple_chat',language:'de'},answer:{model:'fixture',text:'Guten Morgen!'},timings:{totalMs:10}}}));
   await page.evaluate(()=>{window.speechSynthesis.speak=speech=>{speech.onstart?.();};});
-  await page.getByRole('button',{name:'設定',exact:true}).click();await page.locator('[name="readAloud"]').check();await page.getByRole('button',{name:'保存',exact:true}).click();
+  await page.getByRole('button',{name:'設定',exact:true}).click();await page.locator('[name="readAloud"]').check();await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.locator('#settings')).toBeHidden();
   await page.locator('#query').fill('Guten Morgen');await page.getByRole('button',{name:'送信',exact:true}).click();
   await expect(page.locator('#conversation')).toContainText('Guten Morgen!');await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics?.()?.phase)).toBe('SPEAKING');
   await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().mouthOpening),{intervals:[50]}).toBeGreaterThan(.6);
@@ -30,15 +30,59 @@ test('mobile home renders and the actual GLB moves in idle and speaking',async({
   await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().mouthOpening)).toBe(0);
 });
 
-test('settings persist across reload without putting credentials into persistent storage',async({page})=>{
+test('settings persist across reload without putting plaintext credentials into localStorage',async({page})=>{
   await fixture(page);await page.goto('/');await page.getByRole('button',{name:'設定',exact:true}).click();
-  await page.locator('[name="language"]').selectOption('de');await page.locator('[name="place"]').fill('Berlin');await page.locator('[name="ownerToken"]').fill('session-only-secret');await page.getByRole('button',{name:'保存',exact:true}).click();
+  await page.locator('[name="language"]').selectOption('de');await page.locator('[name="place"]').fill('Berlin');await page.locator('[name="ownerToken"]').fill('session-only-secret');await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.locator('#settings')).toBeHidden();
   expect(await page.evaluate(()=>JSON.stringify({...localStorage}))).not.toContain('session-only-secret');
   await page.reload();await page.getByRole('button',{name:'設定',exact:true}).click();
   await expect(page.locator('[name="ownerToken"]')).toHaveValue('session-only-secret');
   await expect(page.locator('[name="language"]')).toHaveValue('de');
   await expect(page.locator('[name="place"]')).toHaveValue('Berlin');
   await page.getByRole('button',{name:'認証情報を消す'}).click();expect(await page.evaluate(()=>sessionStorage.getItem('tatsu-web-credentials'))).toBeNull();
+  await expect(page.locator('[name="ownerToken"]')).toHaveValue('');
+});
+
+test('shared Android pairing needs no input, persists after tab closure, and deletion clears future tabs',async({page,context})=>{
+  const code='A'.repeat(43),credentials={ownerToken:'paired-owner',switchbotToken:'paired-switch-token',switchbotSecret:'paired-secret'};
+  let redemptions=0;
+  await context.route('https://api.open-meteo.com/**',route=>route.fulfill({json:{current:{temperature_2m:23,weather_code:0}}}));
+  await context.route('**/api/web-pairing?operation=redeem',route=>{
+    expect(route.request().postDataJSON()).toEqual({code});redemptions++;
+    if(redemptions>1)return route.fulfill({status:410,json:{error:'pairing_expired'}});
+    return route.fulfill({json:credentials});
+  });
+  await page.goto('/#pair='+code);await expect(page.locator('#pairing-status')).toContainText('引き継ぎました');
+  expect(new URL(page.url()).hash).toBe('');
+  expect(await page.evaluate(()=>JSON.stringify({...localStorage}))).not.toContain('paired-owner');
+  const vault=await page.evaluate(()=>new Promise(resolve=>{
+    const opening=indexedDB.open('tatsu-credentials',1);
+    opening.onsuccess=()=>{const db=opening.result,request=db.transaction('vault').objectStore('vault').get('credentials');request.onsuccess=()=>{resolve({extractable:request.result.key.extractable,raw:new TextDecoder().decode(request.result.data)});db.close();};};
+  }));
+  expect(vault.extractable).toBe(false);expect(vault.raw).not.toContain('paired-owner');
+  await page.close();const reopened=await context.newPage();await reopened.goto('/');
+  await reopened.goto('/#pair='+code);await expect(reopened.locator('#pairing-status')).toContainText('保存済みの設定');
+  await reopened.getByRole('button',{name:'設定',exact:true}).click();
+  await expect(reopened.locator('[name="ownerToken"]')).toHaveValue(credentials.ownerToken);
+  await reopened.getByText('SwitchBot',{exact:true}).click();
+  await expect(reopened.locator('[name="switchbotToken"]')).toHaveValue(credentials.switchbotToken);
+  await expect(reopened.locator('[name="switchbotSecret"]')).toHaveValue(credentials.switchbotSecret);
+  await reopened.getByRole('button',{name:'閉じる',exact:true}).click();
+  let synced=false;
+  await context.route('**/api/switchbot',route=>{
+    expect(route.request().headers().authorization).toBe('Bearer '+credentials.ownerToken);
+    const body=route.request().postDataJSON();expect(body.token).toBe(credentials.switchbotToken);expect(body.secret).toBe(credentials.switchbotSecret);synced=true;
+    return route.fulfill({json:{devices:[]}});
+  });
+  await reopened.locator('[data-tab="devices"]').click();await reopened.getByRole('button',{name:'同期',exact:true}).click();await expect.poll(()=>synced).toBe(true);
+  await reopened.getByRole('button',{name:'設定',exact:true}).click();await reopened.getByRole('button',{name:'認証情報を消す'}).click();await expect(reopened.locator('[name="ownerToken"]')).toHaveValue('');
+  const another=await context.newPage();await another.goto('/');await another.getByRole('button',{name:'設定',exact:true}).click();await expect(another.locator('[name="ownerToken"]')).toHaveValue('');
+  expect(redemptions).toBe(2);
+});
+
+test('expired shared links remove the capability from the URL and explain how to retry',async({page})=>{
+  await page.route('**/api/web-pairing?operation=redeem',route=>route.fulfill({status:410,json:{error:'pairing_expired'}}));
+  await page.goto('/#pair='+'B'.repeat(43));await expect(page.locator('#pairing-status')).toContainText('もう一度Web版を開いて');
+  expect(new URL(page.url()).hash).toBe('');
 });
 
 test('authentication failures are actionable and never say an operation succeeded',async({page})=>{
