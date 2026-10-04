@@ -49,7 +49,7 @@ class MascotNativeRenderTest {
         assertTrue("3D white plush absent: white=$white", white > samples / 12)
     }
     @Test fun aNativePhasesPauseAndResume() {
-        ActivityScenario.launch(MascotPreviewActivity::class.java).use { scenario ->
+        ActivityScenario.launch(MascotLifecycleActivity::class.java).use { scenario ->
             var renderer: NativeMascotView? = null
             val deadline = System.currentTimeMillis() + 30_000
             while ((renderer?.frames ?: 0L) < 4 && System.currentTimeMillis() < deadline) {
@@ -63,7 +63,8 @@ class MascotNativeRenderTest {
                 Thread.sleep(200)
                 scenario.onActivity { assertEquals(phase, renderer!!.phase); assertTrue(renderer!!.running) }
             }
-            // Compose may temporarily detach an AndroidView without releasing it.
+            // Reparent through the view's owning FrameLayout. Directly modifying
+            // Compose's AndroidViewHolder bypasses its layout-node ownership.
             var parent: ViewGroup? = null
             var childIndex = 0
             var layout: ViewGroup.LayoutParams? = null
@@ -119,6 +120,15 @@ class MascotNativeRenderTest {
             }
             assertNotNull("AI page has no native renderer", renderer)
             assertTrue("AI page has no rendered frames", renderer!!.frames >= 5)
+            // Verify the real Compose screen, as well as the isolated native fixture.
+            scenario.moveToState(Lifecycle.State.CREATED)
+            Thread.sleep(200)
+            scenario.onActivity { assertFalse("AI renderer kept running in background", renderer!!.running) }
+            val backgroundFrames = renderer!!.frames
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            val resumeDeadline = System.currentTimeMillis() + 10_000
+            while (renderer!!.frames <= backgroundFrames && System.currentTimeMillis() < resumeDeadline) Thread.sleep(100)
+            assertTrue("Actual AI page did not resume rendering", renderer!!.frames > backgroundFrames)
             val latch = CountDownLatch(1)
             var result = -1
             lateinit var windowImage: Bitmap
