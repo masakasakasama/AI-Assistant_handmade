@@ -74,6 +74,20 @@ class UpdateManager(private val context: Context) {
         withContext(Dispatchers.IO) {
             val downloadContext = coroutineContext
             runCatching {
+                if (
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    !context.packageManager.canRequestPackageInstalls()
+                ) {
+                    val settingsIntent = Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + context.packageName)
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(settingsIntent)
+                    error("提供元不明アプリのインストール許可後、更新を再実行してください")
+                }
+
                 val dir = File(context.cacheDir, "updates").apply { mkdirs() }
                 val apk = File(dir, "tatsu-home-" + info.version + ".apk")
                 val partial = File(dir, apk.name + ".part")
@@ -107,19 +121,7 @@ class UpdateManager(private val context: Context) {
                     partial.delete()
                 }
 
-                if (
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                    !context.packageManager.canRequestPackageInstalls()
-                ) {
-                    val settingsIntent = Intent(
-                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:" + context.packageName)
-                    ).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(settingsIntent)
-                    error("提供元不明アプリのインストール許可後、更新を再実行してください")
-                }
+
 
                 val uri: Uri = FileProvider.getUriForFile(
                     context,
