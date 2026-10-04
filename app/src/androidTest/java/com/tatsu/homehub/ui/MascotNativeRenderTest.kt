@@ -271,6 +271,9 @@ class MascotNativeRenderTest {
     }
 
     @Test fun eHomeShowsLargeMascotBeforeDashboard() {
+        instrumentation.uiAutomation.executeShellCommand("pm grant com.tatsu.homehub android.permission.RECORD_AUDIO").use { fd ->
+            FileInputStream(fd.fileDescriptor).use { it.readBytes() }
+        }
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             var renderer: NativeMascotView? = null
             val deadline = System.currentTimeMillis() + 30_000
