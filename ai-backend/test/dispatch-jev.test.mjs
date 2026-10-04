@@ -75,7 +75,7 @@ test("Jev rejects unsupported model profiles", async () => {
 });
 
 test("Jev physical routes stay structured for Android and do not call an LLM", async () => {
-  const result = await dispatchJev({ text: "エアコンを26度にして" }, {
+  const result = await dispatchJev({ text: "エアコンを26度にして", context: "Known devices:\n- 寝室のエアコン | type=Air Conditioner | id=bed\nCurrent alarms:\n- none" }, {
     routeIntentJev: async () => routed("device_action", {
       action: "set_ac", target: "寝室", temperatureC: 26
     }),

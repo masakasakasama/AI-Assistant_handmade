@@ -51,7 +51,10 @@ export function explicitDeviceCommand({text,context}){
     target=match[1];action='set_ac';temperatureC=Number(match[2]);
   }else return null;
   const selected=targetFor(target,known(context));
-  if(!selected)return null;
+  if(!selected)return {model:'local-command',route:'clarify',language,action:null,target:target.trim(),targetType:null,
+    confidence:1,goal:null,replyText:language==='de'?`${target.trim()} wurde nicht unter den bekannten Geräten gefunden. Bitte nenne den Gerätenamen oder Raum.`:
+      language==='en'?`I could not find ${target.trim()} among the known devices. Please use its listed name or room.`:
+      `${target.trim()}が登録機器に見つからないよ。家電一覧の名前か部屋を教えてね。`,evidence:'unknown_explicit_target'};
   return {model:'local-command',route:'device_action',language,action,...selected,temperatureC,
     confidence:1,goal:action==='turn_off'?'off':action==='turn_on'?'on':'set',
     parameters:temperatureC===null?{}:{temperature:temperatureC},executionMode:'execute',

@@ -24,7 +24,7 @@ const commands=[
 for(const [text,action,target] of commands)test('known imperative: '+text,()=>{
  const result=explicitDeviceCommand({text,context});assert.ok(result);assert.equal(result.action,action);assert.equal(result.target,target);assert.equal(result.confidence,1);
 });
-for(const text of ['エアコンつけないで','エアコン消していい？','エアコンを消したらどうなる','もし暑ければエアコンつけて','「エアコン消して」と言った','エアコンつけて、照明消して','書斎のエアコン消して','架空照明消して','Turn off the air conditioner if it gets hot','Do not turn off the lights','Can you turn off the lights?','Schalte das Licht nicht aus'])test('does not guess: '+text,()=>assert.equal(explicitDeviceCommand({text,context}),null));
+for(const text of ['エアコンつけないで','エアコン消していい？','エアコンを消したらどうなる','もし暑ければエアコンつけて','「エアコン消して」と言った','エアコンつけて、照明消して','書斎のエアコン消して','架空照明消して','Turn off the air conditioner if it gets hot','Do not turn off the lights','Can you turn off the lights?','Schalte das Licht nicht aus'])test('does not guess: '+text,()=>{const result=explicitDeviceCommand({text,context});if(result){assert.equal(result.route,'clarify');assert.equal(result.action,null);}else assert.equal(result,null);});
 for(const execute of [dispatchJev,dispatch])test('complete known commands bypass classification, prose generation and provider failure: '+execute.name,async()=>{
  const result=await execute({text:'エアコン消して',context},{routeIntentJev:async()=>{throw Error('must not be called');},routeIntent:async()=>{throw Error('must not be called');},reason:async()=>{throw Error('must not be called');}});
  assert.equal(result.route.action,'turn_off');assert.equal(result.route.confidence,1);assert.equal(result.answer,null);assert.equal(result.calls[0].model,'local-command');
@@ -50,4 +50,10 @@ for(const execute of [dispatchJev,dispatch])for(const text of ['エアコン消�
  const fake=async()=>({route:'device_action',target:'エアコン',targetType:'air_conditioner',action:'turn_off',confidence:.99,language:'ja'});
  const result=await execute({text,context},{routeIntent:fake,routeIntentJev:fake});
  assert.equal(result.route.route,'clarify');assert.equal(result.route.action,null);assert.ok(result.answer.text);
+});
+
+for(const execute of [dispatchJev,dispatch])test('unknown explicit target never falls through to a model-selected different room: '+execute.name,async()=>{
+ const fail=async()=>{throw Error('must not ask the model to guess an unknown target');};
+ const result=await execute({text:'書斎のエアコン消して',context},{routeIntent:fail,routeIntentJev:fail});
+ assert.equal(result.route.route,'clarify');assert.equal(result.route.action,null);assert.match(result.answer.text,/書斎のエアコン/);
 });
