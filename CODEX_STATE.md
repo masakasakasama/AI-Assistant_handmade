@@ -16,24 +16,29 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - 模擬共有storeで日/分境界・拒否非加算・並行claims・設定/障害拒否を検証。4 serverlessの超過時provider未呼出しとlocal HTTP未設定拒否を確認。
 - 最新mainのv0.4.32/v0.4.33家電対応・native3D更新を保持。今回Androidコード変更なし。
 
+- 最新d43e30eのNeon対応を確認。上限管理の関連6テストが成功。公開health HTTP200と未認証dispatch HTTP401を確認した。認証設定未設定503の以前の状態は現在のdispatch probeでは再現しない。
+
 ## Current
-- Backend上限・rate limit・秘匿ログの隔離fixtureが成功。日/分request件数の制限で、tokens/円の請求上限ではない。Phase0C実環境受入は未完了。
+- Redisに加えてNeonのatomic上限管理が実装され、最新setupには本番Neon12並行要求・日次上限・拒否非加算の実測記録がある。今回の司令塔は関連fixture6/6と公開health/未認証拒否を独立確認した。DB資格情報がなく実DB境界/障害注入は再検証できず、Galaxy/Phase0C受入は未完了。
 
 ## Next
-- 共有Redis RESTと日/分受付上限をDeployment環境へ設定/redeployできる接続が利用可能になったら、実EVAL・複数Function/process・期限境界・store障害のfail-closedを検証する。
+- 実Deployment/共有storeへの接続が利用可能になったら、設定されているRedis EVALまたはNeon SQLの複数Function/process共有・期限境界・store障害のfail-closedを検証する。最新setupのNeon実測記録を使い、同じ確認を不要に繰り返さない。
 - Galaxyでowner token保存/再起動/失効/再入力と429/503表示を確認し、Phase0CのWAN/LAN断・Backend停止・72時間受入を進める。
 
 ## Blockers
-- 実Redis/Deployment環境設定・provider側課金制限の実受入は未実施。模擬storeの並行claimsは本番Redis原子性の合格を意味しない。
+- この司令塔に実DB接続文字列・owner token・Deployment設定接続がない。最新setupのNeon実測記録とは別に、期限境界/store障害・provider側課金制限の実受入は未確認。fixture成功を実DB/課金上限の合格に置き換えない。
 - Galaxy実機・USBマイクは未接続。端末Keystore persistenceと実API費用/応答測定、故障注入は未検証。
 
 ## Verification
+- Latest d43e30e request-limits.test.mjs: 6/6 passed (synthetic Redis/database claims); locked Backend dependencies installed without scripts; no source/dependency changes
+- Public GET /api/health HTTP200; unauthenticated empty POST /api/dispatch HTTP401 unauthorized, before request parsing/claims/providers
+- Runtime revision164 has no configured secret bindings; scoped DB/owner environment variables and local config files absent. Real DB tests not rerun
 - npm test --workspace ai-backend: 67/67 passed; synthetic stores/gateways only
 - npm run benchmark:plan --workspace ai-backend: passed; no provider API called
 - git diff --check passed; Backendにbuild/lint scriptなし; Android変更なしのためGradle再実行なし
-- 実Redis EVAL、実デプロイ、実Galaxy、課金上限は未検証
+- Redis EVAL/Neon期限境界・障害注入、実Galaxy、課金上限はこの司令塔では未検証。公開Backendはhealth/未認証拒否だけを確認
 
-Updated at: 2026-10-03T03:49:57.747124+00:00
+Updated at: 2026-10-04T01:23:49.613127+00:00
 
 ## 3D表示修正完了（2026-10-02、v0.4.30）
 - ユーザー実画面でv0.4.28/v0.4.29が旧イラストだった問題を受け、AI画面のWebViewをネイティブFilament/TextureView＋自己完結GLBへ置き換えた。旧WebView資産は削除。旧イラストへ戻す処理もAI画面から外した。
