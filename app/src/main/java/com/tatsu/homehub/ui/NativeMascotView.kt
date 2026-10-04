@@ -159,8 +159,10 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
                     swapChain = null
                 }
                 override fun onResized(width: Int, height: Int) {
-                    viewportWidth = width.coerceAtLeast(1)
-                    viewportHeight = height.coerceAtLeast(1)
+                    // UiHelper reports a desired size of 0 when binding an already
+                    // available TextureView. Use its measured size in that case.
+                    viewportWidth = (if (width > 0) width else this@NativeMascotView.width).coerceAtLeast(1)
+                    viewportHeight = (if (height > 0) height else this@NativeMascotView.height).coerceAtLeast(1)
                     filamentView.viewport = Viewport(0, 0, viewportWidth, viewportHeight)
                     val aspect = viewportWidth.toDouble() / viewportHeight
                     camera.setProjection(Camera.Projection.ORTHO, -2.175 * aspect, 2.175 * aspect, -2.175, 2.175, .1, 30.0)

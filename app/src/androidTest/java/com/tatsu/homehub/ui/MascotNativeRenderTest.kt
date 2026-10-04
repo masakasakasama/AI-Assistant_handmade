@@ -68,22 +68,22 @@ class MascotNativeRenderTest {
             var childIndex = 0
             var layout: ViewGroup.LayoutParams? = null
             repeat(3) {
-            scenario.onActivity {
-                parent = renderer!!.parent as ViewGroup
-                childIndex = parent!!.indexOfChild(renderer)
-                layout = renderer!!.layoutParams
-                parent!!.removeView(renderer)
-                assertFalse(renderer!!.running)
-            }
-            Thread.sleep(100)
-            val detachedFrames = renderer!!.frames
-            scenario.onActivity { parent!!.addView(renderer, childIndex, layout); parent!!.requestLayout() }
-            val reattachDeadline = System.currentTimeMillis() + 5_000
-            while (renderer!!.frames <= detachedFrames && System.currentTimeMillis() < reattachDeadline) Thread.sleep(100)
-            scenario.onActivity {
-                assertTrue("Temporary reattachment froze mascot: running=${renderer!!.running}, loaded=${renderer!!.modelLoaded}, attached=${renderer!!.isAttachedToWindow}, texture=${renderer!!.isAvailable}, swapChain=${renderer!!.hasRenderSurface}", renderer!!.frames > detachedFrames)
-                assertTrue(renderer!!.running)
-            }
+                scenario.onActivity {
+                    parent = renderer!!.parent as ViewGroup
+                    childIndex = parent!!.indexOfChild(renderer)
+                    layout = renderer!!.layoutParams
+                    parent!!.removeView(renderer)
+                    assertFalse(renderer!!.running)
+                }
+                Thread.sleep(100)
+                val detachedFrames = renderer!!.frames
+                scenario.onActivity { parent!!.addView(renderer, childIndex, layout); parent!!.requestLayout() }
+                val reattachDeadline = System.currentTimeMillis() + 5_000
+                while (renderer!!.frames <= detachedFrames && System.currentTimeMillis() < reattachDeadline) Thread.sleep(100)
+                scenario.onActivity {
+                    assertTrue("Temporary reattachment froze mascot: running=${renderer!!.running}, loaded=${renderer!!.modelLoaded}, attached=${renderer!!.isAttachedToWindow}, texture=${renderer!!.isAvailable}, swapChain=${renderer!!.hasRenderSurface}", renderer!!.frames > detachedFrames)
+                    assertTrue(renderer!!.running)
+                }
             }
             scenario.moveToState(Lifecycle.State.CREATED)
             Thread.sleep(200)
