@@ -4,6 +4,7 @@ Status: blocked
 Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応答時間を確かめる。
 
 ## Done
+- df8dd99までの応答時間境界・対象名保持・操作確認修正を確認。7fcfd94で失敗していたBackend回帰を含む最新AI backend・Web/browser・Android buildの3 CIがsuccessとなり、以前のCI障害を解除。今回テスト自体は再実行していない。
 - 最新fd37d8f（v0.4.36）のホームmascot/TextureView復帰修正を確認。最新headのRelease APK・Android buildはGitHub CIでsuccess。追加実装は保存Nextの実DB/実機検証に不要。
 - v0.4.28のローカル3Dマスコット実装と設計引き継ぎを確認した。
 - HTTP JSON入力を共通化。UTF-8バイト数で制限し、分割された日本語入力を保持する。
@@ -20,6 +21,7 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - 最新d43e30eのNeon対応を確認。上限管理の関連6テストが成功。公開health HTTP200と未認証dispatch HTTP401を確認した。認証設定未設定503の以前の状態は現在のdispatch probeでは再現しない。
 
 ## Current
+- df8dd99のBackend/Web/Android CIは合格。最新AGENTSの暗号化IndexedDB保存・Android pairing方針を維持。runtime223にDB/owner資格情報なし、adb端末なし。公開health200/未認証dispatch401。残る実DB境界・Galaxy受入は未完了。
 - fd37d8fまでの外部変更は描画/UI/リリース関連で、保存Nextの実DB境界・Galaxy受入を解決する新しい証跡はない。runtime191は接続済みだがDB/owner資格情報なし、adb接続端末なし。公開health200/未認証dispatch401は維持。
 - Redisに加えてNeonのatomic上限管理が実装され、最新setupには本番Neon12並行要求・日次上限・拒否非加算の実測記録がある。今回の司令塔は関連fixture6/6と公開health/未認証拒否を独立確認した。DB資格情報がなく実DB境界/障害注入は再検証できず、Galaxy/Phase0C受入は未完了。
 
@@ -32,6 +34,8 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - Galaxy実機・USBマイクは未接続。端末Keystore persistenceと実API費用/応答測定、故障注入は未検証。
 
 ## Verification
+- df8dd99 latest-head review: AI backend CI37198990171, Android CI37198990179, Web/browser CI37198990200 success; prior Jev simple_chat CI failure resolved. Runtime223 current with no configured bindings; scoped DB/owner credentials absent; adb devices empty. No physical/real-store acceptance claimed
+- Public health HTTP200 and unauthenticated dispatch HTTP401. Real DB/physical Galaxy probes cannot run; no broad tests or provider requests repeated
 - fd37d8f latest-head read-only review: Release APK/Android build CI success; runtime191 current with secrets/runtime variables/outbound identities empty; scoped DB/owner credentials and local config absent; adb devices empty
 - Public health HTTP200 and unauthenticated dispatch HTTP401. Real DB/physical Galaxy probes cannot run; no broad tests or provider requests repeated
 - Latest d43e30e request-limits.test.mjs: 6/6 passed (synthetic Redis/database claims); locked Backend dependencies installed without scripts; no source/dependency changes
@@ -42,7 +46,7 @@ Goal: GalaxyでPhase 0を検証し、音声会話・家電操作の品質と応�
 - git diff --check passed; Backendにbuild/lint scriptなし; Android変更なしのためGradle再実行なし
 - Redis EVAL/Neon期限境界・障害注入、実Galaxy、課金上限はこの司令塔では未検証。公開Backendはhealth/未認証拒否だけを確認
 
-Updated at: 2026-10-04T04:44:49.312883+00:00
+Updated at: 2026-10-04T12:34:59.600535+00:00
 
 ## 3D表示修正完了（2026-10-02、v0.4.30）
 - ユーザー実画面でv0.4.28/v0.4.29が旧イラストだった問題を受け、AI画面のWebViewをネイティブFilament/TextureView＋自己完結GLBへ置き換えた。旧WebView資産は削除。旧イラストへ戻す処理もAI画面から外した。
