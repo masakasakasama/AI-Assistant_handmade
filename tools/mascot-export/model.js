@@ -168,13 +168,14 @@ try {
       return target.copy(surface(p.x, p.y, 0.018).p);
     }
   }
-  mesh(
+  const smile = mesh(
     head,
     brown,
     [0, 0, 0],
     [1, 1, 1],
     new T.TubeGeometry(new FaceCurve(), 48, 0.018, 8, false),
   );
+  smile.name = "Smile";
   // Long floppy ears are tapered, flattened sweeps: their centerlines never point upward.
   function ear(sign) {
     const g = new T.Group();

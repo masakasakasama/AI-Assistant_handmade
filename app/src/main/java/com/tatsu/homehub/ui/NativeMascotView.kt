@@ -44,6 +44,9 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
     private val rootPose = FloatArray(16)
     private val mouthPose = FloatArray(16)
     private val mouthBase = FloatArray(16)
+    private var smileInstance = 0
+    private val smileBase = FloatArray(16)
+    private val smilePose = FloatArray(16)
     private var mouthInstance = 0
     internal var motionSeconds = 0f
         private set
@@ -137,6 +140,9 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
             check(jointInstances[index] != 0) { "Missing mascot joint: $name" }
             engine.transformManager.getTransform(jointInstances[index], jointBases[index])
         }
+        smileInstance = engine.transformManager.getInstance(asset!!.getFirstEntityByName("Smile"))
+        check(smileInstance != 0) { "Missing closed mouth" }
+        engine.transformManager.getTransform(smileInstance, smileBase)
         asset!!.releaseSourceData()
         modelLoaded = true
         uiHelper = UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK).apply {
@@ -259,10 +265,17 @@ internal class NativeMascotView(context: Context) : TextureView(context), Choreo
             }
             engine.transformManager.setTransform(jointInstances[index], pose)
         }
+        val opening = if (speaking) kotlin.math.max(0f, sin(t * 14f)) else 0f
         mouthBase.copyInto(mouthPose)
-        Matrix.scaleM(mouthPose, 0, .055f,
-            if (speaking) .035f + .15f * (1f + sin(t * 9f)) / 2f else .001f, .016f)
+        // Move the opening clear of the curved face so it remains visible as it grows.
+        mouthPose[13] += .03f
+        mouthPose[14] += .055f
+        Matrix.scaleM(mouthPose, 0, .075f + .025f * opening, .001f + .13f * opening, .025f)
         engine.transformManager.setTransform(mouthInstance, mouthPose)
+        smileBase.copyInto(smilePose)
+        val smileScale = if (opening > .12f) .001f else 1f
+        Matrix.scaleM(smilePose, 0, smileScale, smileScale, smileScale)
+        engine.transformManager.setTransform(smileInstance, smilePose)
     }
 
     fun release() {

@@ -77,3 +77,7 @@ Auto STT now sends the encrypted owner token just like chat. Public transcriptio
 ## v0.4.35 タップ反応
 
 AndroidのComposeクリックとWebのタップ・Enter/Spaceから、同じ1.2秒の二段ジャンプ、耳振り、首傾げを重ねる。音声のVoicePhaseや録音・読み上げを変更せず、AI認証・通信は不要。連続タップは反応の開始時刻を更新し、変形は積み上げない。通常の待機・発話と画面外の停止・復帰を維持。Androidの実タッチと描画ピクセル検証からmascot-tap.gifを作り、リリースに添付する。WebKit/Chromiumでタップ、キーボード、無認証、終了・再タップを検証する。
+
+## v0.4.36 ホームの大きなキャラと発話口
+
+Androidのホーム先頭に幅いっぱい（最大480dp）のキャラと音声操作を配置し、天気・家電概要は下へ移動。Webもホーム先頭で幅いっぱい・最大480px。AI画面の音声・タップ・復帰は維持。GLBの既存の閉じ口にSmile名を付け、発話時に楕円口へ切り替える。開口を顔の表面より前に出し、拡大しても顔に埋まらないようにする。VoicePhase.SPEAKING（Android TTSのonStart/onDone、Web SpeechSynthesisの開始/終了）でのみ開閉する。音素ごとのリップシンクではない。Androidの口色の描画面積の変化と実ホームのサイズ、WebKit/Chromiumの読み上げ開始・停止と口開閉を検証する。

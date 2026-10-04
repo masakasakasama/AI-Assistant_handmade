@@ -11,6 +11,9 @@ test('mobile home renders and the actual GLB moves in idle and speaking',async({
   await fixture(page);await page.goto('/');await expect(page.locator('#temperature')).toHaveText('23°');
   await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics?.()?.frames||0),{timeout:25_000}).toBeGreaterThan(4);
   await expect(page.locator('#mascot-fallback')).toBeHidden();
+  const hero=await page.locator('#mascot').boundingBox();
+  expect(hero.width).toBeGreaterThan(page.viewportSize().width*.75);
+  expect(hero.y).toBeLessThan(150);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   const first=await page.locator('#mascot').screenshot();await page.waitForTimeout(950);const second=await page.locator('#mascot').screenshot();expect(first.equals(second)).toBe(false);
   await page.screenshot({path:testInfo.outputPath('web-home.png'),fullPage:true});
@@ -19,8 +22,11 @@ test('mobile home renders and the actual GLB moves in idle and speaking',async({
   await page.getByRole('button',{name:'設定',exact:true}).click();await page.locator('[name="readAloud"]').check();await page.getByRole('button',{name:'保存',exact:true}).click();
   await page.locator('#query').fill('Guten Morgen');await page.getByRole('button',{name:'送信',exact:true}).click();
   await expect(page.locator('#conversation')).toContainText('Guten Morgen!');await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics?.()?.phase)).toBe('SPEAKING');
+  await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().mouthOpening),{intervals:[50]}).toBeGreaterThan(.6);
+  await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().mouthOpening),{intervals:[50]}).toBeLessThan(.05);
   const speakingFirst=await page.locator('#mascot').screenshot();await page.waitForTimeout(650);const speakingSecond=await page.locator('#mascot').screenshot();expect(speakingFirst.equals(speakingSecond)).toBe(false);
   await page.getByRole('button',{name:'読み上げを止める'}).click();await expect(page.locator('#voice-state')).toHaveText('待機');
+  await expect.poll(()=>page.evaluate(()=>window.tatsuMascotDiagnostics().mouthOpening)).toBe(0);
 });
 
 test('settings persist across reload without putting credentials into persistent storage',async({page})=>{

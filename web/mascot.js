@@ -23,7 +23,10 @@ export async function createMascot(canvas, onReady, onError) {
     const node=model.getObjectByName(name);if(!node)throw new Error('3D joint missing');
     return {node,rotation:node.quaternion.clone()};
   });
+  const smile=model.getObjectByName('Smile');if(!smile)throw new Error('3D closed mouth missing');
   const mouth=model.getObjectByName('Opening');if(!mouth)throw new Error('3D mouth missing');
+  mouth.position.y+=.03;mouth.position.z+=.055;
+  let mouthOpening=0;
   const yAxis=new THREE.Vector3(0,1,0),xAxis=new THREE.Vector3(1,0,0),zAxis=new THREE.Vector3(0,0,1),q=new THREE.Quaternion();
   const size=new ResizeObserver(()=>{const w=canvas.clientWidth,h=canvas.clientHeight;if(w&&h){renderer.setSize(w,h,false);camera.left=-2.175*w/h;camera.right=2.175*w/h;camera.updateProjectionMatrix();}});size.observe(canvas);
   const failed=()=>{active=false;cancelAnimationFrame(raf);onError();};
@@ -46,7 +49,9 @@ export async function createMascot(canvas, onReady, onError) {
       if(index===0){node.quaternion.multiply(q.setFromAxisAngle(zAxis,THREE.MathUtils.degToRad(12*envelope)));node.quaternion.multiply(q.setFromAxisAngle(yAxis,THREE.MathUtils.degToRad(8*Math.sin(t*1.3))));node.quaternion.multiply(q.setFromAxisAngle(xAxis,THREE.MathUtils.degToRad((speaking?9:5)*Math.sin(t*(speaking?4:1.6)))));}
       else {node.quaternion.multiply(q.setFromAxisAngle(zAxis,THREE.MathUtils.degToRad((speaking?16:12)*Math.sin(t*2.4+index*1.5))));node.quaternion.multiply(q.setFromAxisAngle(zAxis,THREE.MathUtils.degToRad((index===1?28:-28)*flutter)));}
     });
-    mouth.scale.set(.055,speaking?.035+.15*(1+Math.sin(t*9))/2:.001,.016);
+    mouthOpening=speaking?Math.max(0,Math.sin(t*14)):0;
+    mouth.scale.set(.075+.025*mouthOpening,.001+.13*mouthOpening,.025);
+    smile.visible=mouthOpening<=.12;
     try{renderer.render(scene,camera);frames++;if(frames===2)onReady();}catch{failed();}
   }
   function resume(){previous=0;if(!disposed&&active&&!document.hidden&&!raf)raf=requestAnimationFrame(render);}
@@ -56,7 +61,7 @@ export async function createMascot(canvas, onReady, onError) {
     reactToTap(){if(disposed)return;tapCount++;tapStarted=t;resume();},
     setPhase(next){if(phase===next)return;actions.get(phase)?.fadeOut(.28);phase=next;clipTime=0;actions.get(next)?.reset().fadeIn(.28).play();},
     setActive(value){active=value;if(!value){cancelAnimationFrame(raf);raf=0;}else resume();},
-    diagnostics:()=>({phase,frames,active,ready:frames>=2,seconds:t,tapCount,tapLift}),
+    diagnostics:()=>({phase,frames,active,ready:frames>=2,seconds:t,tapCount,tapLift,mouthOpening}),
     dispose(){disposed=true;cancelAnimationFrame(raf);size.disconnect();canvas.removeEventListener('webglcontextlost',lost);document.removeEventListener('visibilitychange',visibility);mixer.stopAllAction();scene.traverse(node=>{node.geometry?.dispose();for(const material of [node.material].flat().filter(Boolean))material.dispose();});renderer.dispose();}
   };
 }

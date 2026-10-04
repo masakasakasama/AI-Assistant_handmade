@@ -2,6 +2,7 @@ package com.tatsu.homehub.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
@@ -158,6 +159,7 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
                     DashboardHeader(
                         weather = weather,
                         tablet = tablet,
+                        showWeather = tab != DashboardTab.HOME,
                         loading = loading,
                         onRefresh = {
                             viewModel.refreshDevices()
@@ -171,6 +173,11 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
 
                 when (tab) {
                     DashboardTab.HOME -> {
+                        item {
+                            HomeMascotCard(voiceState, viewModel::startVoiceSession,
+                                viewModel::stopVoiceListening, viewModel::cancelVoiceSession)
+                        }
+                        item { DashboardWeather(weather, tablet) }
                         item {
                             SummaryGrid(
                                 devices = roomDevices,
@@ -344,10 +351,8 @@ fun HomeHubScreen(viewModel: HomeViewModel) {
 }
 
 @Composable
-private fun DashboardHeader(weather: WeatherSnapshot?, tablet: Boolean, loading: Boolean,
+private fun DashboardHeader(weather: WeatherSnapshot?, tablet: Boolean, showWeather: Boolean, loading: Boolean,
     onRefresh: () -> Unit, onSettings: () -> Unit) {
-    var now by remember { mutableStateOf(LocalDateTime.now()) }
-    LaunchedEffect(Unit) { while (true) { now = LocalDateTime.now(); delay(30_000) } }
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -362,6 +367,14 @@ private fun DashboardHeader(weather: WeatherSnapshot?, tablet: Boolean, loading:
             }
             IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "設定") }
         }
+        if (showWeather) DashboardWeather(weather, tablet)
+    }
+}
+
+@Composable
+private fun DashboardWeather(weather: WeatherSnapshot?, tablet: Boolean) {
+    var now by remember { mutableStateOf(LocalDateTime.now()) }
+    LaunchedEffect(Unit) { while (true) { now = LocalDateTime.now(); delay(30_000) } }
         Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface) {
             Row(Modifier.background(Brush.linearGradient(listOf(
@@ -387,7 +400,6 @@ private fun DashboardHeader(weather: WeatherSnapshot?, tablet: Boolean, loading:
                 }
             }
         }
-    }
 }
 
 @Composable
@@ -957,7 +969,34 @@ private fun VoicePocCard(
 }
 
 @Composable
-private fun TatsuMascot(phase: VoicePhase, recognizedText: String) {
+private fun HomeMascotCard(state: VoiceSessionState, onStart: () -> Unit, onStop: () -> Unit, onCancel: () -> Unit) {
+    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            TatsuMascot(state.phase, state.partialText.ifBlank { state.finalText },
+                Modifier.widthIn(max = 480.dp).fillMaxWidth().aspectRatio(1f))
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                when (state.phase) {
+                    VoicePhase.LISTENING -> {
+                        Button(onClick = onStop) { Text("聞き取り終了") }
+                        OutlinedButton(onClick = onCancel) { Text("キャンセル") }
+                    }
+                    VoicePhase.PREPARING, VoicePhase.THINKING -> OutlinedButton(onClick = onCancel) { Text("キャンセル") }
+                    VoicePhase.SPEAKING -> OutlinedButton(onClick = onCancel) { Text("読み上げを止める") }
+                    else -> Button(onClick = onStart) {
+                        Icon(Icons.Outlined.Mic, null, Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Lunaで話す")
+                    }
+                }
+            }
+            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+}
+
+@Composable
+private fun TatsuMascot(phase: VoicePhase, recognizedText: String, mascotModifier: Modifier = Modifier.size(224.dp)) {
     val active = phase == VoicePhase.LISTENING || phase == VoicePhase.THINKING ||
         phase == VoicePhase.SPEAKING || phase == VoicePhase.PREPARING
     val statusMessage = when (phase) {
@@ -977,7 +1016,7 @@ private fun TatsuMascot(phase: VoicePhase, recognizedText: String) {
     ) {
         TatsuMascot3D(
             phase = phase,
-            modifier = Modifier.size(224.dp)
+            modifier = mascotModifier
         )
         Surface(
             shape = RoundedCornerShape(100.dp),

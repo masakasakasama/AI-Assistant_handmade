@@ -159,16 +159,27 @@ class MascotNativeRenderTest {
                 for (phase in listOf(VoicePhase.IDLE, VoicePhase.SPEAKING)) {
                     scenario.onActivity { it.phase = phase }
                     Thread.sleep(400)
+                    val mouthAreas = mutableListOf<Int>()
                     repeat(12) { frame ->
                         scenario.onActivity {
                             val bitmap = renderer!!.bitmap!!
                             assertPixels(bitmap, requireOpenEyes = false)
+                            var brownPixels = 0
+                            for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) {
+                                val color = bitmap.getPixel(x, y)
+                                val r = android.graphics.Color.red(color); val g = android.graphics.Color.green(color); val b = android.graphics.Color.blue(color)
+                                if (android.graphics.Color.alpha(color) > 200 && r in 40..180 && r > g * 1.15 && b < 145) brownPixels++
+                            }
+                            mouthAreas.add(brownPixels)
                             pictures.add(bitmap)
                             File(it.filesDir, "mascot-${phase.name.lowercase()}-$frame.png").outputStream().use { stream ->
                                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
                             }
                         }
                         Thread.sleep(150)
+                    }
+                    if (phase == VoicePhase.SPEAKING) {
+                        assertTrue("Speaking mouth never visibly opens: $mouthAreas", mouthAreas.max() > mouthAreas.min() + 5)
                     }
                     val first = pictures[pictures.size-12]
                     var mostChanged = 0
@@ -256,6 +267,31 @@ class MascotNativeRenderTest {
             UiDevice.getInstance(instrumentation).click(x, y)
             instrumentation.waitForIdleSync()
             scenario.onActivity { assertEquals("Repeated taps stopped working", 2L, renderer!!.tapCount) }
+        }
+    }
+
+    @Test fun eHomeShowsLargeMascotBeforeDashboard() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            var renderer: NativeMascotView? = null
+            val deadline = System.currentTimeMillis() + 30_000
+            while ((renderer?.frames ?: 0L) < 5 && System.currentTimeMillis() < deadline) {
+                scenario.onActivity { renderer = findRenderer(it.window.decorView) }
+                Thread.sleep(100)
+            }
+            assertNotNull("Home page mascot absent", renderer)
+            assertTrue("Home mascot never rendered", renderer!!.frames >= 5)
+            scenario.onActivity {
+                assertTrue("Home character is too small", renderer!!.width > it.window.decorView.width * .72f)
+                val bitmap = renderer!!.bitmap!!
+                assertPixels(bitmap, requireOpenEyes = false)
+                File(it.filesDir, "mascot-home.png").outputStream().use { stream -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream) }
+                bitmap.recycle()
+            }
+            val device = UiDevice.getInstance(instrumentation)
+            assertNotNull("Home speech control absent", device.findObject(By.text("Lunaで話す")))
+            lateinit var destination: File
+            scenario.onActivity { destination = File(it.filesDir, "mascot-home-window.png") }
+            assertTrue("Home screen capture failed", device.takeScreenshot(destination))
         }
     }
 
