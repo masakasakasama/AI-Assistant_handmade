@@ -976,7 +976,7 @@ private fun VoicePocCard(
                 }
             }
             Text(
-                "Luna経路とJev経路は同じ認識文で回答比較できます。判定比較は初段だけを測定し、回答比較でも家電・アラームは実行しません。",
+                "判定比較は GPT-6 Luna Decisions API と Jev 1.13 Decisions を同じ認識文・同じroute候補で比較します。回答比較では家電・アラームは実行しません。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1304,13 +1304,13 @@ private fun RouterComparisonView(result: RouterCompareResult) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("最初の判定を同じ入力で比較", fontWeight = FontWeight.SemiBold)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RouterDecisionPanel("Luna", result.luna, Modifier.weight(1f))
-                RouterDecisionPanel("Jev", result.jev, Modifier.weight(1f))
+                RouterDecisionPanel("GPT-6 Decisions", result.luna, Modifier.weight(1f))
+                RouterDecisionPanel("Jev Decisions", result.jev, Modifier.weight(1f))
             }
             result.deltaMs?.let { delta ->
                 val label = when {
                     delta > 0 -> "Jevが ${delta}ms 短い"
-                    delta < 0 -> "Lunaが ${-delta}ms 短い"
+                    delta < 0 -> "GPT-6 Decisionsが ${-delta}ms 短い"
                     else -> "同じ"
                 }
                 Text(label + " · 端末往復 ${result.clientLatencyMs}ms", style = MaterialTheme.typography.bodySmall)
@@ -1320,7 +1320,7 @@ private fun RouterComparisonView(result: RouterCompareResult) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                "比較はルーティング判定だけです。家電・アラームは実行しません。",
+                "両方ともroute判定1問だけを同時実行します。家電・アラームは実行しません。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
