@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { compareRouters } from "../src/router-compare.mjs";
 import { parseJevRouteResponse } from "../src/jev.mjs";
+import { parseOpenAIDecisionRoute } from "../src/openai-decisions.mjs";
 
 function choice(choice, confidence = 0.9) {
   return { type: "choice", choice, confidence, probabilities: { [choice]: 1 } };
@@ -66,22 +67,39 @@ test("explicit air-conditioner setting is an action with structured parameters",
   assert.equal(parsed.executionMode, "execute");
 });
 
-test("router comparison keeps Luna and Jev independent", async () => {
+test("parses an OpenAI Decisions Choice route", () => {
+  const parsed = parseOpenAIDecisionRoute({
+    model: "gpt-6-luna",
+    answers: [{
+      type: "choice",
+      name: "route",
+      choice: "weather",
+      confidence: 0.96,
+      probabilities: [
+        { value: "weather", probability: 0.96 },
+        { value: "simple_chat", probability: 0.04 }
+      ]
+    }],
+    usage: { input_tokens: 30, output_tokens: 0 }
+  });
+  assert.equal(parsed.route, "weather");
+  assert.equal(parsed.confidence, 0.96);
+  assert.equal(parsed.probabilities.weather, 0.96);
+});
+
+test("router comparison keeps GPT-6 Decisions and Jev Decisions independent", async () => {
   const result = await compareRouters({ text: "明日の天気は？" }, {
-    routeIntent: async input => {
-      assert.equal(input.benchmarkClassificationOnly, true);
-      return { route: "weather", confidence: 0.95, _usage: { input_tokens: 10 } };
-    },
-    routeIntentJev: async () => ({
+    routeIntentOpenAIDecisions: async () => ({
+      model: "gpt-6-luna",
+      route: "weather",
+      confidence: 0.95,
+      probabilities: { weather: 0.95 },
+      usage: { input_tokens: 10, output_tokens: 0 }
+    }),
+    routeIntentJevClassification: async () => ({
       model: "jev-test",
-      language: "ja",
       route: "weather",
       confidence: 0.9,
-      action: null,
-      target: null,
-      temperatureC: null,
-      timeLocal: null,
-      referenceTimeLocal: null,
       probabilities: { weather: 0.9 },
       usage: { input_tokens: 4, output_tokens: 0 }
     })
@@ -94,8 +112,8 @@ test("router comparison keeps Luna and Jev independent", async () => {
 
 test("router comparison reports one provider failure without hiding the other", async () => {
   const result = await compareRouters({ text: "hello" }, {
-    routeIntent: async () => ({ route: "simple_chat", confidence: 0.8 }),
-    routeIntentJev: async () => { throw new Error("JEV_OPENROUTER_API_KEY is not configured"); }
+    routeIntentOpenAIDecisions: async () => ({ route: "simple_chat", confidence: 0.8 }),
+    routeIntentJevClassification: async () => { throw new Error("JEV_OPENROUTER_API_KEY is not configured"); }
   });
   assert.equal(result.luna.ok, true);
   assert.equal(result.jev.ok, false);
