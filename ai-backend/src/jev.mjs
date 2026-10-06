@@ -2,7 +2,7 @@ import {isActionRequest} from './device-command.mjs';
 export const JEV_MODEL = process.env.JEV_MODEL || "typesafe/jev-1.13";
 export const JEV_ENDPOINT = process.env.JEV_ENDPOINT || "https://openrouter.ai/api/alpha/decisions";
 
-const ROUTE_CRITERIA = {
+export const ROUTE_CRITERIA = {
   device_action: "An explicit device command OR an implied home-comfort goal (for example feeling hot/cold/dark) that a known device could satisfy. An explicit ON or OFF command applies to all matching devices of the named type or room, even when more than one matches.",
   alarm_action: "A request to create, update, delete, enable, disable, or inspect an alarm.",
   weather: "A direct request for current or forecast weather.",
@@ -238,6 +238,53 @@ export function parseJevRouteResponse(payload, metadata = {}) {
     replyText: null,
     probabilities: routeAnswer.probabilities && typeof routeAnswer.probabilities === "object"
       ? routeAnswer.probabilities
+      : {},
+    usage: payload.usage ?? null
+  };
+}
+
+
+export async function routeIntentJevClassification({ text, context = "" }, dependencies = {}) {
+  if (typeof text !== "string" || !text.trim()) throw new Error("text is required");
+  const apiKey = dependencies.apiKey ?? process.env.JEV_OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("JEV_OPENROUTER_API_KEY is not configured");
+
+  const fetchImpl = dependencies.fetchImpl ?? globalThis.fetch;
+  const response = await fetchImpl(JEV_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({
+      model: JEV_MODEL,
+      state: {
+        utterance: text.trim(),
+        context: typeof context === "string" ? context : ""
+      },
+      questions: {
+        route: {
+          type: "choice",
+          instructions: "Choose the single best first routing destination for the user's utterance.",
+          criteria: ROUTE_CRITERIA
+        }
+      }
+    })
+  });
+
+  if (!response.ok) throw new Error(`Jev HTTP ${response.status}`);
+  const payload = await response.json();
+  const answer = payload?.answers?.route;
+  if (!answer || typeof answer.choice !== "string" || !(answer.choice in ROUTE_CRITERIA)) {
+    throw new Error("Invalid Jev route response");
+  }
+  return {
+    model: typeof payload.model === "string" ? payload.model : JEV_MODEL,
+    route: answer.choice,
+    confidence: Number.isFinite(answer.confidence) ? answer.confidence : null,
+    probabilities: answer.probabilities && typeof answer.probabilities === "object"
+      ? answer.probabilities
       : {},
     usage: payload.usage ?? null
   };

@@ -1,7 +1,7 @@
 import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
-import { routeIntent, ROUTER_MODEL } from "./router.mjs";
-import { routeIntentJev, JEV_MODEL } from "./jev.mjs";
+import { routeIntentOpenAIDecisions, OPENAI_DECISIONS_MODEL } from "./openai-decisions.mjs";
+import { routeIntentJevClassification, JEV_MODEL } from "./jev.mjs";
 
 async function measured(name, model, fn) {
   const started = performance.now();
@@ -28,12 +28,12 @@ async function measured(name, model, fn) {
 }
 
 export async function compareRouters(input, dependencies = {}) {
-  const lunaFn = dependencies.routeIntent || routeIntent;
-  const jevFn = dependencies.routeIntentJev || routeIntentJev;
+  const lunaFn = dependencies.routeIntentOpenAIDecisions || routeIntentOpenAIDecisions;
+  const jevFn = dependencies.routeIntentJevClassification || routeIntentJevClassification;
 
   const [luna, jev] = await Promise.all([
-    measured("luna", ROUTER_MODEL, () => lunaFn({ ...input, benchmarkClassificationOnly: true })),
-    measured("jev", JEV_MODEL, () => jevFn(input))
+    measured("openai_decisions", OPENAI_DECISIONS_MODEL, () => lunaFn(input)),
+    measured("jev_decisions", JEV_MODEL, () => jevFn(input))
   ]);
 
   const deltaMs = luna.ok && jev.ok ? luna.latencyMs - jev.latencyMs : null;
