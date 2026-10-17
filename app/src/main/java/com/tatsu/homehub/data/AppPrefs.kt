@@ -63,6 +63,13 @@ class AppPrefs(context: Context) {
             }
         }
 
+    var aiModelProfile: String
+        get() = prefs.getString("ai_model_profile", "current")
+            ?.takeIf { it in setOf("current", "deepseek") } ?: "current"
+        set(value) {
+            if (value in setOf("current", "deepseek")) prefs.edit().putString("ai_model_profile", value).apply()
+        }
+
     var voiceLanguageTag: String
         get() {
             if (!prefs.getBoolean(KEY_VOICE_AUTO_MIGRATED, false)) {
