@@ -2,7 +2,9 @@ import { ROUTER_MODEL } from "./router.mjs";
 import { REASONING_MODEL } from "./reasoner.mjs";
 import { DEEPSEEK_MODEL } from "./deepseek.mjs";
 
-export const DEFAULT_MODEL_PROFILE = "current";
+// Opt-in at the backend: never expose a provider key to Android/Web.
+export const DEFAULT_MODEL_PROFILE = process.env.TATSU_CHAT_PROVIDER === "deepseek" && process.env.DEEPSEEK_API_KEY
+  ? "deepseek" : "current";
 
 export const MODEL_PROFILES = Object.freeze({
   current: Object.freeze({ routerModel: ROUTER_MODEL, reasoningModel: REASONING_MODEL }),
