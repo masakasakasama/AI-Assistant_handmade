@@ -5,6 +5,7 @@ import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import { routeIntent, ROUTER_MODEL } from "./router.mjs";
 import { reason, REASONING_MODEL } from "./reasoner.mjs";
+import { answerSimple } from "./simple.mjs";
 import { resolveModelProfile } from "./model-profiles.mjs";
 
 // Tests inject dependencies; this endpoint never executes physical actions.
@@ -28,7 +29,11 @@ export async function dispatch(input, dependencies = {}) {
   let answerFirstTokenAt = null;
   let answerCompletedAt = null;
   const calls = [{ model: routed.model || modelProfile.routerModel, usage: _usage ?? null }];
-  if (["simple_chat", "clarify"].includes(route.route)) {
+  if (route.route === "simple_chat" && modelProfile.simpleModel) {
+    const response = await (dependencies.answerSimple || answerSimple)({ ...input, language: route.language, model: modelProfile.simpleModel });
+    calls.push({ model: response.model, usage: response.usage ?? null });
+    answer = { model: response.model, text: response.text, effort: "none" };
+  } else if (["simple_chat", "clarify"].includes(route.route)) {
     if (!route.replyText?.trim()) throw new Error("Missing router reply");
     answer = { model: modelProfile.routerModel, text: route.replyText };
   } else if (route.route === "deep_reasoning") {
@@ -44,7 +49,7 @@ export async function dispatch(input, dependencies = {}) {
     calls.push({ model: response.model, usage: response.usage ?? null });
     answer = { model: response.model, text: response.text, effort: answerMode.effort };
   }
-  if (["simple_chat", "clarify"].includes(route.route)) {
+  if (["simple_chat", "clarify"].includes(route.route) && !modelProfile.simpleModel) {
     answerTtftMs = _timings?.ttftMs ?? null;
     answerFirstTokenAt = _timings?.firstTokenAtMs ?? null;
     answerCompletedAt = _timings?.completedAtMs ?? null;

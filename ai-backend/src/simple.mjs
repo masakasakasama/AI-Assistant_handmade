@@ -1,8 +1,12 @@
 import { createResponse, outputText } from "./openai.mjs";
 import { ROUTER_MODEL } from "./router.mjs";
 import { CONVERSATION_STYLE } from "./conversation-style.mjs";
+import { answerDeepSeek, DEEPSEEK_MODEL } from "./deepseek.mjs";
 
 export async function answerSimple({ text, context = "", language = "ja", model = ROUTER_MODEL }) {
+  if (model === DEEPSEEK_MODEL) {
+    return answerDeepSeek({ text, language, concise: true, effort: "none" });
+  }
   const response = await createResponse({
     model,
     reasoning: { effort: "none" },

@@ -4,7 +4,7 @@ import { requestAuthError } from "../ai-backend/src/request-auth.mjs";
 import { parseRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "../ai-backend/src/request-body.mjs";
 import { apiError } from "../ai-backend/src/openai.mjs";
 import { dispatch } from "../ai-backend/src/dispatch.mjs";
-import { MODEL_PROFILES } from "../ai-backend/src/model-profiles.mjs";
+import { MODEL_PROFILES, DEFAULT_MODEL_PROFILE } from "../ai-backend/src/model-profiles.mjs";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       res.status(400).json({ error: "text is required" });
       return;
     }
-    const modelProfile = typeof body.modelProfile === "string" ? body.modelProfile : "current";
+    const modelProfile = typeof body.modelProfile === "string" ? body.modelProfile : DEFAULT_MODEL_PROFILE;
     if (!Object.hasOwn(MODEL_PROFILES, modelProfile)) {
       res.status(400).json({ error: "unsupported_model_profile", allowed: Object.keys(MODEL_PROFILES) });
       return;

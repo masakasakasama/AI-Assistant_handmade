@@ -24,6 +24,8 @@ export class ModelTimeoutError extends Error {
 export function apiError(error) {
   const limit = requestLimitFailure(error);
   if (limit) return limit;
+  if (error?.code === "deepseek_sensitive_input") return { status: 422, body: { error: "deepseek_sensitive_input", message: "Sensitive question cannot be sent to DeepSeek" } };
+  if (error?.code === "deepseek_unavailable") return { status: 503, body: { error: "deepseek_unavailable", message: "DeepSeek is not configured" } };
   if (error?.code === "invalid_answer_mode") {
     return { status: 400, body: { error: error.code, message: "回答モードが不正です" } };
   }
