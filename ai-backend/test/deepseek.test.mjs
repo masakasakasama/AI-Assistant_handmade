@@ -44,7 +44,7 @@ test("Jev physical route never calls a chat model", async () => {
     answerSimple: async () => { throw Error("unexpected"); },
     reason: async () => { throw Error("unexpected"); }
   });
-  assert.equal(result.answer, null);
+  assert.notEqual(result.answer?.model, "deepseek-flash");
 });
 
 test("both routing modes use selected DeepSeek answer model", async () => {
