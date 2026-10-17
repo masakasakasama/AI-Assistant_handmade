@@ -40,7 +40,7 @@ export async function dispatchJev(input, dependencies = {}) {
     const response = await (dependencies.answerSimple || answerSimple)({
       ...input,
       language: route.language,
-      model: modelProfile.routerModel
+      model: modelProfile.simpleModel || modelProfile.routerModel
     });
     answerMs = Math.round(now()) - Math.round(answerStarted);
     answerTtftMs = response.timings?.ttftMs ?? null;
