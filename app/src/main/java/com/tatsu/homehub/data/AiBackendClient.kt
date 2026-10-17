@@ -104,13 +104,14 @@ data class AiPipelineTimings(
 
 class AiBackendClient(
     private val answerModeProvider: () -> String = { "balanced" },
-    private val tokenProvider: () -> String = { "" }
+    private val tokenProvider: () -> String = { "" },
+    private val modelProfileProvider: () -> String = { "current" }
 ) {
     suspend fun dispatch(
         baseUrl: String,
         text: String,
         context: String = ""
-    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch")
+    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch", modelProfileProvider())
 
     suspend fun dispatchWithProfile(
         baseUrl: String,
@@ -124,7 +125,7 @@ class AiBackendClient(
         text: String,
         context: String = "",
         modelProfile: String? = null
-    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch-jev", modelProfile)
+    ): Result<AiDispatchResult> = dispatchAt(baseUrl, text, context, "/api/dispatch-jev", modelProfile ?: modelProfileProvider())
 
     private suspend fun dispatchAt(
         baseUrl: String,
