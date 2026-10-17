@@ -4,6 +4,7 @@ import { requestAuthError } from "../ai-backend/src/request-auth.mjs";
 import { parseRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "../ai-backend/src/request-body.mjs";
 import { apiError } from "../ai-backend/src/openai.mjs";
 import { dispatchJev } from "../ai-backend/src/dispatch-jev.mjs";
+import { DEFAULT_MODEL_PROFILE } from "../ai-backend/src/model-profiles.mjs";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -25,7 +26,7 @@ export default async function handler(req, res) {
     const result = await dispatchJev({
       text: body.text.trim(),
       context: typeof body.context === "string" ? body.context : "",
-      modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : "current",
+      modelProfile: typeof body.modelProfile === "string" ? body.modelProfile : DEFAULT_MODEL_PROFILE,
       answerMode: body.answerMode
     });
     res.setHeader("Cache-Control", "no-store");
