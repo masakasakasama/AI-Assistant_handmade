@@ -203,7 +203,7 @@ async function refreshNews(){
     const batches=Array.isArray(result.items)?result.items:[];
     host.replaceChildren();
     for(const batch of batches){
-      if(!batch || !Array.isArray(batch.alerts) || !batch.alerts.length)continue;
+      if(!batch || !Array.isArray(batch.alerts))continue;
       const card=document.createElement('article');card.className='card news-batch';
       const stamp=document.createElement('p');stamp.className='muted';
       stamp.textContent='分析時刻：'+(Number.isFinite(Date.parse(batch.capturedAt))?
