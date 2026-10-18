@@ -6,6 +6,8 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tatsu.homehub.alarm.AlarmScheduler
+import com.tatsu.homehub.news.NewsClient
+import com.tatsu.homehub.news.HomeNewsBatch
 import com.tatsu.homehub.data.AiBackendClient
 import com.tatsu.homehub.data.AiDispatchResult
 import com.tatsu.homehub.data.AiPipelineTimings
@@ -85,6 +87,29 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val networkMonitor = NetworkMonitor(application) {
         if (hasSwitchBotCredentials()) refreshDevices(showMessage = false)
         refreshWeather(showError = false)
+    }
+
+    private val _news = MutableStateFlow<List<HomeNewsBatch>>(emptyList())
+    val news: StateFlow<List<HomeNewsBatch>> = _news.asStateFlow()
+    private val _newsError = MutableStateFlow<String?>(null)
+    val newsError: StateFlow<String?> = _newsError.asStateFlow()
+
+    fun refreshNews() {
+        val token = securePrefs.get(SecurePrefs.KEY_AI_BACKEND_TOKEN).orEmpty()
+        if (token.isBlank()) {
+            _newsError.value = "Backend認証トークンを設定してください"
+            return
+        }
+        viewModelScope.launch {
+            runCatching { NewsClient().load(appPrefs.aiBackendUrl, token) }
+                .onSuccess {
+                    _news.value = it
+                    _newsError.value = null
+                }
+                .onFailure {
+                    _newsError.value = "ニュースを取得できません（接続・認証・Backendの保存設定を確認）"
+                }
+        }
     }
 
     private val _devices = MutableStateFlow<List<SwitchBotDevice>>(emptyList())
