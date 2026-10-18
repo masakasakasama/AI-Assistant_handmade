@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     res.status(200).json(result);
   } catch (error) {
-    logRequestFailure();
+    logRequestFailure(error);
     const failure = requestBodyError(error) || apiError(error);
     res.status(failure.status).json(failure.body);
   }

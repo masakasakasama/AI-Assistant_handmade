@@ -1,3 +1,4 @@
+import {providerError} from './provider-error.mjs';
 import {isActionRequest} from './device-command.mjs';
 export const JEV_MODEL = process.env.JEV_MODEL || "typesafe/jev-1.13";
 export const JEV_ENDPOINT = process.env.JEV_ENDPOINT || "https://openrouter.ai/api/alpha/decisions";
@@ -273,7 +274,7 @@ export async function routeIntentJevClassification({ text, context = "" }, depen
     })
   });
 
-  if (!response.ok) throw new Error(`Jev HTTP ${response.status}`);
+  if (!response.ok) throw providerError("jev", response.status, await response.json().catch(() => ({})));
   const payload = await response.json();
   const answer = payload?.answers?.route;
   if (!answer || typeof answer.choice !== "string" || !(answer.choice in ROUTE_CRITERIA)) {
@@ -393,7 +394,7 @@ export async function routeIntentJev({ text, context = "" }, dependencies = {}) 
     })
   });
 
-  if (!response.ok) throw new Error(`Jev HTTP ${response.status}`);
+  if (!response.ok) throw providerError("jev", response.status, await response.json().catch(() => ({})));
   return parseJevRouteResponse(await response.json(), {
     deviceMap: deviceCandidates.map,
     allowRecovery: isActionRequest(text),

@@ -1,3 +1,4 @@
+import {providerError,providerFailure} from './provider-error.mjs';
 import { requestLimitFailure } from "./request-limits.mjs";
 import { performance } from "node:perf_hooks";
 
@@ -22,6 +23,8 @@ export class ModelTimeoutError extends Error {
 }
 
 export function apiError(error) {
+  const upstream = providerFailure(error);
+  if (upstream) return upstream;
   const limit = requestLimitFailure(error);
   if (limit) return limit;
   if (error?.code === "deepseek_sensitive_input") return { status: 422, body: { error: "deepseek_sensitive_input", message: "Sensitive question cannot be sent to DeepSeek" } };
@@ -62,8 +65,8 @@ async function readResponse(body, signal, started) {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`OpenAI HTTP ${response.status}: ${text}`);
+    const detail = await response.json().catch(() => ({}));
+    throw providerError("openai", response.status, detail);
   }
   if (!response.body) throw new Error("OpenAI response stream was empty");
   const reader = response.body.getReader();
@@ -88,7 +91,7 @@ async function readResponse(body, signal, started) {
       }
       if (event.type === "response.completed" || event.type === "response.incomplete") completed = event.response;
       if (event.type === "response.failed" || event.type === "error") {
-        throw new Error(event.response?.error?.message || event.error?.message || "OpenAI stream failed");
+        throw providerError("openai", response.status, event.response?.error || event.error || event);
       }
     }
     if (done) break;
