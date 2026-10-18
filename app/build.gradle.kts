@@ -65,7 +65,6 @@ android {
 dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.work:work-runtime-ktx:2.10.5")
     implementation("com.google.android.filament:filament-android:1.56.0")
     implementation("com.google.android.filament:gltfio-android:1.56.0")
     implementation("androidx.activity:activity-compose:1.10.1")

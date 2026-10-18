@@ -71,8 +71,6 @@ import com.tatsu.homehub.data.RouterDecisionResult
 import com.tatsu.homehub.data.ModelComparisonState
 import com.tatsu.homehub.data.ModelComparisonSample
 import com.tatsu.homehub.data.ModelComparisonSide
-import com.tatsu.homehub.news.HomeNewsBatch
-import androidx.compose.ui.platform.LocalUriHandler
 import com.tatsu.homehub.data.AppPrefs
 import com.tatsu.homehub.data.WeatherClient
 import com.tatsu.homehub.data.WeatherSnapshot
@@ -95,14 +93,11 @@ private enum class DashboardTab(val label: String, val icon: ImageVector) {
     HOME("ホーム", Icons.Outlined.Home),
     DEVICES("家電", Icons.Outlined.Lightbulb),
     ALARMS("アラーム", Icons.Outlined.Alarm),
-    AI("AI", Icons.Outlined.AutoAwesome),
-    NEWS("ニュース", Icons.Outlined.Article)
+    AI("AI", Icons.Outlined.AutoAwesome)
 }
 
 @Composable
-fun HomeHubScreen(viewModel: HomeViewModel, showNews: Boolean = false) {
-    val news by viewModel.news.collectAsState()
-    val newsError by viewModel.newsError.collectAsState()
+fun HomeHubScreen(viewModel: HomeViewModel) {
     val devices by viewModel.devices.collectAsState()
     val temporaryRoomAssignments by viewModel.temporaryRoomAssignments.collectAsState()
     val roomDevices = devices.map { TemporaryRoomAssignments.applyRoom(it, temporaryRoomAssignments[it.deviceId]) }
@@ -129,8 +124,6 @@ fun HomeHubScreen(viewModel: HomeViewModel, showNews: Boolean = false) {
 
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     var tab by remember { mutableStateOf(DashboardTab.HOME) }
-    LaunchedEffect(showNews) { if (showNews) tab = DashboardTab.NEWS }
-    LaunchedEffect(tab) { if (tab == DashboardTab.NEWS) viewModel.refreshNews() }
     var showSettings by remember { mutableStateOf(false) }
     var showAlarmEditor by remember { mutableStateOf(false) }
     var editingAlarm by remember { mutableStateOf<LocalAlarm?>(null) }
@@ -177,7 +170,6 @@ fun HomeHubScreen(viewModel: HomeViewModel, showNews: Boolean = false) {
                             viewModel.refreshDevices()
                             viewModel.refreshWeather()
                             viewModel.checkAiBackend(showMessage = false)
-                            if (tab == DashboardTab.NEWS) viewModel.refreshNews()
                         },
                         onSettings = { showSettings = true }
                     )
@@ -273,10 +265,6 @@ fun HomeHubScreen(viewModel: HomeViewModel, showNews: Boolean = false) {
                                 onDelete = viewModel::deleteAlarm
                             )
                         }
-                    }
-
-                    DashboardTab.NEWS -> {
-                        item { NewsFeedCard(news, newsError, viewModel::refreshNews) }
                     }
 
                     DashboardTab.AI -> {
@@ -1968,35 +1956,3 @@ private fun repeatLabel(mask: Int): String {
     }.joinToString(" ")
 }
 
-@Composable
-private fun NewsFeedCard(batches: List<HomeNewsBatch>, error: String?, onRefresh: () -> Unit) {
-    val uriHandler = LocalUriHandler.current
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("ニュース・トレンド", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = onRefresh) { Text("更新") }
-        }
-        Text("Brainが選別したニュース。情報の正確性は元記事で確認してください",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (error != null) Text(error, color = MaterialTheme.colorScheme.error)
-        if (batches.isEmpty() && error == null) Text("ニュースの記録はまだありません")
-        batches.forEach { batch ->
-            Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(batch.capturedAt.take(16).replace("T", " "),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (batch.digest.isNotBlank()) Text(batch.digest)
-                    batch.alerts.forEach { alert ->
-                        Text("${alert.score}/100　${alert.summary}",
-                            fontWeight = FontWeight.SemiBold)
-                        TextButton(onClick = { runCatching { uriHandler.openUri(alert.url) } }) {
-                            Text("元記事を見る")
-                        }
-                    }
-                }
-            }
-        }
-    }
-}

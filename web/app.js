@@ -39,7 +39,7 @@ function save(storage,key,value){try{storage.setItem(key,JSON.stringify(value));
 function setPhase(next){phase=next;mascot?.setPhase(next);const [status,caption]=labels[next];$('#voice-state').textContent=status;$('#mascot-caption').textContent=caption;}
 function setBusy(value){busy=value;$('#listen').disabled=value;$('#chat-form button[type="submit"]').disabled=value;$('#compare-form button').disabled=value;$('#cancel').hidden=!value;$('#stop-recording').hidden=!recording;}
 function setError(error){const text=error?.name==='NotAllowedError'?'マイクの使用を許可してください。Safariのサイト設定から変更できます。':error?.message||String(error);$('#voice-error').textContent=text;$('#voice-error').hidden=false;setPhase('ERROR');}
-function showTab(name){tab=name;document.querySelectorAll('[data-page]').forEach(page=>page.hidden=page.dataset.page!==name);document.querySelectorAll('[data-tab]').forEach(button=>{if(button.dataset.tab===name)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});mascot?.setActive(name==='home');if(name==='alarms')renderAlarms();if(name==='news')void refreshNews();}
+function showTab(name){tab=name;document.querySelectorAll('[data-page]').forEach(page=>page.hidden=page.dataset.page!==name);document.querySelectorAll('[data-tab]').forEach(button=>{if(button.dataset.tab===name)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});mascot?.setActive(name==='home');if(name==='alarms')renderAlarms();}
 document.querySelectorAll('[data-tab]').forEach(button=>button.addEventListener('click',()=>showTab(button.dataset.tab)));
 $('#go-talk').onclick=()=>showTab('home');
 function stopTts(){if(utterance){utterance.onstart=utterance.onend=utterance.onerror=null;utterance=null;}window.speechSynthesis?.cancel();$('#stop-speaking').hidden=true;if(phase==='SPEAKING')setPhase('IDLE');}
@@ -191,50 +191,6 @@ $('#settings-form').onsubmit=async event=>{
   $('#settings').close();toast('保存しました。次回も入力せず使えます。');void refreshWeather();
 };
 
-async function refreshNews(){
-  const status=$('#news-status'),host=$('#news-items');
-  if(!credentials.ownerToken){status.textContent='設定からBackend認証トークンを入力してください';return;}
-  status.textContent='最新情報を取得中';
-  try{
-    const response=await fetch('/api/news',{headers:{Authorization:'Bearer '+credentials.ownerToken},
-      cache:'no-store',redirect:'error',signal:AbortSignal.timeout(12000)});
-    if(!response.ok)throw new Error('取得失敗（HTTP '+response.status+'）');
-    const result=await response.json();
-    const batches=Array.isArray(result.items)?result.items:[];
-    host.replaceChildren();
-    for(const batch of batches){
-      if(!batch || !Array.isArray(batch.alerts))continue;
-      const card=document.createElement('article');card.className='card news-batch';
-      const stamp=document.createElement('p');stamp.className='muted';
-      stamp.textContent='分析時刻：'+(Number.isFinite(Date.parse(batch.capturedAt))?
-        new Date(batch.capturedAt).toLocaleString('ja-JP'): '不明');
-      card.append(stamp);
-      if(typeof batch.digest==='string'&&batch.digest){
-        const summary=document.createElement('p');summary.textContent=batch.digest;card.append(summary);
-      }
-      for(const alert of batch.alerts){
-        if(!alert||typeof alert.summary!=='string')continue;
-        const item=document.createElement('div');item.className='news-alert';
-        const title=document.createElement('p');title.textContent=(Number(alert.score)||0)+'/100 · '+alert.summary;
-        item.append(title);
-        try{
-          const url=new URL(alert.url);
-          if(url.protocol==='https:'||url.protocol==='http:'){
-            const link=document.createElement('a');link.href=url.href;link.target='_blank';
-            link.rel='noopener noreferrer';link.textContent='ニュースの元記事を開く';item.append(link);
-          }
-        }catch{/* ignore invalid source URL */}
-        card.append(item);
-      }
-      host.append(card);
-    }
-    status.textContent=host.children.length?host.children.length+'回分の重要情報':'重要ニュースはまだありません';
-  }catch{
-    status.textContent='ニュースを取得できません。認証・通信・Backend保存設定を確認してください';
-  }
-}
-$('#refresh-news').onclick=()=>void refreshNews();
-
 function weatherLabel(code){if(code===0)return '快晴';if(code===1)return '晴れ';if(code===2)return '一部くもり';if(code===3)return 'くもり';if([45,48].includes(code))return '霧';if(code>=51&&code<=57)return '霧雨';if(code>=61&&code<=67)return '雨';if(code>=71&&code<=77)return '雪';if(code>=80&&code<=82)return 'にわか雨';if(code>=85&&code<=86)return 'にわか雪';if(code>=95)return '雷雨';return '天気情報';}
 async function refreshWeather(){
   $('#weather-place').textContent=settings.place;const lat=settings.latitude,lon=settings.longitude;
@@ -246,7 +202,7 @@ async function refreshWeather(){
   }catch{$('#weather-label').textContent='天気を取得できません';}finally{clearTimeout(weatherTimeout);}
 }
 function updateClock(){const now=new Date();$('#clock').textContent=now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',hour12:false});$('#date').textContent=now.toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'long'});}
-$('#refresh').onclick=()=>{void refreshWeather();void checkUpdate();if(tab==='devices')void syncDevices();if(tab==='news')void refreshNews();};
+$('#refresh').onclick=()=>{void refreshWeather();void checkUpdate();if(tab==='devices')void syncDevices();};
 
 function switchbotBody(){if(!credentials.switchbotToken||!credentials.switchbotSecret)throw new Error('設定でSwitchBotのTokenとSecretを入力してください。');return {token:credentials.switchbotToken,secret:credentials.switchbotSecret};}
 async function syncDevices(){
