@@ -7,3 +7,5 @@
 .mascot-name{text-align:center;font-size:15px;font-weight:600;margin:12px 0 0}
 
 a{color:var(--blue)}
+
+.news-batch{padding:18px 20px}.news-alert{border-top:1px solid var(--line);padding:12px 0}.news-alert p{margin:0 0 6px}.news-alert a{font-size:13px}

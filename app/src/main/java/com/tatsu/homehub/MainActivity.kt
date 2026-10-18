@@ -13,6 +13,16 @@ import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.tatsu.homehub.news.NewsWorker
+import java.util.concurrent.TimeUnit
 import androidx.activity.viewModels
 import androidx.core.app.ActivityCompat
 import com.tatsu.homehub.admin.AdminReceiver
@@ -22,20 +32,38 @@ import com.tatsu.homehub.ui.HomeViewModel
 
 class MainActivity : ComponentActivity() {
     private val viewModel: HomeViewModel by viewModels()
+    private var showNews by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        showNews = intent?.getBooleanExtra("open_news", false) == true
+        scheduleNewsChecks()
         requestRuntimePermissionsIfNeeded()
         requestExactAlarmPermissionIfNeeded()
 
         setContent {
             HomeHubTheme {
-                HomeHubScreen(viewModel)
+                HomeHubScreen(viewModel, showNews)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        showNews = intent.getBooleanExtra("open_news", false)
+    }
+
+    private fun scheduleNewsChecks() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED).build()
+        val work = PeriodicWorkRequestBuilder<NewsWorker>(1, TimeUnit.HOURS)
+            .setConstraints(constraints).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "TatsuHomeNews", ExistingPeriodicWorkPolicy.KEEP, work)
     }
 
     override fun onResume() {

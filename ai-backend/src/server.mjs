@@ -1,4 +1,5 @@
 import { claimRequest } from "./request-limits.mjs";
+import { publishNews, listNews, newsApiError } from "./news-store.mjs";
 import { logRequestFailure } from "./safe-logging.mjs";
 import { requestAuthError } from "./request-auth.mjs";
 import { readRequestBody, requestBodyError, AUDIO_BODY_LIMIT } from "./request-body.mjs";
@@ -34,6 +35,20 @@ const server = http.createServer(async (req, res) => {
         openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
         jevConfigured: Boolean(process.env.JEV_OPENROUTER_API_KEY)
       });
+    }
+
+    if (req.url === "/api/news" && ["GET", "POST"].includes(req.method)) {
+      const auth = requestAuthError(req);
+      if (auth) return json(res, auth.status, auth.body);
+      try {
+        const result = req.method === "POST" ?
+          await publishNews(await readRequestBody(req)) : await listNews();
+        return json(res, 200, result);
+      } catch (error) {
+        logRequestFailure();
+        const failure = requestBodyError(error) || newsApiError(error);
+        return json(res, failure.status, failure.body);
+      }
     }
 
     if (req.method === "POST" && ["/api/dispatch", "/api/dispatch-jev", "/api/router-compare", "/api/transcribe"].includes(req.url)) {
